@@ -5,6 +5,7 @@ Dark-themed renewable energy monitoring dashboard for Tunisia.
 
 import os
 import time
+from datetime import datetime, timezone, timedelta
 
 import httpx
 import pandas as pd
@@ -270,8 +271,16 @@ def load_billing_data() -> pd.DataFrame:
         return pd.DataFrame(columns=["region", "consumption_kwh", "billing_period"])
 
 
-def is_anomaly(output_mw: float, baseline_mw: float) -> bool:
-    return output_mw < baseline_mw * (1 - ANOMALY_THRESHOLD)
+def get_expected_output(region: str, source_type: str, baseline_mw: float) -> float:
+    tunis_hour = (datetime.now(timezone.utc) + timedelta(hours=1)).hour
+    if source_type == "Solar" and (tunis_hour < 6 or tunis_hour > 19):
+        return 0.0  # Nighttime — solar expects 0
+    return baseline_mw
+
+
+def is_anomaly(output_mw: float, baseline_mw: float, region: str = "", source_type: str = "") -> bool:
+    expected = get_expected_output(region, source_type, baseline_mw)
+    return output_mw < expected * 0.8 and expected > 0
 
 
 # ── Build dashboard data ──────────────────────────────────────────────────────
@@ -293,7 +302,7 @@ def build_gov_data() -> list[dict]:
 
         renewable_kwh = output * 1000 * 3  # assume 3-hour period
         c_score = get_carbon(gov["name"], consumption, renewable_kwh)
-        anomaly = is_anomaly(output, gov["baseline_mw"])
+        anomaly = is_anomaly(output, gov["baseline_mw"], gov["name"], gov["source"])
 
         rows.append(
             {
@@ -468,6 +477,11 @@ for col, g in zip(cols, gov_data):
 
         html += "</div>"
         st.markdown(html, unsafe_allow_html=True)
+
+        status = "ANOMALY" if g["anomaly"] else "Normal"
+        if status == "ANOMALY":
+            if st.button(f"🚁 Dispatch Drone → {g['name']}", key=f"drone_{g['name']}"):
+                st.success(f"✅ Drone dispatched to {g['name']}. Inspection in progress.")
 
 # ── Selected governorate detail ───────────────────────────────────────────────
 sel = gov_lookup.get(st.session_state.selected_gov)
