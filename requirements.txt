@@ -1,0 +1,14 @@
+# NoorGrid — Python dependencies
+
+# Backend
+fastapi==0.115.12
+uvicorn[standard]==0.34.0
+httpx==0.28.1
+pydantic==2.11.1
+
+# Frontend
+streamlit==1.44.0
+pandas==2.2.3
+pydeck==0.9.1
+folium==0.19.5
+streamlit-folium==0.25.0
