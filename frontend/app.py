@@ -76,6 +76,7 @@ GOVERNORATES: list[dict] = [
 
 SOURCE_ICON = {"Wind": "💨", "Solar": "☀️", "Hydro": "💧"}
 ANOMALY_THRESHOLD = 0.20  # 20% below baseline
+WIND_OPERATIONAL_THRESHOLD_MS = 3.0  # m/s — minimum for productive wind generation
 
 # ── Dark theme CSS ────────────────────────────────────────────────────────────
 st.markdown(
@@ -152,6 +153,16 @@ st.markdown(
         border: 1px solid #30363d;
         border-radius: 8px;
         padding: 10px 16px;
+    }
+    /* ── Wind context label ────────────────────────────────────── */
+    .wind-context {
+        margin-top: 8px;
+        padding: 6px 10px;
+        background: #1c2536;
+        border-left: 3px solid #388bfd;
+        border-radius: 4px;
+        font-size: 0.82em;
+        color: #8b949e;
     }
     </style>
     """,
@@ -273,6 +284,16 @@ def load_billing_data() -> pd.DataFrame:
         return pd.DataFrame(columns=["region", "consumption_kwh", "billing_period"])
 
 
+def wind_context_label(wind_spd: float) -> str:
+    """Return a formatted wind context string for display."""
+    if wind_spd < WIND_OPERATIONAL_THRESHOLD_MS:
+        return (
+            f"Current wind: {wind_spd:.2f} m/s"
+            f" — below {WIND_OPERATIONAL_THRESHOLD_MS:.0f} m/s operational threshold"
+        )
+    return f"Current wind: {wind_spd:.2f} m/s"
+
+
 def get_expected_output(region: str, source_type: str, baseline_mw: float) -> float:
     tunis_hour = (datetime.now(timezone.utc) + timedelta(hours=1)).hour
     if source_type == "Solar" and (tunis_hour < 6 or tunis_hour > 19):
@@ -306,6 +327,12 @@ def build_gov_data() -> list[dict]:
         c_score = get_carbon(gov["name"], consumption, renewable_kwh)
         anomaly = is_anomaly(output, gov["baseline_mw"], gov["name"], gov["source"])
 
+        wind_speed = (
+            weather.get(gov["name"], {}).get("wind_speed_ms")
+            if gov["source"] == "Wind"
+            else None
+        )
+
         rows.append(
             {
                 "name": gov["name"],
@@ -316,6 +343,7 @@ def build_gov_data() -> list[dict]:
                 "output_mw": round(output, 2),
                 "carbon_score_kg": round(c_score, 1),
                 "anomaly": anomaly,
+                "wind_speed_ms": wind_speed,
             }
         )
     return rows
@@ -466,6 +494,13 @@ for col, g in zip(cols, gov_data):
           <b>Carbon score:</b> {g['carbon_score_kg']:,.0f} kg CO₂
         """
 
+        # Real-time wind speed row for all Wind cards
+        if g["source"] == "Wind" and g.get("wind_speed_ms") is not None:
+            wind_spd = g["wind_speed_ms"]
+            html += f"""
+          <br/><b>🌬️ Wind speed:</b> {wind_spd:.2f} m/s
+            """
+
         if g["anomaly"] and g["name"] in st.session_state.drone_dispatched:
             html += """
           <div class="drone-alert">🚁 DRONE DISPATCH INITIATED</div>
@@ -476,6 +511,11 @@ for col, g in zip(cols, gov_data):
             ⚠️ ANOMALY DETECTED
           </div>
             """
+
+        # Weather context label under anomaly for Wind turbines
+        if g["anomaly"] and g["source"] == "Wind" and g.get("wind_speed_ms") is not None:
+            ctx = wind_context_label(g["wind_speed_ms"])
+            html += f'<div class="wind-context">🌬️ {ctx}</div>'
 
         html += "</div>"
         st.markdown(html, unsafe_allow_html=True)
@@ -495,6 +535,15 @@ if sel:
     c3.metric("Carbon Score", f"{sel['carbon_score_kg']:,.0f} kg CO₂")
     c4.metric("Status", "⚠️ Anomaly" if sel["anomaly"] else "✅ Normal")
 
+    if sel["source"] == "Wind" and sel.get("wind_speed_ms") is not None:
+        ctx = wind_context_label(sel["wind_speed_ms"])
+        st.markdown(
+            f'<div class="wind-context">🌬️ {ctx}</div>',
+            unsafe_allow_html=True,
+        )
+
+# ── STEG Billing data ─────────────────────────────────────────────────────────
+st.markdown("## 📊 STEG Billing Data")
 # ── Consumption vs Renewable Production chart ─────────────────────────────────
 st.markdown("## 📊 Consumption vs Renewable Production by Governorate")
 
