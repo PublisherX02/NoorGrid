@@ -1351,7 +1351,7 @@ Be specific, data-driven, under 500 words."""
                         "top_p": 0.9,
                         "stream": False,
                     },
-                    timeout=45,
+                    timeout=120,
                 )
                 nim_resp.raise_for_status()
                 advice_text = nim_resp.json()["choices"][0]["message"]["content"]
