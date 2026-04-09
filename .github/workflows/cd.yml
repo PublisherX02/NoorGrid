@@ -3,6 +3,12 @@ name: NoorGrid CD — Auto Pull Request to Main
 on:
   push:
     branches: [dev]
+  workflow_dispatch:
+    inputs:
+      head_branch:
+        description: 'Branch to merge into main'
+        required: false
+        default: 'dev'
 
 jobs:
   create-pr:
@@ -17,11 +23,12 @@ jobs:
 
       - name: Create PR via GitHub CLI
         run: |
+          BRANCH="${{ github.event.inputs.head_branch || github.ref_name }}"
           gh pr create \
             --base main \
-            --head dev \
-            --title "NoorGrid: merge dev into main" \
-            --body "Automated PR from dev branch. NoorGrid CI tests passed. Review and merge when ready." \
-            || echo "PR already exists"
+            --head "$BRANCH" \
+            --title "NoorGrid: merge $BRANCH into main" \
+            --body "Automated PR from $BRANCH branch. NoorGrid CI tests passed. Review and merge when ready." \
+            || echo "PR already exists or nothing to merge"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
