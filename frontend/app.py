@@ -23,6 +23,7 @@ st.set_page_config(
 # ── Constants ─────────────────────────────────────────────────────────────────
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 TUNISIA_POPULATION = 11_800_000
+BILLING_PERIOD_HOURS = 3  # billing window used for kWh estimates
 
 GOVERNORATES: list[dict] = [
     {
@@ -299,9 +300,9 @@ def build_gov_data() -> list[dict]:
         if not gov_billing.empty:
             consumption = gov_billing.iloc[-1]["consumption_kwh"]
         else:
-            consumption = gov["baseline_mw"] * 1000 * 3  # rough proxy (kWh)
+            consumption = gov["baseline_mw"] * 1000 * BILLING_PERIOD_HOURS  # rough proxy (kWh)
 
-        renewable_kwh = output * 1000 * 3  # assume 3-hour period
+        renewable_kwh = output * 1000 * BILLING_PERIOD_HOURS  # assume billing period
         c_score = get_carbon(gov["name"], consumption, renewable_kwh)
         anomaly = is_anomaly(output, gov["baseline_mw"], gov["name"], gov["source"])
 
@@ -509,10 +510,10 @@ else:
 
 chart_govs = [g["name"] for g in gov_data]
 consumption_vals = [
-    avg_consumption.get(g["name"], g["baseline_mw"] * 1000 * 3)
+    avg_consumption.get(g["name"], g["baseline_mw"] * 1000 * BILLING_PERIOD_HOURS)
     for g in gov_data
 ]
-renewable_vals = [g["output_mw"] * 1000 * 3 for g in gov_data]
+renewable_vals = [g["output_mw"] * 1000 * BILLING_PERIOD_HOURS for g in gov_data]
 
 fig = go.Figure(
     data=[
