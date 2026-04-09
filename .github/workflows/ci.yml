@@ -10,6 +10,14 @@ jobs:
   test:
     name: Run Tests
     runs-on: ubuntu-latest
+
+    env:
+      # Test environment — backend not running in CI; unit tests do not require it.
+      # Override with a real URL in the repo secret for future integration tests.
+      BACKEND_URL: ${{ secrets.BACKEND_URL || 'http://localhost:8000' }}
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4.2.2
@@ -19,12 +27,18 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
       - name: Run tests
-        run: pytest tests/ -v
-        env:
-          BACKEND_URL: ${{ secrets.BACKEND_URL }}
+        run: pytest tests/ -v --tb=short
