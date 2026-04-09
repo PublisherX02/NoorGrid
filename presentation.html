@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoorGrid | Ideathon Chronicle</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=JetBrains+Mono:wght@100;300;400;700&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #030303; color: #ffffff; font-family: 'Inter', sans-serif; }
+        .cinematic-text { font-family: 'Cinzel', serif; }
+        .mono-text { font-family: 'JetBrains Mono', monospace; }
+        
+        #canvas-container { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 0; }
+        
+        #story-panel {
+            background: linear-gradient(90deg, rgba(3,3,3,0.98) 0%, rgba(10,10,10,0.85) 100%);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid rgba(6, 182, 212, 0.2);
+            box-shadow: 20px 0 50px rgba(0,0,0,0.8);
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        #story-panel::-webkit-scrollbar { display: none; }
+        
+        .fade-transition { transition: opacity 0.6s ease, transform 0.6s ease; }
+        .fade-out { opacity: 0; transform: translateY(10px); }
+        
+        .glow-text-amber { text-shadow: 0 0 20px rgba(251, 191, 36, 0.6); }
+        .glow-text-cyan { text-shadow: 0 0 20px rgba(6, 182, 212, 0.6); }
+        
+        #tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.95);
+            border: 1px solid #06b6d4;
+            color: #fff;
+            padding: 12px 16px;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 50;
+            box-shadow: 0 0 20px rgba(6, 182, 212, 0.2);
+            transform: translate(-50%, -120%);
+        }
+
+        .location-label {
+            position: absolute;
+            color: #fff;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 40;
+            background: rgba(0,0,0,0.8);
+            padding: 6px 10px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-left: 3px solid;
+            transform: translate(-50%, -50%);
+            white-space: nowrap;
+        }
+
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 15px rgba(6,182,212,0.2); }
+            50% { box-shadow: 0 0 35px rgba(6,182,212,0.6); }
+        }
+        .animate-pulse-glow { animation: pulse-glow 3s infinite; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- 3D Environment -->
+    <div id="canvas-container"></div>
+    
+    <!-- 3D Graph Tooltip -->
+    <div id="tooltip" class="mono-text">
+        <div id="tt-title" class="text-gray-400 text-xs mb-1">Source</div>
+        <div id="tt-value" class="text-2xl font-light text-cyan-400">0 MW</div>
+    </div>
+
+    <!-- Dynamic 3D Labels -->
+    <div id="labels-container">
+        <div id="label-solar" class="location-label" style="border-left-color: #fbbf24;">Tozeur / Tataouine<br><span class="text-amber-400 text-[10px]">SOLAR PV ARRAY</span></div>
+        <div id="label-wind" class="location-label" style="border-left-color: #10b981;">Bizerte / Nabeul<br><span class="text-emerald-400 text-[10px]">ONSHORE WIND</span></div>
+        <div id="label-hydro" class="location-label" style="border-left-color: #0ea5e9;">Béja / Jendouba<br><span class="text-sky-400 text-[10px]">HYDROELECTRIC DAM</span></div>
+    </div>
+
+    <!-- UI Overlay: The Story Panel -->
+    <div id="story-panel" class="fixed left-0 top-0 bottom-0 w-full md:w-[450px] lg:w-[500px] z-10 overflow-y-auto flex flex-col justify-between p-8 md:p-12">
+        
+        <header class="mb-10">
+            <h1 class="text-2xl font-bold text-white tracking-[0.2em] cinematic-text">NOOR<span class="text-amber-400">GRID</span></h1>
+            <div class="text-cyan-500 text-[10px] tracking-[0.3em] uppercase mt-2 mono-text border-b border-gray-800 pb-4">Ideathon Research Chronicle</div>
+        </header>
+
+        <main class="flex-grow fade-transition pb-10" id="slide-container">
+            <div class="text-amber-400 text-xs font-bold tracking-widest uppercase mb-4 flex items-center space-x-3 mono-text">
+                <span id="slide-counter">Ch. I</span>
+                <span class="text-gray-600">/</span>
+                <span id="slide-subtitle">The Premise</span>
+            </div>
+            
+            <h2 class="text-3xl md:text-4xl font-bold mb-8 leading-tight text-white cinematic-text" id="slide-title">The National Mandate</h2>
+            
+            <div class="text-gray-300 text-sm font-light leading-relaxed space-y-5" id="slide-body">
+                <!-- Content injected via JS -->
+            </div>
+        </main>
+
+        <footer class="mt-4 pt-6 border-t border-gray-800 flex justify-between items-center bg-[#030303]/90 sticky bottom-0">
+            <button id="btn-prev" class="text-gray-600 hover:text-cyan-400 transition tracking-widest text-xs uppercase mono-text disabled:opacity-0 disabled:cursor-none">
+                Previous
+            </button>
+            <div class="flex space-x-2" id="progress-dots">
+                <!-- Dots injected via JS -->
+            </div>
+        </footer>
+    </div>
+
+    <!-- Next Button (Floating Right) -->
+    <button id="btn-next" class="fixed bottom-12 right-12 z-20 px-6 py-4 bg-black/50 border border-cyan-500 text-cyan-400 font-bold uppercase tracking-[0.2em] text-xs hover:bg-cyan-500 hover:text-black transition-all duration-300 flex items-center space-x-3 group mono-text backdrop-blur-md shadow-[0_0_15px_rgba(6,182,212,0.1)] hover:shadow-[0_0_20px_rgba(6,182,212,0.4)]">
+        <span id="next-text">Next Chapter</span>
+        <span class="group-hover:translate-x-1 transition-transform">&#8594;</span>
+    </button>
+
+    <!-- Start Overlay -->
+    <div id="start-overlay" class="absolute inset-0 bg-black z-50 flex flex-col items-center justify-center pointer-events-auto transition-opacity duration-1000">
+        <h1 class="text-4xl md:text-6xl text-white cinematic-text tracking-[0.2em] mb-4 glow-text-amber">NOORGRID</h1>
+        <p class="text-gray-400 mono-text tracking-widest text-sm mb-12">IDEATHON THESIS - Mohamed Mouelhi</p>
+        
+        <button id="btn-start" class="px-8 py-3 border border-amber-400 text-amber-400 tracking-[0.2em] uppercase text-sm hover:bg-amber-400 hover:text-black transition-all mono-text">Begin Research Journey</button>
+    </div>
+
+    <script>
+        // --- 1. The Narrative & Research Data ---
+        const chartData = [
+            { label: "Solar PV Capacity", value: 470, color: 0xfbbf24 },
+            { label: "Wind Capacity", value: 274, color: 0x10b981 },
+            { label: "Hydroelectric Base", value: 20, color: 0x0ea5e9 }
+        ];
+
+        const camOffset = -8; 
+        let cityBlackoutStartTime = 0;
+
+        const presentationData = [
+            {
+                chapter: "Ch. I", subtitle: "The Premise", title: "The National Mandate",
+                body: `<p>We began our ideathon journey by analyzing a simple, yet daunting metric: Tunisia’s national mandate to achieve <strong>35% renewable electricity integration by 2030 and 50% by 2035</strong>.</p>
+                       <p>To reach this, the geography of the nation is being transformed. But as researchers, we had to ask: is generating the power actually the hardest part of the equation?</p>`,
+                camPos: { x: 0 + camOffset, y: 0, z: 12 }, lookAt: { x: 0 + camOffset, y: 0, z: 0 }, 
+                objId: 'ambition', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. II", subtitle: "The Arsenal", title: "Mapping the Sources",
+                body: `<p>Our research mapped the current infrastructure. We discovered a powerful, yet geographically scattered arsenal of energy.</p>
+                       <ul class="space-y-4 mt-6 text-sm">
+                           <li class="pl-4 border-l-2 border-amber-400"><strong>The South (Tozeur, Tataouine):</strong> Massive Solar PV arrays capturing raw desert insolation.</li>
+                           <li class="pl-4 border-l-2 border-emerald-400"><strong>The Coast (Bizerte, Nabeul):</strong> High-yield wind turbines churning the northern air corridors.</li>
+                           <li class="pl-4 border-l-2 border-sky-400"><strong>The Valleys (Béja, Jendouba):</strong> Legacy hydroelectric dams holding a steady baseline.</li>
+                       </ul>
+                       <p class="mt-6 text-gray-500 italic">The energy exists. But it is decentralized and deeply unpredictable.</p>`,
+                camPos: { x: 40 + camOffset, y: 3, z: 18 }, lookAt: { x: 40 + camOffset, y: 0, z: 0 }, 
+                objId: 'arsenal', showLabels: true, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. III", subtitle: "The Human Cost", title: "The Night The Grid Went Blind",
+                body: `<p class="text-lg leading-relaxed text-gray-300">August 2023. A heatwave grips North Africa. Temperatures exceed 45°C.</p>
+                       <p class="text-lg leading-relaxed text-gray-300 mt-4">Air conditioning units across Tunisia surge simultaneously. The national grid, designed for steady baseloads, cannot absorb the spike. <strong>847,000 households lose power.</strong> Hospitals switch to emergency generators. Industrial production halts.</p>
+                       <p class="text-lg leading-relaxed text-gray-300 mt-4">The grid had no warning. No intelligence. No prediction. It was completely blind. This is not a hypothetical.</p>
+                       <p class="text-amber-400 text-4xl cinematic-text font-bold mt-8 glow-text-amber tracking-widest">This is Tuesday.</p>`,
+                camPos: { x: -60 + camOffset, y: 2, z: 30 }, lookAt: { x: -60 + camOffset, y: 10, z: -20 }, 
+                objId: 'city_grid', showLabels: false, interactiveGraph: false, triggerBlackout: true
+            },
+            {
+                chapter: "Ch. IV", subtitle: "The Reality Check", title: "The STEG Discovery",
+                body: `<p>Great solutions aren't born from staring at the ceiling. We didn't develop this idea while wandering on a roof hoping for inspiration.</p>
+                       <p>We picked up the phone. We initiated a candid, hard-hitting conversation with a <strong>senior official at STEG's renewable energy division</strong>. As we took notes, the reality of the crisis emerged.</p>
+                       <div class="bg-red-900/10 border-l-2 border-red-500 p-4 mt-6">
+                           <p class="text-red-200 text-sm font-light italic">"Grid losses reached 21% by 2022. Energy import dependency surged from 10% in 2010 to nearly 50% today. The grid was never designed for what we are asking it to do."<br><span class="block mt-3 text-[10px] uppercase text-red-400 mono-text tracking-widest">— NoorGrid Field Research, April 2026</span></p>
+                       </div>`,
+                camPos: { x: -40 + camOffset, y: 2.5, z: 12 }, lookAt: { x: -40 + camOffset, y: 1.5, z: 0 }, 
+                objId: 'the_call', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. V", subtitle: "The Data", title: "Visualizing the Imbalance",
+                body: `<p>Interact with the 3D data mapping we compiled.</p>
+                       <p>We are injecting hundreds of megawatts of highly volatile Solar and Wind energy into a rigid, legacy system that relies on steady baseloads.</p>
+                       <p>When a cloud passes over Tozeur, or the wind drops in Bizerte, the grid experiences violent voltage drops. This imbalance causes bottlenecks, wasted energy, and catastrophic failure risks.</p>`,
+                camPos: { x: 0 + camOffset, y: 20, z: -35 }, lookAt: { x: 0 + camOffset, y: -5, z: -50 }, 
+                objId: 'data', showLabels: false, interactiveGraph: true
+            },
+            {
+                chapter: "Ch. VI", subtitle: "The Idea", title: "The NoorGrid Framework",
+                body: `<p>Our idea is not a hardware patch. It is an architectural paradigm shift.</p>
+                       <p><strong>NoorGrid</strong> is a conceptual framework for an intelligent, predictive middleware. It acts as a digital nervous system overlaying the physical grid.</p>
+                       <p>By using predictive algorithms to balance volatile loads before they hit the transformers, we don't just generate energy—we master it.</p>`,
+                camPos: { x: 0 + camOffset, y: 0, z: -90 }, lookAt: { x: 0 + camOffset, y: 0, z: -110 }, 
+                objId: 'noorgrid', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. VII", subtitle: "How It's Built", title: "The Architecture",
+                body: `<div class="flex flex-col space-y-3 w-full mono-text text-[10px] md:text-xs">
+                           <div class="border border-green-500/50 bg-green-900/10 p-3 rounded">
+                               <div class="text-green-400 font-bold mb-2 tracking-widest">1. PHYSICAL WORLD</div>
+                               <div class="flex space-x-2">
+                                   <span class="border border-green-500/30 px-2 py-1 bg-green-900/30 text-gray-300">IoT Sensors</span>
+                                   <span class="border border-green-500/30 px-2 py-1 bg-green-900/30 text-gray-300">Smart Inverters</span>
+                               </div>
+                           </div>
+                           <div class="text-center text-gray-600">↓</div>
+                           <div class="border border-blue-500/50 bg-blue-900/10 p-3 rounded">
+                               <div class="text-blue-400 font-bold mb-2 tracking-widest">2. DATA INGESTION</div>
+                               <div class="flex flex-wrap gap-2">
+                                   <span class="border border-blue-500/30 px-2 py-1 bg-blue-900/30 text-gray-300 mb-1">STEG APIs</span>
+                                   <span class="border border-blue-500/30 px-2 py-1 bg-blue-900/30 text-gray-300 mb-1">OpenMeteo</span>
+                                   <span class="border border-blue-500/30 px-2 py-1 bg-blue-900/30 text-gray-300 mb-1">TomTom Maps</span>
+                               </div>
+                           </div>
+                           <div class="text-center text-gray-600">↓</div>
+                           <div class="border border-purple-500/50 bg-purple-900/10 p-3 rounded">
+                               <div class="text-purple-400 font-bold mb-2 tracking-widest">3. INTELLIGENCE CORE</div>
+                               <div class="flex space-x-2">
+                                   <span class="border border-purple-500/30 px-2 py-1 bg-purple-900/30 text-gray-300">Predictive ML Models</span>
+                                   <span class="border border-purple-500/30 px-2 py-1 bg-purple-900/30 text-gray-300">Carbon Calculator</span>
+                               </div>
+                           </div>
+                           <div class="text-center text-gray-600">↓</div>
+                           <div class="border border-orange-500/50 bg-orange-900/10 p-3 rounded">
+                               <div class="text-orange-400 font-bold mb-2 tracking-widest">4. ACTION LAYER</div>
+                               <div class="flex space-x-2">
+                                   <span class="border border-orange-500/30 px-2 py-1 bg-orange-900/30 text-gray-300">Grid Dispatch</span>
+                                   <span class="border border-orange-500/30 px-2 py-1 bg-orange-900/30 text-gray-300">Open Data Portal</span>
+                               </div>
+                           </div>
+                       </div>`,
+                camPos: { x: 80 + camOffset, y: 0, z: -40 }, lookAt: { x: 80 + camOffset, y: 0, z: -80 }, 
+                objId: 'layered_network', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. VIII", subtitle: "The Solution", title: "What NoorGrid Actually Does",
+                body: `<ul class="space-y-6">
+                           <li><span class="text-cyan-400 font-bold mono-text tracking-widest uppercase block mb-1 text-[11px]">Layer 1 — Digital Twin</span>
+                           <span class="text-sm">A real-time virtual replica of Tunisia's renewable grid. IoT sensors feed live data from wind farms, solar plants, and dams. AI detects anomalies before they become failures. Inspection drones dispatched automatically.</span></li>
+                           <li><span class="text-amber-400 font-bold mono-text tracking-widest uppercase block mb-1 text-[11px]">Layer 2 — Carbon Footprint Index</span>
+                           <span class="text-sm">Tunisia's first regionalized carbon score. Built from real STEG consumption data + OpenMeteo weather API + TomTom industrial zone mapping. Updated continuously per governorate.</span></li>
+                           <li><span class="text-emerald-400 font-bold mono-text tracking-widest uppercase block mb-1 text-[11px]">Layer 3 — Open Data Infrastructure</span>
+                           <span class="text-sm">Every calculation NoorGrid runs becomes a public dataset. Tunisia's missing energy data foundation — built as a byproduct of the platform.</span></li>
+                       </ul>`,
+                camPos: { x: 60 + camOffset, y: 8, z: -80 }, lookAt: { x: 60 + camOffset, y: 0, z: -100 }, 
+                objId: 'layers', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. IX", subtitle: "The Science", title: "Real Data. Real Equations.",
+                body: `<p class="mb-4">Our intelligence layer is powered by continuous mathematical modeling:</p>
+                       <div class="space-y-3 mono-text text-xs">
+                           <div class="bg-gray-900/80 p-3 rounded border border-gray-700/50">
+                               <span class="text-emerald-400 block mb-1">WIND OUTPUT [OpenMeteo API]</span>
+                               <span class="text-gray-300">P_wind = 0.5 × ρ × A × v³ × η</span>
+                           </div>
+                           <div class="bg-gray-900/80 p-3 rounded border border-gray-700/50">
+                               <span class="text-amber-400 block mb-1">SOLAR OUTPUT [Irradiance API]</span>
+                               <span class="text-gray-300">P_solar = G × A × η_panel</span>
+                           </div>
+                           <div class="bg-gray-900/80 p-3 rounded border border-gray-700/50">
+                               <span class="text-sky-400 block mb-1">HYDRO OUTPUT [Precipitation Data]</span>
+                               <span class="text-gray-300">P_hydro = ρ_w × g × Q × H × η_t</span>
+                           </div>
+                           <div class="bg-gray-900/80 p-3 rounded border border-cyan-900/50">
+                               <span class="text-cyan-400 block mb-1">CARBON SCORE [STEG Billing Data]</span>
+                               <span class="text-gray-300">C_reg = (E_con - E_ren) × 0.468</span>
+                           </div>
+                       </div>
+                       <p class="mt-4 text-sm font-semibold text-amber-400">National Carbon Index = Σ C_region / Total population<br><span class="text-gray-400 font-light text-xs">Tunisia's first per-capita energy carbon score.</span></p>`,
+                camPos: { x: -60 + camOffset, y: 0, z: -80 }, lookAt: { x: -60 + camOffset, y: 0, z: -100 }, 
+                objId: 'science', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. X", subtitle: "The Plan", title: "From Pilot to Infrastructure",
+                body: `<div class="space-y-6 relative border-l-2 border-gray-800 ml-3 pl-6">
+                           <div class="relative">
+                               <div class="absolute -left-[31px] top-1 w-3 h-3 bg-gray-900 border-2 border-cyan-400 rounded-full"></div>
+                               <h3 class="text-cyan-400 font-bold mono-text text-xs tracking-widest mb-1">PHASE 1 [2025]</h3>
+                               <p class="text-sm">Pilot deployment on Sidi Daoud wind farm (Nabeul, 55 MW) and Tozeur solar plant (20 MW). Real STEG data integration. Carbon index for 3 governorates.</p>
+                           </div>
+                           <div class="relative">
+                               <div class="absolute -left-[31px] top-1 w-3 h-3 bg-gray-900 border-2 border-cyan-400 rounded-full"></div>
+                               <h3 class="text-cyan-400 font-bold mono-text text-xs tracking-widest mb-1">PHASE 2 [2026-2027]</h3>
+                               <p class="text-sm">Expand to all 24 governorates. Full national carbon index published as open dataset. Integration with TEREG World Bank grid modernization program ($430M).</p>
+                           </div>
+                           <div class="relative">
+                               <div class="absolute -left-[31px] top-1 w-3 h-3 bg-gray-900 border-2 border-cyan-400 rounded-full shadow-[0_0_8px_#06b6d4]"></div>
+                               <h3 class="text-cyan-400 font-bold mono-text text-xs tracking-widest mb-1">PHASE 3 [2028+]</h3>
+                               <p class="text-sm">License platform to North African energy operators (Algeria, Morocco, Egypt). NoorGrid becomes the data backbone of the Mediterranean energy transition.</p>
+                           </div>
+                       </div>
+                       <div class="mt-8 p-4 bg-gray-900/50 rounded border border-cyan-800 border-l-2 border-cyan-400 text-sm mono-text text-gray-400 leading-relaxed">
+                           <strong class="text-cyan-400">REVENUE MODEL:</strong> SaaS licensing to STEG + per-governorate onboarding fee + open data API subscriptions.
+                       </div>`,
+                camPos: { x: 0 + camOffset, y: -40, z: -40 }, lookAt: { x: 0 + camOffset, y: -40, z: -60 }, 
+                objId: 'roadmap', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. XI", subtitle: "The Mission", title: "Tunisia Cannot Wait",
+                body: `<div class="space-y-4 text-sm font-light text-gray-300">
+                           <p>"93.7% of Tunisia's electricity comes from fossil fuels today."</p>
+                           <p>"Grid losses reached 21% in 2022. Energy import dependency grew from 10% in 2010 to nearly 50% today."</p>
+                           <p>"The World Bank just committed $430 million to fix Tunisia's grid. The renewable targets are set. The infrastructure is being built."</p>
+                           <p>"What doesn't exist yet is the intelligence layer. The data layer. The system that makes all of it work together."</p>
+                       </div>
+                       <div class="mt-8 border-t border-gray-800 pt-6">
+                           <h3 class="text-2xl md:text-3xl text-amber-400 cinematic-text leading-tight glow-text-amber">NoorGrid is not a student project.<br><span class="text-white">It is Tunisia's missing infrastructure.</span></h3>
+                       </div>`,
+                camPos: { x: 0 + camOffset, y: 50, z: -120 }, lookAt: { x: 0 + camOffset, y: 40, z: -150 }, 
+                objId: 'map', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. XII", subtitle: "The Experience", title: "Enter The Grid",
+                body: `<div class="flex flex-col space-y-8 mt-4 text-center">
+                           <p class="text-lg font-light text-gray-300">The architecture is built. The data is live. The only thing missing is you.</p>
+                           <div class="space-y-4">
+                               <h3 class="text-cyan-400 font-bold mono-text tracking-widest uppercase text-xl animate-pulse">Scan the portal to access</h3>
+                               <p class="text-gray-500 text-xs mono-text uppercase tracking-widest">or visit manually:</p>
+                               <a href="#" class="text-white text-lg md:text-2xl mono-text hover:text-cyan-300 transition-colors underline decoration-cyan-500/50 underline-offset-8 relative z-10 font-bold block">aiden-unpreened-pricilla.ngrok-free.dev</a>
+                           </div>
+                           <p class="text-amber-400 text-xs mt-8 mono-text uppercase tracking-widest border border-amber-400/30 bg-amber-900/10 py-3 rounded">Real STEG data. Real equations. Real Tunisia.</p>
+                       </div>`,
+                // Camera placed closely to look at the massive QR code at z: -200
+                camPos: { x: 100 + camOffset, y: 5, z: -180 }, lookAt: { x: 100 + camOffset, y: 5, z: -200 }, 
+                objId: 'qrportal', showLabels: false, interactiveGraph: false
+            }
+        ];
+
+        // --- 2. Three.js Setup ---
+        let scene, camera, renderer, clock;
+        let animatedObjects = {};
+        let chartBars = [], raycaster, mouse;
+        let labelPoints = { solar: null, wind: null, hydro: null };
+        let showLabelsState = false;
+
+        let currentSlideIndex = 0;
+        let targetCameraPos = new THREE.Vector3();
+        let targetLookAtPos = new THREE.Vector3();
+        let currentLookAtPos = new THREE.Vector3();
+
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            scene.fog = new THREE.FogExp2(0x030303, 0.015);
+            clock = new THREE.Clock();
+
+            camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+            
+            targetCameraPos.set(presentationData[0].camPos.x, presentationData[0].camPos.y, presentationData[0].camPos.z);
+            targetLookAtPos.set(presentationData[0].lookAt.x, presentationData[0].lookAt.y, presentationData[0].lookAt.z);
+            camera.position.copy(targetCameraPos);
+            currentLookAtPos.copy(targetLookAtPos);
+            camera.lookAt(currentLookAtPos);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            // Lighting
+            scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+            mainLight.position.set(10, 20, 10);
+            scene.add(mainLight);
+            const cyanLight = new THREE.PointLight(0x06b6d4, 2, 100);
+            cyanLight.position.set(0, -10, -50);
+            scene.add(cyanLight);
+
+            // Build all scenes
+            buildAmbition();
+            buildArsenal();
+            buildCityGrid(); 
+            buildTheCall(); 
+            buildInteractiveGraph();
+            buildNoorGrid();
+            buildLayeredNetwork(); 
+            buildLayers();
+            buildScience();
+            buildRoadmap();
+            buildTunisiaMap();
+            buildStarfield();
+            buildQRCodePortal(); // NEW: The 3D QR Code Scene
+
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            window.addEventListener('mousemove', onMouseMove, false);
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        // --- 3. Building the 3D Models ---
+        
+        function buildAmbition() {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0xfbbf24, emissiveIntensity: 0.8, wireframe: true });
+            const sun = new THREE.Mesh(new THREE.IcosahedronGeometry(2.5, 1), mat);
+            group.add(sun);
+            const core = new THREE.Mesh(new THREE.IcosahedronGeometry(2, 1), new THREE.MeshBasicMaterial({color: 0xffaa00}));
+            group.add(core);
+            group.position.set(0, 0, 0);
+            scene.add(group);
+            animatedObjects['ambition'] = group;
+        }
+
+        function buildArsenal() {
+            const group = new THREE.Group();
+            group.position.set(40, 0, 0); 
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+
+            const solarGroup = new THREE.Group();
+            const panelMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, emissive: 0x1d4ed8, emissiveIntensity: 0.2, metalness: 0.8, roughness: 0.2 });
+            const solarBase = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 2.5, 0.2, 32), baseMat);
+            solarGroup.add(solarBase);
+            for(let i=0; i<3; i++){
+                for(let j=0; j<3; j++){
+                    const panel = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.1, 1.2), panelMat);
+                    panel.position.set((i-1)*1.3, 0.5, (j-1)*1.3);
+                    panel.rotation.x = Math.PI / 6; 
+                    solarGroup.add(panel);
+                }
+            }
+            solarGroup.position.set(-7, -2, 0);
+            group.add(solarGroup);
+            animatedObjects['solar'] = solarGroup; 
+            labelPoints.solar = solarGroup;
+
+            const windGroup = new THREE.Group();
+            windGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(2, 2, 0.2, 32), baseMat));
+            const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.3, 6), new THREE.MeshStandardMaterial({color: 0x888888}));
+            mast.position.y = 3;
+            windGroup.add(mast);
+            const rotor = new THREE.Group();
+            const bladeMat = new THREE.MeshStandardMaterial({color: 0xffffff});
+            for(let i=0; i<3; i++){
+                const blade = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3, 0.05), bladeMat);
+                blade.position.y = 1.5;
+                const pivot = new THREE.Group();
+                pivot.rotation.z = (i * Math.PI * 2) / 3;
+                pivot.add(blade);
+                rotor.add(pivot);
+            }
+            rotor.position.set(0, 6, 0.3);
+            windGroup.add(rotor);
+            windGroup.position.set(0, -2, 0);
+            group.add(windGroup);
+            animatedObjects['wind_base'] = windGroup; 
+            animatedObjects['wind_rotor'] = rotor; 
+            labelPoints.wind = windGroup;
+
+            const hydroGroup = new THREE.Group();
+            hydroGroup.add(new THREE.Mesh(new THREE.CylinderGeometry(2.8, 2.8, 0.2, 32), baseMat));
+            const damWall = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3, 1.5), new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.9 }));
+            damWall.position.y = 1.6;
+            hydroGroup.add(damWall);
+            const waterMat = new THREE.MeshStandardMaterial({ color: 0x0ea5e9, emissive: 0x0284c7, emissiveIntensity: 0.4, transparent: true, opacity: 0.85 });
+            const reservoir = new THREE.Mesh(new THREE.BoxGeometry(3.5, 2.8, 2), waterMat);
+            reservoir.position.set(0, 1.5, -1.75);
+            hydroGroup.add(reservoir);
+            const spillway = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3.5, 0.3), waterMat);
+            spillway.position.set(0, 0.8, 0.9);
+            spillway.rotation.x = Math.PI / 6;
+            hydroGroup.add(spillway);
+            hydroGroup.position.set(7, -2, 0);
+            group.add(hydroGroup);
+            animatedObjects['hydro'] = hydroGroup; 
+            labelPoints.hydro = hydroGroup;
+
+            scene.add(group);
+        }
+
+        function buildCityGrid() {
+            const group = new THREE.Group();
+            group.position.set(-60, -5, 10);
+            
+            const size = 12; 
+            const spacing = 2;
+            const buildings = [];
+            const buildingMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
+
+            for(let x=0; x<size; x++) {
+                for(let z=0; z<size; z++) {
+                    const height = 1 + Math.random() * 4;
+                    const glowMat = new THREE.MeshStandardMaterial({ color: 0x222222, emissive: 0xffaa00, emissiveIntensity: 0.8 });
+                    const materials = [glowMat, glowMat, buildingMat, buildingMat, glowMat, glowMat];
+                    
+                    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1.2, height, 1.2), materials);
+                    mesh.position.set((x - size/2) * spacing, height/2, (z - size/2) * spacing);
+                    
+                    const dist = Math.sqrt(Math.pow(x - size/2, 2) + Math.pow(z - size/2, 2));
+                    mesh.userData = { delay: dist * 0.15, originalEmissive: 0.8 };
+                    
+                    group.add(mesh);
+                    buildings.push(mesh);
+                }
+            }
+            scene.add(group);
+            animatedObjects['city_grid'] = { group, buildings };
+        }
+
+        function buildTheCall() {
+            const group = new THREE.Group();
+            group.position.set(-40, -3, 0); 
+            const darkMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
+            const suitMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.8 }); 
+            const screenMat = new THREE.MeshStandardMaterial({ color: 0x000000, emissive: 0x06b6d4, emissiveIntensity: 1.2 }); 
+
+            const desk = new THREE.Mesh(new THREE.BoxGeometry(5, 0.2, 2.5), new THREE.MeshStandardMaterial({ color: 0x2d2d2d }));
+            desk.position.set(0, 2, 0);
+            group.add(desk);
+
+            const laptopBase = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.8), darkMat);
+            laptopBase.position.set(-0.5, 2.125, 0);
+            const laptopScreen = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.05), screenMat);
+            laptopScreen.position.set(-0.5, 2.5, -0.4);
+            laptopScreen.rotation.x = -0.15;
+            group.add(laptopBase);
+            group.add(laptopScreen);
+
+            const figure = new THREE.Group();
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.6, 0.7), suitMat);
+            torso.position.set(0, 2.8, 1.2);
+            figure.add(torso); 
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 32, 32), new THREE.MeshStandardMaterial({ color: 0xa67c52 }));
+            head.position.set(0, 4.1, 1.2);
+            figure.add(head); 
+            const lArm = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.1, 1.2), suitMat);
+            lArm.position.set(-0.6, 3.4, 1.2);
+            lArm.rotation.x = Math.PI / 2.5;
+            lArm.rotation.z = -Math.PI / 6;
+            figure.add(lArm); 
+            group.add(figure);
+
+            const laptopLight = new THREE.PointLight(0x06b6d4, 1.5, 6);
+            laptopLight.position.set(-0.5, 2.8, -0.2);
+            group.add(laptopLight);
+            scene.add(group);
+            animatedObjects['the_call'] = figure; 
+        }
+
+        function buildInteractiveGraph() {
+            const group = new THREE.Group();
+            group.position.set(0, -8, -50); 
+            const spacing = 5;
+            const heightScale = 0.03; 
+
+            chartData.forEach((data, index) => {
+                const height = data.value * heightScale;
+                const mat = new THREE.MeshStandardMaterial({ color: data.color, roughness: 0.3, transparent: true, opacity: 0.85 });
+                const bar = new THREE.Mesh(new THREE.BoxGeometry(2, height, 2), mat);
+                bar.position.set((index - 1) * spacing, height / 2, 0);
+                bar.userData = { label: data.label, value: data.value, originalColor: data.color };
+                group.add(bar);
+                chartBars.push(bar); 
+            });
+
+            group.add(new THREE.GridHelper(20, 20, 0x06b6d4, 0x222222));
+            scene.add(group);
+            animatedObjects['graph'] = group;
+        }
+
+        function buildNoorGrid() {
+            const group = new THREE.Group();
+            group.position.set(0, 0, -110);
+            const core = new THREE.Mesh(new THREE.OctahedronGeometry(2, 0), new THREE.MeshStandardMaterial({color: 0x06b6d4, emissive: 0x06b6d4, wireframe: true}));
+            group.add(core);
+            const nodeMat = new THREE.MeshBasicMaterial({color: 0xfbbf24});
+            for(let i=0; i<20; i++){
+                const node = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 8), nodeMat);
+                const r = 8 + Math.random() * 4;
+                const t = Math.random() * Math.PI * 2;
+                const p = Math.acos(2 * Math.random() - 1);
+                node.position.set(r*Math.sin(p)*Math.cos(t), r*Math.sin(p)*Math.sin(t), r*Math.cos(p));
+                const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([node.position, new THREE.Vector3(0,0,0)]), new THREE.LineBasicMaterial({color: 0x06b6d4, transparent: true, opacity: 0.2}));
+                group.add(node);
+                group.add(line);
+            }
+            scene.add(group);
+            animatedObjects['noorgrid'] = group;
+        }
+
+        function buildLayeredNetwork() {
+            const group = new THREE.Group();
+            group.position.set(80, 0, -80); 
+
+            const levels = [
+                { y: 15, count: 10, color: 0x22c55e, radius: 10 }, 
+                { y: 5,  count: 8,  color: 0x3b82f6, radius: 8 },  
+                { y: -5, count: 6,  color: 0xa855f7, radius: 6 },  
+                { y: -15, count: 4, color: 0xf97316, radius: 4 }   
+            ];
+
+            const nodesByLevel = [];
+
+            levels.forEach((levelData) => {
+                const levelNodes = [];
+                const nodeMat = new THREE.MeshBasicMaterial({color: levelData.color});
+                for(let i=0; i<levelData.count; i++) {
+                    const node = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16, 16), nodeMat);
+                    const angle = (i / levelData.count) * Math.PI * 2;
+                    const r = levelData.radius + (Math.random()-0.5)*2;
+                    node.position.set(Math.cos(angle)*r, levelData.y, Math.sin(angle)*r);
+                    group.add(node);
+                    levelNodes.push(node);
+                }
+                nodesByLevel.push({nodes: levelNodes, color: levelData.color});
+            });
+
+            for(let i=0; i<nodesByLevel.length - 1; i++) {
+                const upperLevel = nodesByLevel[i];
+                const lowerLevel = nodesByLevel[i+1];
+                upperLevel.nodes.forEach(upperNode => {
+                    const targetCount = 1 + Math.floor(Math.random()*2);
+                    for(let k=0; k<targetCount; k++) {
+                        const randomLowerNode = lowerLevel.nodes[Math.floor(Math.random() * lowerLevel.nodes.length)];
+                        const lineMat = new THREE.LineBasicMaterial({color: upperLevel.color, transparent: true, opacity: 0.4});
+                        group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([upperNode.position, randomLowerNode.position]), lineMat));
+                    }
+                });
+            }
+
+            scene.add(group);
+            animatedObjects['layered_network'] = group;
+        }
+
+        function buildLayers() {
+            const group = new THREE.Group();
+            group.position.set(60, 0, -100);
+            const createLayer = (color, yPos, radius) => {
+                const mesh = new THREE.Mesh(new THREE.TorusGeometry(radius, 0.2, 16, 64), new THREE.MeshStandardMaterial({color: color, emissive: color, emissiveIntensity: 0.6, transparent: true, opacity: 0.8}));
+                mesh.rotation.x = Math.PI / 2;
+                mesh.position.y = yPos;
+                return mesh;
+            };
+            group.add(createLayer(0x06b6d4, 4, 6));  
+            group.add(createLayer(0xfbbf24, 0, 5));  
+            group.add(createLayer(0x10b981, -4, 4)); 
+            
+            const lineMat = new THREE.LineBasicMaterial({color: 0xffffff, transparent: true, opacity: 0.2});
+            for(let i=0; i<8; i++) {
+                const angle = (i/8) * Math.PI * 2;
+                const pts = [new THREE.Vector3(Math.cos(angle)*4, -4, Math.sin(angle)*4), new THREE.Vector3(Math.cos(angle)*6, 4, Math.sin(angle)*6)];
+                group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), lineMat));
+            }
+            scene.add(group);
+            animatedObjects['layers'] = group;
+        }
+
+        function buildScience() {
+            const group = new THREE.Group();
+            group.position.set(-60, 0, -100);
+            const count = 1000;
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(count * 3);
+            for(let i=0; i<count*3; i+=3) {
+                const r = 6 * Math.cbrt(Math.random());
+                const t = Math.random() * 2 * Math.PI;
+                const p = Math.acos(2 * Math.random() - 1);
+                pos[i] = r * Math.sin(p) * Math.cos(t);
+                pos[i+1] = r * Math.sin(p) * Math.sin(t);
+                pos[i+2] = r * Math.cos(p);
+            }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            group.add(new THREE.Points(geo, new THREE.PointsMaterial({color: 0xfbbf24, size: 0.15, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending})));
+            group.add(new THREE.Mesh(new THREE.SphereGeometry(1.5, 16, 16), new THREE.MeshBasicMaterial({color: 0xffaa00})));
+            scene.add(group);
+            animatedObjects['science'] = group;
+        }
+
+        function buildRoadmap() {
+            const group = new THREE.Group();
+            group.position.set(0, -40, -60);
+            const mat = new THREE.MeshStandardMaterial({color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 0.5});
+            const s1 = new THREE.Mesh(new THREE.SphereGeometry(1.2, 16, 16), mat); s1.position.set(-10, 0, 0);
+            const s2 = new THREE.Mesh(new THREE.SphereGeometry(1.8, 16, 16), mat); s2.position.set(0, 0, 0);
+            const s3 = new THREE.Mesh(new THREE.SphereGeometry(2.5, 16, 16), mat); s3.position.set(10, 0, 0);
+            group.add(s1); group.add(s2); group.add(s3);
+            group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([s1.position, s3.position]), new THREE.LineBasicMaterial({color: 0x06b6d4, linewidth: 2})));
+            scene.add(group);
+            animatedObjects['roadmap'] = group;
+        }
+
+        function buildTunisiaMap() {
+            const group = new THREE.Group();
+            group.position.set(0, 40, -150);
+            const mapPoints = [
+                new THREE.Vector3(-2, 15, 0), new THREE.Vector3(2, 15, 0), new THREE.Vector3(4, 12, 0),
+                new THREE.Vector3(6, 9, 0), new THREE.Vector3(4, 3, 0), new THREE.Vector3(5, -2, 0),
+                new THREE.Vector3(3, -8, 0), new THREE.Vector3(-2, -15, 0), new THREE.Vector3(-6, -10, 0),
+                new THREE.Vector3(-8, -2, 0), new THREE.Vector3(-5, 5, 0), new THREE.Vector3(-4, 10, 0), new THREE.Vector3(-2, 15, 0)
+            ];
+            group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(mapPoints), new THREE.LineBasicMaterial({color: 0x222222})));
+            group.add(new THREE.Mesh(new THREE.PlaneGeometry(16, 32, 8, 16), new THREE.MeshBasicMaterial({color: 0x06b6d4, wireframe: true, transparent: true, opacity: 0.1})));
+
+            const nodeGeo = new THREE.SphereGeometry(0.6, 16, 16);
+            const nodeMat = new THREE.MeshBasicMaterial({color: 0x06b6d4});
+            const nodesArr = [];
+            [{p: new THREE.Vector3(1, 14, 0)}, {p: new THREE.Vector3(5, 11, 0)}, {p: new THREE.Vector3(-2, 12, 0)}, {p: new THREE.Vector3(0, 2, 0)}, {p: new THREE.Vector3(-5, -6, 0)}].forEach(loc => {
+                const mesh = new THREE.Mesh(nodeGeo, nodeMat);
+                mesh.position.copy(loc.p);
+                mesh.add(new THREE.Mesh(new THREE.RingGeometry(0.8, 1.0, 16), new THREE.MeshBasicMaterial({color: 0x06b6d4, side: THREE.DoubleSide, transparent: true, opacity: 0.5})));
+                group.add(mesh);
+                nodesArr.push(mesh);
+            });
+            scene.add(group);
+            animatedObjects['map'] = group;
+            animatedObjects['mapNodes'] = nodesArr;
+        }
+
+        // --- NEW: Chapter XII - 3D QR Code Portal ---
+        function buildQRCodePortal() {
+            const group = new THREE.Group();
+            group.position.set(100, 5, -200);
+
+            // Background frame for contrast
+            const frame = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new THREE.MeshBasicMaterial({ color: 0x06b6d4, side: THREE.DoubleSide, transparent: true, opacity: 0.3 }));
+            group.add(frame);
+
+            // Load Texture
+            const loader = new THREE.TextureLoader();
+            const qrUrl = 'adobe-express-qr-code (2).png'; 
+            
+            loader.load(qrUrl, function(texture) {
+                // MeshBasicMaterial ensures it is unaffected by cinematic lighting = high contrast scanning!
+                const qrPlane = new THREE.Mesh(new THREE.PlaneGeometry(15, 15), new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide }));
+                qrPlane.position.z = 0.1; 
+                group.add(qrPlane);
+            }, undefined, function(err) {
+                // Fallback API if local image throws CORS in previewer
+                loader.load('https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=https://aiden-unpreened-pricilla.ngrok-free.dev&bgcolor=ffffff&color=000000', function(tex) {
+                    const qrPlane = new THREE.Mesh(new THREE.PlaneGeometry(15, 15), new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide }));
+                    qrPlane.position.z = 0.1;
+                    group.add(qrPlane);
+                });
+            });
+
+            // Decorative Tech Ring
+            const ring = new THREE.Mesh(new THREE.TorusGeometry(12, 0.1, 16, 100), new THREE.MeshBasicMaterial({color: 0xfbbf24, transparent: true, opacity: 0.8}));
+            group.add(ring);
+
+            scene.add(group);
+            animatedObjects['qrportal'] = { group: group, ring: ring };
+        }
+
+        function buildStarfield() {
+            const geo = new THREE.BufferGeometry();
+            const count = 2000;
+            const pos = new Float32Array(count * 3);
+            for(let i=0; i<count*3; i++) { pos[i] = (Math.random() - 0.5) * 400; }
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            scene.add(new THREE.Points(geo, new THREE.PointsMaterial({color: 0x666666, size: 0.4, transparent: true, opacity: 0.5})));
+        }
+
+        // --- 4. Interactions & UI Logic ---
+        
+        function onMouseMove(event) {
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            if(presentationData[currentSlideIndex].interactiveGraph) checkIntersections(event.clientX, event.clientY);
+            else document.getElementById('tooltip').style.opacity = 0;
+        }
+
+        function checkIntersections(clientX, clientY) {
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(chartBars);
+            const tooltip = document.getElementById('tooltip');
+
+            chartBars.forEach(bar => bar.material.emissive.setHex(0x000000));
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                object.material.emissive.setHex(object.userData.originalColor);
+                object.material.emissiveIntensity = 0.6;
+                document.getElementById('tt-title').innerText = object.userData.label;
+                document.getElementById('tt-value').innerText = object.userData.value + " MW";
+                tooltip.style.left = clientX + 'px';
+                tooltip.style.top = clientY + 'px';
+                tooltip.style.opacity = 1;
+                document.body.style.cursor = 'pointer';
+            } else {
+                tooltip.style.opacity = 0;
+                document.body.style.cursor = 'default';
+            }
+        }
+
+        function updateLabels() {
+            if(!showLabelsState) {
+                document.querySelectorAll('.location-label').forEach(el => el.style.opacity = 0);
+                return;
+            }
+            for (const [key, mesh] of Object.entries(labelPoints)) {
+                if(!mesh) continue;
+                const vector = new THREE.Vector3();
+                mesh.getWorldPosition(vector);
+                vector.project(camera);
+                const x = (vector.x * .5 + .5) * window.innerWidth;
+                const y = (vector.y * -.5 + .5) * window.innerHeight;
+                const labelElement = document.getElementById(`label-${key}`);
+                
+                if (vector.z > 1) { labelElement.style.opacity = 0; } 
+                else {
+                    labelElement.style.opacity = 1;
+                    labelElement.style.left = x + 'px';
+                    labelElement.style.top = (y - (key === 'wind' ? 120 : 80)) + 'px'; 
+                }
+            }
+        }
+
+        function setupUIControls() {
+            document.getElementById('btn-next').addEventListener('click', () => changeSlide(1));
+            document.getElementById('btn-prev').addEventListener('click', () => changeSlide(-1));
+            
+            document.getElementById('btn-start').addEventListener('click', () => {
+                document.getElementById('start-overlay').style.opacity = 0;
+                setTimeout(() => document.getElementById('start-overlay').remove(), 1000);
+                createProgressDots();
+                const initData = presentationData[0];
+                document.getElementById('slide-subtitle').innerText = initData.subtitle;
+                document.getElementById('slide-title').innerText = initData.title;
+                document.getElementById('slide-body').innerHTML = initData.body;
+                updateUIState();
+            });
+        }
+
+        function createProgressDots() {
+            const container = document.getElementById('progress-dots');
+            presentationData.forEach((_, i) => {
+                const dot = document.createElement('div');
+                dot.className = `w-1.5 h-1.5 md:w-2 md:h-2 rounded-full transition-all duration-300 ${i === 0 ? 'bg-cyan-400 scale-125 shadow-[0_0_8px_#06b6d4]' : 'bg-gray-700'}`;
+                dot.id = `dot-${i}`;
+                container.appendChild(dot);
+            });
+        }
+
+        function changeSlide(direction) {
+            const newIndex = currentSlideIndex + direction;
+            if(newIndex < 0 || newIndex >= presentationData.length) return;
+
+            const container = document.getElementById('slide-container');
+            container.classList.add('fade-out');
+            
+            document.getElementById('tooltip').style.opacity = 0;
+            document.body.style.cursor = 'default';
+            showLabelsState = false; 
+
+            currentSlideIndex = newIndex;
+            const slideData = presentationData[currentSlideIndex];
+            
+            targetCameraPos.set(slideData.camPos.x, slideData.camPos.y, slideData.camPos.z);
+            targetLookAtPos.set(slideData.lookAt.x, slideData.lookAt.y, slideData.lookAt.z);
+
+            if(slideData.triggerBlackout) {
+                cityBlackoutStartTime = clock.getElapsedTime() + 1.5; 
+            } else if (animatedObjects['city_grid']) {
+                animatedObjects['city_grid'].buildings.forEach(b => {
+                    b.material[0].emissiveIntensity = b.userData.originalEmissive;
+                    b.material[1].emissiveIntensity = b.userData.originalEmissive;
+                    b.material[4].emissiveIntensity = b.userData.originalEmissive;
+                    b.material[5].emissiveIntensity = b.userData.originalEmissive;
+                });
+            }
+
+            setTimeout(() => {
+                document.getElementById('slide-subtitle').innerText = slideData.subtitle;
+                document.getElementById('slide-title').innerText = slideData.title;
+                document.getElementById('slide-body').innerHTML = slideData.body;
+                document.getElementById('slide-counter').innerText = slideData.chapter;
+                showLabelsState = slideData.showLabels;
+                updateUIState();
+                
+                document.getElementById('story-panel').scrollTop = 0;
+                container.classList.remove('fade-out');
+            }, 600); 
+        }
+
+        function updateUIState() {
+            document.getElementById('btn-prev').disabled = currentSlideIndex === 0;
+            const btnNext = document.getElementById('btn-next');
+            
+            // Hide the next button completely on the last slide
+            if (currentSlideIndex === presentationData.length - 1) {
+                btnNext.style.display = 'none';
+            } else {
+                btnNext.style.display = 'flex';
+                document.getElementById('next-text').innerText = 'Next Chapter';
+            }
+
+            presentationData.forEach((_, i) => {
+                const dot = document.getElementById(`dot-${i}`);
+                if(dot) {
+                    dot.className = i === currentSlideIndex 
+                        ? "w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-cyan-400 scale-125 transition-all duration-300 shadow-[0_0_8px_#06b6d4]" 
+                        : "w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-gray-700 transition-all duration-300";
+                }
+            });
+        }
+
+        // --- 5. Render Loop ---
+        function animate() {
+            requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+
+            camera.position.lerp(targetCameraPos, 0.03);
+            currentLookAtPos.lerp(targetLookAtPos, 0.03);
+            camera.lookAt(currentLookAtPos);
+
+            if(animatedObjects['ambition']) {
+                animatedObjects['ambition'].rotation.y = time * 0.3;
+                animatedObjects['ambition'].rotation.x = time * 0.1;
+            }
+            if(animatedObjects['solar']) animatedObjects['solar'].rotation.y += 0.005;
+            if(animatedObjects['wind_base']) animatedObjects['wind_base'].rotation.y += 0.005;
+            if(animatedObjects['wind_rotor']) animatedObjects['wind_rotor'].rotation.z -= 0.03;
+            if(animatedObjects['hydro']) animatedObjects['hydro'].rotation.y -= 0.005;
+
+            if(animatedObjects['city_grid'] && presentationData[currentSlideIndex].triggerBlackout) {
+                animatedObjects['city_grid'].group.rotation.y = Math.sin(time * 0.1) * 0.05;
+                animatedObjects['city_grid'].buildings.forEach((b) => {
+                    if(time > cityBlackoutStartTime + b.userData.delay) {
+                        const currentInt = b.material[0].emissiveIntensity; 
+                        if (currentInt > 0.01) {
+                            const newInt = THREE.MathUtils.lerp(currentInt, 0, 0.1);
+                            b.material[0].emissiveIntensity = newInt;
+                            b.material[1].emissiveIntensity = newInt;
+                            b.material[4].emissiveIntensity = newInt;
+                            b.material[5].emissiveIntensity = newInt;
+                        }
+                    }
+                });
+            }
+
+            if(animatedObjects['the_call']) {
+                animatedObjects['the_call'].position.y = Math.sin(time * 2.5) * 0.02;
+                animatedObjects['the_call'].children[0].rotation.x = Math.sin(time * 1.5) * 0.03; 
+            }
+            if(animatedObjects['graph']) animatedObjects['graph'].rotation.y = Math.sin(time * 0.2) * 0.05;
+            if(animatedObjects['noorgrid']) {
+                animatedObjects['noorgrid'].rotation.y = time * 0.1;
+                animatedObjects['noorgrid'].rotation.x = Math.sin(time*0.5)*0.1;
+                animatedObjects['noorgrid'].children[0].rotation.y = -time * 0.5;
+            }
+            if(animatedObjects['layers']) {
+                animatedObjects['layers'].children[0].rotation.z = time * 0.5;
+                animatedObjects['layers'].children[1].rotation.z = -time * 0.3;
+                animatedObjects['layers'].children[2].rotation.z = time * 0.4;
+            }
+            if(animatedObjects['layered_network']) {
+                animatedObjects['layered_network'].rotation.y = time * 0.05;
+                animatedObjects['layered_network'].children.forEach(child => {
+                    if(child instanceof THREE.Mesh) {
+                        const s = 1 + Math.sin(time*2 + child.position.x)*0.1;
+                        child.scale.set(s,s,s);
+                    }
+                });
+            }
+            if(animatedObjects['science']) {
+                animatedObjects['science'].children[0].rotation.y = time * 0.1;
+                animatedObjects['science'].children[0].rotation.x = time * 0.05;
+                const scale = 1 + Math.sin(time*2)*0.05;
+                animatedObjects['science'].scale.set(scale, scale, scale);
+            }
+            if(animatedObjects['roadmap']) animatedObjects['roadmap'].rotation.y = Math.sin(time * 0.3) * 0.2;
+            if(animatedObjects['map'] && animatedObjects['mapNodes']) {
+                animatedObjects['map'].rotation.y = Math.sin(time * 0.2) * 0.1;
+                animatedObjects['mapNodes'].forEach((node, i) => {
+                    const s = 1 + Math.sin(time*3 + i)*0.3;
+                    node.children[0].scale.set(s,s,s);
+                    node.children[0].material.opacity = 0.8 - (s-1)*2;
+                });
+            }
+            
+            // --- QR Code Portal Animation ---
+            if(animatedObjects['qrportal']) {
+                // Float the whole group
+                animatedObjects['qrportal'].group.position.y = 5 + Math.sin(time * 2) * 1.5; 
+                // Spin only the outer ring, leave QR code facing forward
+                animatedObjects['qrportal'].ring.rotation.z = time * 0.5;
+            }
+
+            updateLabels(); 
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.onload = function () {
+            initThreeJS();
+            setupUIControls();
+            animate();
+        };
+    </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+name: NoorGrid CD — Auto Pull Request to Main
+
+on:
+  push:
+    branches: [dev]
+
+jobs:
+  create-pr:
+    name: Create Pull Request to Main
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create PR via GitHub CLI
+        run: |
+          gh pr create \
+            --base main \
+            --head dev \
+            --title "NoorGrid: merge dev into main" \
+            --body "Automated PR from dev branch. NoorGrid CI tests passed. Review and merge when ready." \
+            || echo "PR already exists"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

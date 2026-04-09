@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 
 import httpx
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 # ── Page config (must be first Streamlit call) ────────────────────────────────
@@ -22,6 +23,7 @@ st.set_page_config(
 # ── Constants ─────────────────────────────────────────────────────────────────
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 TUNISIA_POPULATION = 11_800_000
+BILLING_PERIOD_HOURS = 3  # billing window used for kWh estimates
 
 GOVERNORATES: list[dict] = [
     {
@@ -319,9 +321,9 @@ def build_gov_data() -> list[dict]:
         if not gov_billing.empty:
             consumption = gov_billing.iloc[-1]["consumption_kwh"]
         else:
-            consumption = gov["baseline_mw"] * 1000 * 3  # rough proxy (kWh)
+            consumption = gov["baseline_mw"] * 1000 * BILLING_PERIOD_HOURS  # rough proxy (kWh)
 
-        renewable_kwh = output * 1000 * 3  # assume 3-hour period
+        renewable_kwh = output * 1000 * BILLING_PERIOD_HOURS  # assume billing period
         c_score = get_carbon(gov["name"], consumption, renewable_kwh)
         anomaly = is_anomaly(output, gov["baseline_mw"], gov["name"], gov["source"])
 
@@ -542,11 +544,54 @@ if sel:
 
 # ── STEG Billing data ─────────────────────────────────────────────────────────
 st.markdown("## 📊 STEG Billing Data")
+# ── Consumption vs Renewable Production chart ─────────────────────────────────
+st.markdown("## 📊 Consumption vs Renewable Production by Governorate")
+
 billing_df = load_billing_data()
+
+# Aggregate average consumption per governorate from billing data
 if not billing_df.empty:
-    st.dataframe(billing_df, use_container_width=True)
+    avg_consumption = (
+        billing_df.groupby("region")["consumption_kwh"].mean().to_dict()
+    )
 else:
-    st.info("No billing data found. Place a CSV in /data/steg_billing_sample.csv")
+    avg_consumption = {}
+
+chart_govs = [g["name"] for g in gov_data]
+consumption_vals = [
+    avg_consumption.get(g["name"], g["baseline_mw"] * 1000 * BILLING_PERIOD_HOURS)
+    for g in gov_data
+]
+renewable_vals = [g["output_mw"] * 1000 * BILLING_PERIOD_HOURS for g in gov_data]
+
+fig = go.Figure(
+    data=[
+        go.Bar(
+            name="Consumption (kWh)",
+            x=chart_govs,
+            y=consumption_vals,
+            marker_color="#f85149",
+        ),
+        go.Bar(
+            name="Renewable Production (kWh)",
+            x=chart_govs,
+            y=renewable_vals,
+            marker_color="#3fb950",
+        ),
+    ]
+)
+fig.update_layout(
+    barmode="group",
+    title="Consumption vs Renewable Production by Governorate",
+    xaxis_title="Governorate",
+    yaxis_title="Energy (kWh)",
+    paper_bgcolor="#0e1117",
+    plot_bgcolor="#0e1117",
+    font={"color": "#e0e0e0"},
+    legend={"bgcolor": "#161b22", "bordercolor": "#30363d", "borderwidth": 1},
+    title_font={"size": 18, "color": "#58a6ff"},
+)
+st.plotly_chart(fig, use_container_width=True)
 
 # ── Tunisia National Carbon Index ─────────────────────────────────────────────
 total_carbon = sum(g["carbon_score_kg"] for g in gov_data)
