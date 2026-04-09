@@ -549,15 +549,15 @@ st.markdown(
 
 # ── Anomaly ticker ────────────────────────────────────────────────────────────
 if active_anomalies:
-    ticker_items = "  ⬥  ".join(
-        f"⚠ ANOMALY — {g['name']} {g['source'].upper()} — {g['output_mw']} MW"
-        + (f" — {g['wind_speed_ms']:.2f} m/s" if g.get("wind_speed_ms") is not None else "")
-        + " — DRONE DISPATCHED" if g["name"] in st.session_state.drone_dispatched
-        else f"⚠ ANOMALY — {g['name']} {g['source'].upper()} — {g['output_mw']} MW"
-        + (f" — {g['wind_speed_ms']:.2f} m/s" if g.get("wind_speed_ms") is not None else "")
-        + " — AWAITING DISPATCH"
-        for g in active_anomalies
-    )
+    def _ticker_item(g: dict) -> str:
+        base = (
+            f"⚠ ANOMALY — {g['name']} {g['source'].upper()} — {g['output_mw']} MW"
+            + (f" — {g['wind_speed_ms']:.2f} m/s" if g.get("wind_speed_ms") is not None else "")
+        )
+        suffix = " — DRONE DISPATCHED" if g["name"] in st.session_state.drone_dispatched else " — AWAITING DISPATCH"
+        return base + suffix
+
+    ticker_items = "  ⬥  ".join(_ticker_item(g) for g in active_anomalies)
     st.markdown(
         f"""
         <div class="ticker-wrap">
@@ -641,7 +641,7 @@ try:
         "ScatterplotLayer",
         data=map_data,
         get_position=["lon", "lat"],
-        get_fill_color="color",
+        get_color="color",
         get_radius="radius",
         pickable=True,
         opacity=0.85,
@@ -659,7 +659,6 @@ try:
         get_size=14,
         get_color=[200, 240, 220, 230],
         get_alignment_baseline="'bottom'",
-        get_pixel_offset=[0, -35],
     )
 
     view_state = pdk.ViewState(
@@ -745,7 +744,7 @@ for col, g in zip(cols, gov_data):
 
         if g["anomaly"] and g["source"] == "Wind" and g.get("wind_speed_ms") is not None:
             ctx = wind_context_label(g["wind_speed_ms"])
-            html += f'<div class="wind-context">🌬 {ctx}</div>'
+            html += f'<div class="wind-context">🌬️ {ctx}</div>'
 
         html += "</div>"
         st.markdown(html, unsafe_allow_html=True)
@@ -773,7 +772,7 @@ if sel:
     if sel["source"] == "Wind" and sel.get("wind_speed_ms") is not None:
         ctx = wind_context_label(sel["wind_speed_ms"])
         st.markdown(
-            f'<div class="wind-context">🌬 {ctx}</div>',
+            f'<div class="wind-context">🌬️ {ctx}</div>',
             unsafe_allow_html=True,
         )
 
