@@ -2,6 +2,7 @@
 OpenMeteo weather data fetcher for Tunisian governorates.
 """
 
+import asyncio
 import httpx
 
 # Tunisian governorate coordinates (lat, lon)
@@ -51,8 +52,6 @@ async def fetch_all_weather() -> list[dict]:
     """
     Fetch weather data for all Tunisian governorates concurrently.
     """
-    import asyncio
-
     async with httpx.AsyncClient() as client:
         tasks = [
             fetch_weather_for_governorate(client, gov) for gov in GOVERNORATES

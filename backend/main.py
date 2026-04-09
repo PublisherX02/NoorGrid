@@ -2,6 +2,13 @@
 NoorGrid FastAPI backend — renewable energy production API.
 """
 
+import os
+import sys
+
+# Ensure backend/ is on sys.path so sibling modules resolve regardless of
+# which directory uvicorn is launched from.
+sys.path.insert(0, os.path.dirname(__file__))
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 

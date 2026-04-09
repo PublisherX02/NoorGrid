@@ -308,7 +308,6 @@ def is_anomaly(output_mw: float, baseline_mw: float, region: str = "", source_ty
 
 # ── Build dashboard data ──────────────────────────────────────────────────────
 
-@st.cache_data(ttl=300)
 def build_gov_data() -> list[dict]:
     weather = get_weather()
     billing_df = load_billing_data()
@@ -542,8 +541,6 @@ if sel:
             unsafe_allow_html=True,
         )
 
-# ── STEG Billing data ─────────────────────────────────────────────────────────
-st.markdown("## 📊 STEG Billing Data")
 # ── Consumption vs Renewable Production chart ─────────────────────────────────
 st.markdown("## 📊 Consumption vs Renewable Production by Governorate")
 
