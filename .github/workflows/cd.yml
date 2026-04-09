@@ -1,4 +1,4 @@
-name: Auto Pull Request to Main
+name: NoorGrid CD — Auto Pull Request to Main
 
 on:
   push:
@@ -20,8 +20,8 @@ jobs:
           gh pr create \
             --base main \
             --head dev \
-            --title "New code ready - merge dev into main" \
-            --body "Automated PR. CI tests passed on dev. Review and merge when ready." \
+            --title "NoorGrid: merge dev into main" \
+            --body "Automated PR from dev branch. NoorGrid CI tests passed. Review and merge when ready." \
             || echo "PR already exists"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

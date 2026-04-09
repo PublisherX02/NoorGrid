@@ -1,4 +1,4 @@
-name: Zero-Minute Dispatch CI
+name: NoorGrid CI
 
 on:
   push:
@@ -27,4 +27,4 @@ jobs:
       - name: Run tests
         run: pytest tests/ -v
         env:
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+          BACKEND_URL: ${{ secrets.BACKEND_URL }}
