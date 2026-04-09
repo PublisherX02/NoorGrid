@@ -9,13 +9,17 @@ import sys
 # which directory uvicorn is launched from.
 sys.path.insert(0, os.path.dirname(__file__))
 
+import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw
 from models import (
+    BlackoutRequest,
+    BlackoutResponse,
     CarbonRequest,
     CarbonResponse,
+    HourlyPrediction,
     HydroRequest,
     PowerResponse,
     SolarRequest,
@@ -101,6 +105,22 @@ def calculate_carbon(req: CarbonRequest):
     return CarbonResponse(region=req.region, carbon_score_kg=score)
 
 
+# ── Region config for blackout prediction ────────────────────────────────────
+_REGION_CFG: dict[str, dict] = {
+    "Bizerte":     {"lat": 37.2744, "lon": 9.8739,  "source": "Wind",  "baseline_mw": 97.0,
+                    "rotor_area": 7854.0,   "efficiency": 0.40},
+    "Nabeul":      {"lat": 36.4561, "lon": 10.7376, "source": "Wind",  "baseline_mw": 55.0,
+                    "rotor_area": 4418.0,   "efficiency": 0.40},
+    "Tozeur":      {"lat": 33.9197, "lon": 8.1335,  "source": "Solar", "baseline_mw": 20.0,
+                    "panel_area": 120_000.0, "efficiency": 0.18},
+    "Béja":        {"lat": 36.7256, "lon": 9.1817,  "source": "Hydro", "baseline_mw": 33.0},
+    "Sidi Bouzid": {"lat": 35.0382, "lon": 9.4858,  "source": "Solar", "baseline_mw": 100.0,
+                    "panel_area": 600_000.0, "efficiency": 0.18},
+}
+
+_OPENMETEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+
 # ── Weather data endpoint ─────────────────────────────────────────────────────
 
 @app.get("/weather", response_model=WeatherResponse, tags=["Weather"])
@@ -117,3 +137,98 @@ async def get_weather():
             detail=f"Failed to fetch weather data: {exc}",
         ) from exc
     return WeatherResponse(data=entries)
+
+
+# ── Blackout prediction endpoint ──────────────────────────────────────────────
+
+@app.post("/predict/blackout", response_model=BlackoutResponse, tags=["Prediction"])
+async def predict_blackout(req: BlackoutRequest):
+    """
+    Forecast hourly blackout probability for a governorate over the next
+    N hours using OpenMeteo hourly weather data and grid stress modelling.
+    """
+    cfg = _REGION_CFG.get(req.region)
+    if not cfg:
+        raise HTTPException(status_code=404, detail=f"Region '{req.region}' not found")
+
+    params = {
+        "latitude": cfg["lat"],
+        "longitude": cfg["lon"],
+        "hourly": "temperature_2m,wind_speed_10m,shortwave_radiation",
+        "forecast_hours": req.forecast_hours,
+        "wind_speed_unit": "ms",
+        "timezone": "Africa/Tunis",
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(_OPENMETEO_URL, params=params, timeout=15.0)
+            resp.raise_for_status()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Weather forecast unavailable: {exc}") from exc
+
+    hourly = resp.json().get("hourly", {})
+    times       = hourly.get("time", [])
+    temps       = hourly.get("temperature_2m", [])
+    wind_speeds = hourly.get("wind_speed_10m", [])
+    irradiances = hourly.get("shortwave_radiation", [])
+
+    predictions: list[HourlyPrediction] = []
+    n = min(req.forecast_hours, len(temps))
+
+    for i in range(n):
+        temp  = float(temps[i])        if i < len(temps)       else 20.0
+        wind  = float(wind_speeds[i])  if i < len(wind_speeds) else 0.0
+        irr   = float(irradiances[i])  if i < len(irradiances) else 0.0
+        label = times[i][11:16]        if i < len(times)       else f"{i:02d}:00"
+
+        # Cooling demand factor — rises sharply above 25 °C
+        cooling_factor = max(0.0, (temp - 25) * 0.08)
+        baseline = cfg["baseline_mw"]
+        estimated_demand_mw = baseline * (1 + cooling_factor)
+
+        # Available renewable MW from weather forecast
+        source = cfg["source"]
+        if source == "Wind":
+            available_mw = max(0.1, wind_power_mw(wind, cfg["rotor_area"], cfg["efficiency"]))
+        elif source == "Solar":
+            available_mw = max(0.1, solar_power_mw(irr, cfg["panel_area"], cfg["efficiency"]))
+        else:  # Hydro — weather-independent
+            available_mw = baseline
+
+        stress_ratio = estimated_demand_mw / max(available_mw, 1.0)
+
+        if stress_ratio > 4.0:
+            risk = "CRITICAL"
+        elif stress_ratio > 2.5:
+            risk = "HIGH"
+        elif stress_ratio > 1.5:
+            risk = "ELEVATED"
+        else:
+            risk = "NOMINAL"
+
+        blackout_probability = round(min(100.0, max(0.0, (stress_ratio - 1) * 25)), 1)
+
+        if risk == "CRITICAL":
+            action = ("EMERGENCY LOAD SHEDDING REQUIRED"
+                      " — Import from Algeria via Transmed pipeline")
+        elif risk == "HIGH":
+            action = (f"ACTIVATE RESERVE CAPACITY"
+                      f" — Reduce industrial consumption in {req.region}")
+        elif risk == "ELEVATED":
+            action = "MONITOR CLOSELY — Prepare demand response protocols"
+        else:
+            action = "NO ACTION REQUIRED"
+
+        predictions.append(HourlyPrediction(
+            hour=i,
+            time_label=label,
+            temperature=round(temp, 1),
+            estimated_demand_mw=round(estimated_demand_mw, 2),
+            available_mw=round(available_mw, 2),
+            stress_ratio=round(stress_ratio, 3),
+            risk_level=risk,
+            blackout_probability=blackout_probability,
+            prevention_action=action,
+        ))
+
+    return BlackoutResponse(region=req.region, predictions=predictions)

@@ -52,3 +52,27 @@ class WeatherEntry(BaseModel):
 
 class WeatherResponse(BaseModel):
     data: list[WeatherEntry]
+
+
+# ── Blackout prediction models ────────────────────────────────────────────────
+
+class BlackoutRequest(BaseModel):
+    region: str = Field(..., description="Governorate name")
+    forecast_hours: int = Field(default=24, ge=1, le=72)
+
+
+class HourlyPrediction(BaseModel):
+    hour: int = Field(..., description="Forecast hour index (0 = first forecast hour)")
+    time_label: str = Field(..., description="Local time label e.g. '14:00'")
+    temperature: float = Field(..., description="Air temperature in °C")
+    estimated_demand_mw: float
+    available_mw: float
+    stress_ratio: float
+    risk_level: str
+    blackout_probability: float = Field(..., description="0–100 %")
+    prevention_action: str
+
+
+class BlackoutResponse(BaseModel):
+    region: str
+    predictions: list[HourlyPrediction]
