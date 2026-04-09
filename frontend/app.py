@@ -9,6 +9,7 @@ from datetime import datetime, timezone, timedelta
 
 import httpx
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 # ── Page config (must be first Streamlit call) ────────────────────────────────
@@ -493,13 +494,54 @@ if sel:
     c3.metric("Carbon Score", f"{sel['carbon_score_kg']:,.0f} kg CO₂")
     c4.metric("Status", "⚠️ Anomaly" if sel["anomaly"] else "✅ Normal")
 
-# ── STEG Billing data ─────────────────────────────────────────────────────────
-st.markdown("## 📊 STEG Billing Data")
+# ── Consumption vs Renewable Production chart ─────────────────────────────────
+st.markdown("## 📊 Consumption vs Renewable Production by Governorate")
+
 billing_df = load_billing_data()
+
+# Aggregate average consumption per governorate from billing data
 if not billing_df.empty:
-    st.dataframe(billing_df, use_container_width=True)
+    avg_consumption = (
+        billing_df.groupby("region")["consumption_kwh"].mean().to_dict()
+    )
 else:
-    st.info("No billing data found. Place a CSV in /data/steg_billing_sample.csv")
+    avg_consumption = {}
+
+chart_govs = [g["name"] for g in gov_data]
+consumption_vals = [
+    avg_consumption.get(g["name"], g["baseline_mw"] * 1000 * 3)
+    for g in gov_data
+]
+renewable_vals = [g["output_mw"] * 1000 * 3 for g in gov_data]
+
+fig = go.Figure(
+    data=[
+        go.Bar(
+            name="Consumption (kWh)",
+            x=chart_govs,
+            y=consumption_vals,
+            marker_color="#f85149",
+        ),
+        go.Bar(
+            name="Renewable Production (kWh)",
+            x=chart_govs,
+            y=renewable_vals,
+            marker_color="#3fb950",
+        ),
+    ]
+)
+fig.update_layout(
+    barmode="group",
+    title="Consumption vs Renewable Production by Governorate",
+    xaxis_title="Governorate",
+    yaxis_title="Energy (kWh)",
+    paper_bgcolor="#0e1117",
+    plot_bgcolor="#0e1117",
+    font={"color": "#e0e0e0"},
+    legend={"bgcolor": "#161b22", "bordercolor": "#30363d", "borderwidth": 1},
+    title_font={"size": 18, "color": "#58a6ff"},
+)
+st.plotly_chart(fig, use_container_width=True)
 
 # ── Tunisia National Carbon Index ─────────────────────────────────────────────
 total_carbon = sum(g["carbon_score_kg"] for g in gov_data)
