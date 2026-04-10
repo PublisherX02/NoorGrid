@@ -3,8 +3,8 @@ NoorGrid — Military Operations Room Dashboard
 """
 
 import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from datetime import datetime, timezone, timedelta
 
 import httpx
 import pandas as pd
@@ -410,7 +410,7 @@ def display_drone_report(targets, gov_data_list):
     st.write("The following sites have been surveyed by operations:")
     for t in targets:
         gov = next((g for g in gov_data_list if g["name"] == t), {})
-        st.markdown(f"---")
+        st.markdown("---")
         st.markdown(f"**TARGET:** {t} ({gov.get('source', 'Unknown')})")
         if gov.get('source') == "Solar":
             st.warning("🚨 **LIDAR SCAN:** Extreme particulate accumulation on PV array blocking irradiance.\n\n🚨 **INFRARED:** Inverter block #4 operating beyond thermal limits. High risk of ignition.")
@@ -456,7 +456,7 @@ def estimate_output(gov: dict, weather: dict) -> float:
                 timeout=10,
             )
             resp.raise_for_status()
-            return resp.json()["power_mw"]
+            return float(resp.json()["power_mw"])
 
         if gov["source"] == "Solar":
             irr = w.get("solar_irradiance_wm2", 0.0)
@@ -476,7 +476,7 @@ def estimate_output(gov: dict, weather: dict) -> float:
                 timeout=10,
             )
             resp.raise_for_status()
-            return resp.json()["power_mw"]
+            return float(resp.json()["power_mw"])
 
         if gov["source"] == "Hydro":
             resp = httpx.post(
@@ -489,14 +489,14 @@ def estimate_output(gov: dict, weather: dict) -> float:
                 timeout=10,
             )
             resp.raise_for_status()
-            return resp.json()["power_mw"]
+            return float(resp.json()["power_mw"])
 
     except Exception:
         pass
 
     # Hydro fallback only — wind and solar should never fake output
     if gov["source"] == "Hydro":
-        return gov["baseline_mw"] * 0.75
+        return float(gov.get("baseline_mw", 0)) * 0.75
     return 0.0
 
 
@@ -512,7 +512,7 @@ def get_carbon(gov_name: str, consumption_kwh: float, renewable_kwh: float) -> f
             timeout=10,
         )
         resp.raise_for_status()
-        return resp.json()["carbon_score_kg"]
+        return float(resp.json()["carbon_score_kg"])
     except Exception:
         return (consumption_kwh - renewable_kwh) * 0.468
 
@@ -537,7 +537,7 @@ def simulate_national_grid(
             timeout=12,
         )
         resp.raise_for_status()
-        return resp.json()
+        return dict(resp.json())
     except Exception:
         return {}
 
@@ -979,7 +979,7 @@ with st.sidebar:
     st.download_button(
         "💽 EXPORT LIVE DATA",
         data=export_data.encode('utf-8'),
-        file_name=f"noorgrid_export.json",
+        file_name="noorgrid_export.json",
         mime="application/json",
         use_container_width=True
     )
@@ -1379,12 +1379,12 @@ try:
         )
     with _sim_col2:
         st.markdown(
-            f'<div style="background:#040810;border:1px solid #00ff8820;border-radius:4px;'
-            f'padding:12px;margin-top:20px;font-size:0.72em;color:#3d4a5a">'
-            f'<span style="color:#00ff88">STEG RECORD</span><br/>'
-            f'4,888 MW — Aug 14 2024<br/>'
-            f'<span style="color:#3d4a5a">Effective capacity: 4,636 MW</span>'
-            f'</div>',
+            '<div style="background:#040810;border:1px solid #00ff8820;border-radius:4px;'
+            'padding:12px;margin-top:20px;font-size:0.72em;color:#3d4a5a">'
+            '<span style="color:#00ff88">STEG RECORD</span><br/>'
+            '4,888 MW — Aug 14 2024<br/>'
+            '<span style="color:#3d4a5a">Effective capacity: 4,636 MW</span>'
+            '</div>',
             unsafe_allow_html=True,
         )
 

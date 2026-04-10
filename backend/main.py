@@ -10,11 +10,10 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 import httpx
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-
 from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw
 from db import get_region_history, init_db, insert_weather_entries
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from grid import GridInputs, simulate_national_grid
 from models import (
     BlackoutRequest,
@@ -23,6 +22,7 @@ from models import (
     CarbonResponse,
     GridSimulationRequest,
     GridSimulationResponse,
+    HistoryRecord,
     HistoryRecordRequest,
     HistoryRecordResponse,
     HourlyPrediction,
@@ -178,7 +178,7 @@ def get_history(region: str, days: int = 7):
     if days < 1 or days > 365:
         raise HTTPException(status_code=422, detail="days must be between 1 and 365")
 
-    records = get_region_history(region, days)
+    records = [HistoryRecord.model_validate(row) for row in get_region_history(region, days)]
     return RegionHistoryResponse(region=region, days=days, records=records)
 
 
