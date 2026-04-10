@@ -4,7 +4,6 @@ National grid simulation utilities for NoorGrid.
 
 from dataclasses import dataclass
 
-
 STEG_EFFECTIVE_CAPACITY_MW = 4636.0
 STEG_BASELINE_DEMAND_MW = 2800.0
 STEG_Q3_AVG_DEMAND_MW = 3800.0

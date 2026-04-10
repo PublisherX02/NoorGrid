@@ -3,6 +3,7 @@ OpenMeteo weather data fetcher for Tunisian governorates.
 """
 
 import asyncio
+
 import httpx
 
 # Tunisian governorate coordinates (lat, lon)

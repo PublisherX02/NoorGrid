@@ -10,11 +10,10 @@ import sys
 sys.path.insert(0, os.path.dirname(__file__))
 
 import httpx
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-
 from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw
 from db import get_region_history, init_db, insert_weather_entries
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from grid import GridInputs, simulate_national_grid
 from models import (
     BlackoutRequest,

@@ -4,7 +4,6 @@ Pydantic request/response models for the NoorGrid API.
 
 from pydantic import BaseModel, Field
 
-
 # ── Request models ────────────────────────────────────────────────────────────
 
 class WindRequest(BaseModel):
