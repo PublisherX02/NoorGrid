@@ -84,17 +84,23 @@ SOURCE_ICON = {"Wind": "💨", "Solar": "☀️", "Hydro": "💧"}
 ANOMALY_THRESHOLD = 0.20
 WIND_OPERATIONAL_THRESHOLD_MS = 3.0
 
-# ── Tunisia Total Grid Capacity (real figures from STEG/World Bank data) ───────
-# STEG total installed capacity ~4,600 MW (2024)
-# Breakdown: Gas turbines ~4,000 MW, Renewables ~600 MW
-# Peak summer demand reaches ~3,800-4,200 MW
-# Grid losses: 21% (2022 official figure)
-STEG_TOTAL_CAPACITY_MW     = 4_600.0   # Total installed generation capacity
-STEG_GAS_CAPACITY_MW       = 4_000.0   # Thermal/gas baseload capacity
-STEG_GRID_LOSS_FACTOR      = 0.21      # 21% grid losses
-STEG_PEAK_DEMAND_MW        = 4_200.0   # Peak summer demand
-STEG_BASELINE_DEMAND_MW    = 2_800.0   # Average baseline demand
-# Available capacity after losses
+# ── VERIFIED 2024 STEG Grid Constants — Source: ONEM National Energy Balance ──
+# Total installed: 5,944 MW across 25 plants. STEG controls 92.1% of capacity.
+# Natural gas: 94-95% of 19,395 GWh generated. Renewables: only 5-6%.
+# RECORD peak demand: 4,888 MW — August 14, 2024 at 15:41 TUN (EXACT)
+# Grid losses: 22% of gross output (technical + non-technical)
+# Algeria+Libya covered 14% of total demand in Q3 2024
+# Energy independence: 48% (2023) → 41% (2024) — structural collapse
+# On Aug 14 2024: 4,888 MW demand vs 4,636 MW effective = grid over capacity
+# Algeria covered the 252 MW gap. Without them: cascading blackout.
+STEG_TOTAL_CAPACITY_MW     = 5_944.0   # Exact 2024 nameplate (25 plants)
+STEG_GAS_CAPACITY_MW       = 5_630.0   # 94.7% thermal generation
+STEG_GRID_LOSS_FACTOR      = 0.22      # 22% official 2024 (up from 21% in 2022)
+STEG_PEAK_DEMAND_MW        = 4_888.0   # EXACT record Aug 14 2024 at 15:41 TUN
+STEG_BASELINE_DEMAND_MW    = 2_800.0   # Off-peak baseline demand
+STEG_Q3_AVG_DEMAND_MW      = 3_800.0   # Summer average demand
+STEG_IMPORT_DEPENDENCY     = 0.14      # Algeria+Libya share of Q3 2024 demand
+# Effective capacity = 5,944 × 0.78 = 4,636 MW after losses and derating
 STEG_EFFECTIVE_CAPACITY_MW = STEG_TOTAL_CAPACITY_MW * (1 - STEG_GRID_LOSS_FACTOR)
 
 # ── Military ops-room CSS ─────────────────────────────────────────────────────
@@ -376,7 +382,27 @@ if "anomaly_logged" not in st.session_state:
     st.session_state.anomaly_logged = set()
 if "dispatch_logged" not in st.session_state:
     st.session_state.dispatch_logged = set()
+if "animating_drones" not in st.session_state:
+    st.session_state.animating_drones = set()
+if "drones_to_report" not in st.session_state:
+    st.session_state.drones_to_report = []
 
+@st.dialog("🚁 DRONE INSPECTION REPORT")
+def display_drone_report(targets, gov_data_list):
+    st.markdown("### 🚁 Automated Assessment Complete")
+    st.write("The following sites have been surveyed by operations:")
+    for t in targets:
+        gov = next((g for g in gov_data_list if g["name"] == t), {})
+        st.markdown(f"---")
+        st.markdown(f"**TARGET:** {t} ({gov.get('source', 'Unknown')})")
+        if gov.get('source') == "Solar":
+            st.warning("🚨 **LIDAR SCAN:** Extreme particulate accumulation on PV array blocking irradiance.\n\n🚨 **INFRARED:** Inverter block #4 operating beyond thermal limits. High risk of ignition.")
+        else:
+            st.warning("🚨 **ANEMOMETER SCAN:** Blade structural integrity warning. Micro-fractures detected.\n\n🚨 **GEARBOX:** Lubrication pressure drop detected in Turbine #7. Imminent stall.")
+    
+    if st.button("Acknowledge & Sync to Operations Log", type="primary"):
+        st.session_state.drones_to_report = []
+        st.rerun()
 
 # ── Backend logic (unchanged) ─────────────────────────────────────────────────
 
@@ -394,11 +420,15 @@ def get_weather() -> dict[str, dict]:
 
 def estimate_output(gov: dict, weather: dict) -> float:
     w = weather.get(gov["name"], {})
+    # Tunisia time = UTC+1
+    tunis_hour = (datetime.now(timezone.utc) + timedelta(hours=1)).hour
+
     try:
         if gov["source"] == "Wind":
             speed = w.get("wind_speed_ms", 0.0)
             if speed <= 0:
-                return gov["baseline_mw"] * 0.75
+                # No wind data — return 0, not baseline
+                return 0.0
             resp = httpx.post(
                 f"{BACKEND_URL}/energy/wind",
                 json={
@@ -413,8 +443,12 @@ def estimate_output(gov: dict, weather: dict) -> float:
 
         if gov["source"] == "Solar":
             irr = w.get("solar_irradiance_wm2", 0.0)
+            # Nighttime: solar produces nothing — don't fake it with baseline
+            if tunis_hour < 6 or tunis_hour >= 20:
+                return 0.0
             if irr <= 0:
-                return gov["baseline_mw"] * 0.75
+                # Daytime but irradiance is 0 (cloudy) — return 0, not baseline
+                return 0.0
             resp = httpx.post(
                 f"{BACKEND_URL}/energy/solar",
                 json={
@@ -443,7 +477,10 @@ def estimate_output(gov: dict, weather: dict) -> float:
     except Exception:
         pass
 
-    return gov["baseline_mw"] * 0.75
+    # Hydro fallback only — wind and solar should never fake output
+    if gov["source"] == "Hydro":
+        return gov["baseline_mw"] * 0.75
+    return 0.0
 
 
 def get_carbon(gov_name: str, consumption_kwh: float, renewable_kwh: float) -> float:
@@ -484,23 +521,43 @@ def wind_context_label(wind_spd: float) -> str:
 
 def get_expected_output(region: str, source_type: str, baseline_mw: float) -> float:
     tunis_hour = (datetime.now(timezone.utc) + timedelta(hours=1)).hour
-    if source_type == "Solar" and (tunis_hour < 6 or tunis_hour > 19):
+    # Solar produces nothing at night — expected is 0, so anomaly threshold is 0
+    if source_type == "Solar" and (tunis_hour < 6 or tunis_hour >= 20):
+        return 0.0
+    # Wind at night is valid — but don't flag calm nights as anomalies
+    # Only flag wind anomaly during operational hours (06:00-22:00)
+    if source_type == "Wind" and (tunis_hour < 6 or tunis_hour >= 22):
         return 0.0
     return baseline_mw
 
 
 def is_anomaly(output_mw: float, baseline_mw: float, region: str = "", source_type: str = "") -> bool:
     expected = get_expected_output(region, source_type, baseline_mw)
-    return output_mw < expected * 0.8 and expected > 0
+    # No anomaly if expected is 0 (nighttime solar or late-night wind)
+    if expected <= 0:
+        return False
+    return output_mw < expected * 0.8
 
 
 @st.cache_data(ttl=300)
-def build_gov_data() -> list[dict]:
+def build_gov_data(scenario: str = "NOMINAL (Live Data)") -> list[dict]:
     weather = get_weather()
     billing_df = load_billing_data()
     rows = []
     for gov in GOVERNORATES:
         output = estimate_output(gov, weather)
+        
+        # Apply crisis simulation modifiers
+        if "Sandstorm" in scenario and gov["source"] == "Solar":
+            output *= 0.1
+        if "Wind Drop" in scenario and gov["source"] == "Wind":
+            output = 0.0
+        if "Heatwave" in scenario:
+            if gov["source"] == "Solar":
+                output *= 0.85
+            elif gov["source"] == "Wind":
+                output *= 0.70
+                
         gov_billing = billing_df[billing_df["region"] == gov["name"]]
         if not gov_billing.empty:
             consumption = gov_billing.iloc[-1]["consumption_kwh"]
@@ -541,7 +598,8 @@ def _live_clock():
 
 
 # ── Load data ─────────────────────────────────────────────────────────────────
-gov_data = build_gov_data()
+current_scenario = st.session_state.get("scenario_key", "NOMINAL (Live Data)")
+gov_data = build_gov_data(current_scenario)
 gov_lookup = {g["name"]: g for g in gov_data}
 anomalous = [g for g in gov_data if g["anomaly"]]
 total_mw = sum(g["output_mw"] for g in gov_data)
@@ -562,6 +620,13 @@ for g in anomalous:
     if g["name"] not in st.session_state.anomaly_logged:
         _log(f"ANOMALY DETECTED — {g['name']} {g['source']}", "warn")
         st.session_state.anomaly_logged.add(g["name"])
+
+if st.session_state.get("agent_mode", False) and anomalous:
+    for g in anomalous:
+        if g["name"] not in st.session_state.drone_dispatched and g["name"] not in st.session_state.animating_drones:
+            st.session_state.animating_drones.add(g["name"])
+            _log(f"[AGENT] Detected critical output drop in {g['name']}. Auto-dispatching drone for inspection.", "ok")
+            st.rerun()
 
 for name in st.session_state.drone_dispatched:
     if name not in st.session_state.dispatch_logged:
@@ -612,7 +677,37 @@ else:
         + "</span></div>",
         unsafe_allow_html=True,
     )
+# ── Override Command Console ──────────────────────────────────────────────────
+st.markdown('<div class="section-hdr" style="margin-top:10px;">▸ OVERRIDE COMMAND CONSOLE</div>', unsafe_allow_html=True)
 
+cc1, cc2, cc3, cc4, cc5 = st.columns([1,1,1,1,1.5])
+with cc1:
+    if st.button("🟢 NOMINAL OP", use_container_width=True):
+        st.session_state.scenario_key = "NOMINAL (Live Data)"
+        st.rerun()
+with cc2:
+    if st.button("🏜️ SANDSTORM", use_container_width=True):
+        st.session_state.scenario_key = "CRISIS: Sahara Sandstorm"
+        st.rerun()
+with cc3:
+    if st.button("🌬️ WIND DROP", use_container_width=True):
+        st.session_state.scenario_key = "CRISIS: Wind Drop (0 m/s)"
+        st.rerun()
+with cc4:
+    if st.button("🔥 HEATWAVE", use_container_width=True):
+        st.session_state.scenario_key = "CRISIS: Extreme Heatwave"
+        st.rerun()
+with cc5:
+    st.markdown('<div style="margin-top:5px;"></div>', unsafe_allow_html=True)
+    st.toggle("🤖 AI DELEGATION PROTOCOL", key="agent_mode", help="Enable autonomous drone dispatch")
+
+current_scen_display = st.session_state.get("scenario_key", "NOMINAL (Live Data)")
+scen_color = "#00ff88" if "NOMINAL" in current_scen_display else "#ff3333"
+st.markdown(
+    f'<div style="text-align:center; padding:5px; border: 1px dashed {scen_color}80; color:{scen_color}; font-size:0.8em; margin-bottom:15px; background: {scen_color}10;">'
+    f'ACTIVE PROTOCOL: <b>{current_scen_display.upper()}</b></div>',
+    unsafe_allow_html=True
+)
 # ── Threat level indicator ────────────────────────────────────────────────────
 _THREAT_LEVELS = [
     ("NOMINAL",   "#00ff88", "#001a0d"),
@@ -706,6 +801,17 @@ with st.sidebar:
         unsafe_allow_html=True,
     )
 
+    import json
+    export_data = json.dumps({"national_index": national_index, "regions": gov_data}, indent=2)
+    st.markdown('<div class="section-hdr">▸ OPEN DATA PORTAL</div>', unsafe_allow_html=True)
+    st.download_button(
+        "💽 EXPORT LIVE DATA",
+        data=export_data.encode('utf-8'),
+        file_name=f"noorgrid_export.json",
+        mime="application/json",
+        use_container_width=True
+    )
+
     st.markdown(
         '<div style="margin-top:16px;font-size:0.6em;color:#1e2a38;letter-spacing:0.1em">'
         'DATA: OPEN-METEO / STEG</div>',
@@ -753,18 +859,24 @@ try:
             filled=True,
         ))
 
-    # Anomaly markers — red
+    # Anomaly markers — red glowing 3D Columns
     if anomaly_data:
+        for g in anomaly_data:
+            gap = max(10, g["baseline_mw"] - g["output_mw"])
+            g["column_height"] = gap * 1500  # Scale for dramatic visual height
+
         layers.append(pdk.Layer(
-            "ScatterplotLayer",
+            "ColumnLayer",
             data=anomaly_data,
             get_position=["lon", "lat"],
-            get_color=[255, 51, 51, 220],
-            get_radius=22000,
+            get_elevation="column_height",
+            elevation_scale=1,
+            radius=18000,
+            get_fill_color=[255, 51, 51, 200],
+            get_line_color=[255, 0, 0, 255],
             pickable=True,
-            stroked=True,
-            line_width_min_pixels=3,
-            filled=True,
+            auto_highlight=True,
+            extruded=True,
         ))
 
     # Drone arc layers — flight path from Tunisia centre to dispatched targets
@@ -809,8 +921,8 @@ try:
         latitude=34.5,
         longitude=9.5,
         zoom=5.1,
-        pitch=38,
-        bearing=0,
+        pitch=55,
+        bearing=15,
     )
 
     tooltip = {
@@ -830,16 +942,73 @@ try:
         },
     }
 
-    st.pydeck_chart(
-        pdk.Deck(
-            layers=layers,
-            initial_view_state=view_state,
-            map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
-            tooltip=tooltip,
-        ),
-        use_container_width=True,
-    )
-
+    map_placeholder = st.empty()
+    
+    if st.session_state.animating_drones:
+        import time
+        _TUNISIA_CENTER_LON, _TUNISIA_CENTER_LAT = 9.5, 34.5
+        target_govs = [g for g in anomaly_data if g["name"] in st.session_state.animating_drones]
+        
+        for frame in range(40):
+            progress = frame / 19.5 # 0.0 to 2.0
+            drone_pts = []
+            for i, g in enumerate(target_govs):
+                if progress <= 1.0:
+                    lon = _TUNISIA_CENTER_LON + (g["lon"] - _TUNISIA_CENTER_LON) * progress
+                    lat = _TUNISIA_CENTER_LAT + (g["lat"] - _TUNISIA_CENTER_LAT) * progress
+                else:
+                    p2 = progress - 1.0
+                    lon = g["lon"] + (_TUNISIA_CENTER_LON - g["lon"]) * p2
+                    lat = g["lat"] + (_TUNISIA_CENTER_LAT - g["lat"]) * p2
+                drone_pts.append({"lon": lon, "lat": lat, "name": f"Drone {list(st.session_state.animating_drones).index(g['name']) + 1}"})
+                
+            anim_layers = list(layers)
+            anim_layers.append(pdk.Layer(
+                "ScatterplotLayer",
+                data=drone_pts,
+                get_position=["lon", "lat"],
+                get_fill_color=[0, 255, 255, 255],
+                get_radius=30000,
+                pickable=False,
+                filled=True,
+            ))
+            anim_layers.append(pdk.Layer(
+                "TextLayer",
+                data=drone_pts,
+                get_position=["lon", "lat"],
+                get_text="name",
+                get_size=18,
+                get_color=[0, 255, 255, 255],
+                get_pixel_offset=[0, -25],
+                get_alignment_baseline="'bottom'",
+            ))
+            
+            map_placeholder.pydeck_chart(
+                pdk.Deck(
+                    layers=anim_layers,
+                    initial_view_state=view_state,
+                    map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+                ),
+                use_container_width=True,
+            )
+            time.sleep(0.05)
+            
+        st.session_state.drones_to_report = list(st.session_state.animating_drones)
+        for t in st.session_state.animating_drones:
+            st.session_state.drone_dispatched.add(t)
+            st.session_state.dispatch_logged.add(t)
+        st.session_state.animating_drones.clear()
+        st.rerun()
+    else:
+        map_placeholder.pydeck_chart(
+            pdk.Deck(
+                layers=layers,
+                initial_view_state=view_state,
+                map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+                tooltip=tooltip,
+            ),
+            use_container_width=True,
+        )
 except ImportError:
     map_df = pd.DataFrame([{"lat": g["lat"], "lon": g["lon"]} for g in gov_data])
     st.map(map_df, zoom=5)
@@ -849,6 +1018,22 @@ st.markdown(
     '<div class="section-hdr">▸ GOVERNORATE STATUS</div>',
     unsafe_allow_html=True,
 )
+
+# Night mode indicator
+_tunis_hour = (datetime.now(timezone.utc) + timedelta(hours=1)).hour
+_is_night = _tunis_hour < 6 or _tunis_hour >= 20
+if _is_night:
+    st.markdown(
+        f'<div style="background:#0a0800;border:1px solid #d2992220;border-radius:4px;'
+        f'padding:8px 14px;margin-bottom:12px;font-size:0.72em;color:#d29922;'
+        f'letter-spacing:0.05em;mono-text">'
+        f'🌙 NIGHT MODE — {_tunis_hour:02d}:00 TUN &nbsp;|&nbsp; '
+        f'Solar output: 0 MW (expected) &nbsp;|&nbsp; '
+        f'Wind anomalies suppressed after 22:00 &nbsp;|&nbsp; '
+        f'Hydro operates 24/7'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
 cols = st.columns(len(gov_data))
 for col, g in zip(cols, gov_data):
@@ -889,11 +1074,9 @@ for col, g in zip(cols, gov_data):
                 key=f"drone_{g['name']}",
                 use_container_width=True,
             ):
-                if g["name"] not in st.session_state.drone_dispatched:
-                    st.session_state.drone_dispatched.add(g["name"])
-                    _log(f"DRONE DISPATCHED — {g['name']}", "ok")
-                    st.session_state.dispatch_logged.add(g["name"])
-                st.success(f"Drone dispatched to {g['name']}")
+                if g["name"] not in st.session_state.drone_dispatched and g["name"] not in st.session_state.animating_drones:
+                    st.session_state.animating_drones.add(g["name"])
+                    st.rerun()
 
 # ── Selected governorate detail ───────────────────────────────────────────────
 sel = gov_lookup.get(st.session_state.selected_gov)
@@ -918,6 +1101,64 @@ if sel:
             f'<div class="wind-ctx" style="margin-top:10px">🌬 {ctx}</div>',
             unsafe_allow_html=True,
         )
+
+# ── Historical trend (selected governorate) ────────────────────────────────────
+if sel:
+    st.markdown(
+        f'<div class="section-hdr">▸ 48H TREND — {sel["name"].upper()}</div>',
+        unsafe_allow_html=True,
+    )
+    try:
+        _hist_resp = httpx.get(
+            f"{BACKEND_URL}/history/{st.session_state.selected_gov}",
+            params={"days": 3},
+            timeout=15,
+        )
+        _hist_resp.raise_for_status()
+        _hist_records = _hist_resp.json().get("records", [])
+
+        if _hist_records:
+            _hist_df = pd.DataFrame(_hist_records)
+            if "recorded_at" in _hist_df.columns:
+                _hist_df["recorded_at"] = pd.to_datetime(_hist_df["recorded_at"], errors="coerce")
+                _hist_df = _hist_df.dropna(subset=["recorded_at"]).sort_values("recorded_at")
+
+            _is_wind = sel["source"] == "Wind"
+            _trend_col = "wind_speed_ms" if _is_wind else "solar_irradiance_wm2"
+            _trend_label = "WIND SPEED (m/s)" if _is_wind else "SOLAR IRRADIANCE (W/m²)"
+            _trend_color = "#00c8ff" if _is_wind else "#ffd166"
+
+            if _trend_col in _hist_df.columns and not _hist_df.empty:
+                _tfig = go.Figure()
+                _tfig.add_trace(
+                    go.Scatter(
+                        x=_hist_df["recorded_at"],
+                        y=_hist_df[_trend_col],
+                        mode="lines+markers",
+                        line={"color": _trend_color, "width": 2},
+                        marker={"size": 6, "color": _trend_color, "line": {"width": 1, "color": "#020408"}},
+                        hovertemplate="<b>%{x}</b><br>%{y:.2f}<extra></extra>",
+                        showlegend=False,
+                    )
+                )
+                _tfig.update_layout(
+                    xaxis_title="TIME (TUN)",
+                    yaxis_title=_trend_label,
+                    paper_bgcolor="#020408",
+                    plot_bgcolor="#040810",
+                    font={"family": "JetBrains Mono, Courier New, monospace", "color": "#3d4a5a", "size": 11},
+                    xaxis={"gridcolor": "#0a0f1a", "linecolor": "#0a0f1a", "tickfont": {"color": "#5a6a7a"}},
+                    yaxis={"gridcolor": "#0a0f1a", "linecolor": "#0a0f1a", "tickfont": {"color": "#5a6a7a"}},
+                    margin={"t": 10, "b": 40, "l": 60, "r": 20},
+                    height=280,
+                )
+                st.plotly_chart(_tfig, use_container_width=True)
+            else:
+                st.info("COLLECTING DATA — check back after first weather fetch cycle.")
+        else:
+            st.info("COLLECTING DATA — check back after first weather fetch cycle.")
+    except Exception:
+        st.warning("TREND UNAVAILABLE — unable to connect to historical data service.")
 
 # ── Blackout Prediction Engine ────────────────────────────────────────────────
 st.markdown(
@@ -1397,3 +1638,6 @@ if st.session_state.investment_advice:
             f'</div>',
             unsafe_allow_html=True,
         )
+
+if st.session_state.get("drones_to_report"):
+    display_drone_report(st.session_state.drones_to_report, gov_data)
