@@ -3,6 +3,7 @@ NoorGrid — Military Operations Room Dashboard
 """
 
 import os
+from pathlib import Path
 from datetime import datetime, timezone, timedelta
 
 import httpx
@@ -18,10 +19,12 @@ except ImportError:
     pass  # dotenv not installed — keys must be set as system env vars
 
 NIM_API_KEY = os.getenv("NVIDIA_NIM_API_KEY", "")
+APP_LOGO_PATH = Path(__file__).resolve().parents[1] / "channels4_profile.jpg"
+APP_ICON = str(APP_LOGO_PATH) if APP_LOGO_PATH.exists() else "⚡"
 
 st.set_page_config(
     page_title="NOORGRID OPS",
-    page_icon="⚡",
+    page_icon=APP_ICON,
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -144,10 +147,20 @@ st.markdown(
         margin-bottom: 0;
     }
     .header-logo {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         color: #00ff88;
         font-weight: 700;
         font-size: 1.35em;
         letter-spacing: 0.14em;
+    }
+    .header-logo img {
+        width: 34px;
+        height: 34px;
+        border-radius: 6px;
+        object-fit: cover;
+        border: 1px solid #00ff8840;
     }
     .header-clock {
         color: #06b6d4;
@@ -638,10 +651,14 @@ for name in st.session_state.drone_dispatched:
 h_left, h_center, h_right = st.columns([1, 1.5, 1])
 
 with h_left:
-    st.markdown(
-        '<div class="header-logo">⚡ NOORGRID</div>',
-        unsafe_allow_html=True,
-    )
+    if APP_LOGO_PATH.exists():
+        _logo_col, _title_col = st.columns([0.18, 0.82], gap="small")
+        with _logo_col:
+            st.image(str(APP_LOGO_PATH), width=34)
+        with _title_col:
+            st.markdown('<div class="header-logo"><span>NOORGRID</span></div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="header-logo">⚡ NOORGRID</div>', unsafe_allow_html=True)
 
 with h_right:
     st.markdown(

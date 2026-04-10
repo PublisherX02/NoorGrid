@@ -334,7 +334,7 @@
                            </div>
                        </div>`,
                 camPos: { x: -80 + camOffset, y: 0, z: -80 }, lookAt: { x: -80 + camOffset, y: 0, z: -110 },
-                objId: 'science', showLabels: false, interactiveGraph: false
+                objId: 'blackout_engine', showLabels: false, interactiveGraph: false
             },
             {
                 chapter: "Ch. XI", subtitle: "The Plan", title: "From Pilot to Infrastructure",
@@ -462,6 +462,7 @@
             buildScience();
             buildRoadmap();
             buildTunisiaMap();
+            buildBlackoutEngine(); // Ch. X — grid stress visualization
             buildStarfield();
             buildQRCodePortal(); // NEW: The 3D QR Code Scene
             buildSources();      // Ch. XIII data sources floating orbs
@@ -910,6 +911,150 @@
             animatedObjects['sources'] = group;
         }
 
+        function buildBlackoutEngine() {
+            // Ch. X — Grid stress visualization representing the blackout prediction engine
+            // Visual concept: Tunisia's grid as a central power core surrounded by
+            // demand pressure rings that compress inward as stress increases.
+            // On Aug 14 2024: demand 4,888 MW crushed through the 4,636 MW capacity ring.
+
+            const group = new THREE.Group();
+            group.position.set(-80, 0, -110);
+
+            // ── Core: the grid capacity sphere (4,636 MW effective) ──────────────
+            const coreGeo = new THREE.SphereGeometry(3.5, 32, 32);
+            const coreMat = new THREE.MeshStandardMaterial({
+                color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 0.4,
+                transparent: true, opacity: 0.15, wireframe: false
+            });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            group.add(core);
+
+            // Wireframe overlay on core
+            const coreWire = new THREE.Mesh(coreGeo,
+                new THREE.MeshBasicMaterial({ color: 0x06b6d4, wireframe: true, transparent: true, opacity: 0.3 })
+            );
+            group.add(coreWire);
+
+            // Inner energy glow
+            const innerGlow = new THREE.Mesh(
+                new THREE.SphereGeometry(2.2, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.25 })
+            );
+            group.add(innerGlow);
+
+            // ── Capacity ring: 4,636 MW boundary ─────────────────────────────────
+            const capacityRing = new THREE.Mesh(
+                new THREE.TorusGeometry(5.5, 0.08, 16, 100),
+                new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.8 })
+            );
+            capacityRing.rotation.x = Math.PI / 2;
+            group.add(capacityRing);
+
+            // Capacity ring label sphere (green = safe boundary)
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
+                const dot = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.12, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: 0x00ff88 })
+                );
+                dot.position.set(Math.cos(angle) * 5.5, 0, Math.sin(angle) * 5.5);
+                group.add(dot);
+            }
+
+            // ── Demand pressure rings — 4 risk tiers closing inward ───────────────
+            // NOMINAL ring (far out — safe)
+            const nominalRing = new THREE.Mesh(
+                new THREE.TorusGeometry(8, 0.06, 16, 100),
+                new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.3, transparent: true, opacity: 0.5 })
+            );
+            nominalRing.rotation.x = Math.PI / 2;
+            group.add(nominalRing);
+
+            // ELEVATED ring
+            const elevatedRing = new THREE.Mesh(
+                new THREE.TorusGeometry(6.8, 0.07, 16, 100),
+                new THREE.MeshStandardMaterial({ color: 0xd4e000, emissive: 0xd4e000, emissiveIntensity: 0.5, transparent: true, opacity: 0.6 })
+            );
+            elevatedRing.rotation.x = Math.PI / 2;
+            group.add(elevatedRing);
+
+            // HIGH ring
+            const highRing = new THREE.Mesh(
+                new THREE.TorusGeometry(5.9, 0.08, 16, 100),
+                new THREE.MeshStandardMaterial({ color: 0xff8800, emissive: 0xff8800, emissiveIntensity: 0.6, transparent: true, opacity: 0.7 })
+            );
+            highRing.rotation.x = Math.PI / 2;
+            group.add(highRing);
+
+            // CRITICAL ring — Aug 14 2024 event ring — BREACHED the capacity boundary
+            const criticalRing = new THREE.Mesh(
+                new THREE.TorusGeometry(5.3, 0.12, 16, 100),
+                new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0xff3333, emissiveIntensity: 1.0 })
+            );
+            criticalRing.rotation.x = Math.PI / 2;
+            group.add(criticalRing);
+
+            // ── Demand spike arrows — pointing inward from 4 cardinal directions ──
+            const arrowMat = new THREE.MeshBasicMaterial({ color: 0xff3333, transparent: true, opacity: 0.6 });
+            const arrowPositions = [
+                [8, 0, 0], [-8, 0, 0], [0, 0, 8], [0, 0, -8]
+            ];
+            arrowPositions.forEach(([x, y, z]) => {
+                const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.3, 1.2, 8), arrowMat);
+                arrow.position.set(x, y, z);
+                // Point toward center
+                arrow.lookAt(0, 0, 0);
+                arrow.rotateX(Math.PI / 2);
+                group.add(arrow);
+            });
+
+            // ── Algeria interconnector line — the lifeline ────────────────────────
+            // Shown as a glowing line coming from outside the critical ring
+            const algeriaPoints = [
+                new THREE.Vector3(-14, 0, -3),
+                new THREE.Vector3(-5.5, 0, 0)
+            ];
+            const algeriaLine = new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints(algeriaPoints),
+                new THREE.LineBasicMaterial({ color: 0xfbbf24, linewidth: 2 })
+            );
+            group.add(algeriaLine);
+
+            // Algeria source node
+            const algeriaDot = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 1.0 })
+            );
+            algeriaDot.position.set(-14, 0, -3);
+            group.add(algeriaDot);
+
+            // ── Blackout probability particles — red storm around the core ────────
+            const particleCount = 200;
+            const particleGeo = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                const radius = 4.5 + Math.random() * 2;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.acos(2 * Math.random() - 1);
+                positions[i]     = radius * Math.sin(phi) * Math.cos(theta);
+                positions[i + 1] = radius * Math.sin(phi) * Math.sin(theta) * 0.3; // flatten to equatorial
+                positions[i + 2] = radius * Math.cos(phi);
+            }
+            particleGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const particles = new THREE.Points(
+                particleGeo,
+                new THREE.PointsMaterial({ color: 0xff3333, size: 0.15, transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending })
+            );
+            group.add(particles);
+
+            scene.add(group);
+            animatedObjects['blackout_engine'] = {
+                group, core, coreWire, innerGlow,
+                capacityRing, criticalRing, highRing, elevatedRing, nominalRing,
+                particles, algeriaDot
+            };
+        }
+
         function buildStarfield() {
             const geo = new THREE.BufferGeometry();
             const count = 2000;
@@ -1127,6 +1272,45 @@
                 animatedObjects['science'].scale.set(scale, scale, scale);
             }
             if(animatedObjects['roadmap']) animatedObjects['roadmap'].rotation.y = Math.sin(time * 0.3) * 0.2;
+
+            // --- Blackout Engine Animation (Ch. X) ---
+            if(animatedObjects['blackout_engine']) {
+                const be = animatedObjects['blackout_engine'];
+
+                // Core pulses — breathing like a stressed power grid
+                const pulse = 1 + Math.sin(time * 2.5) * 0.08;
+                be.core.scale.set(pulse, pulse, pulse);
+                be.innerGlow.scale.set(pulse * 1.1, pulse * 1.1, pulse * 1.1);
+
+                // Emissive intensity spikes on the pulse peak — grid voltage fluctuation
+                be.core.material.emissiveIntensity = 0.3 + Math.sin(time * 2.5) * 0.2;
+
+                // Critical ring rotates fast — danger signal
+                be.criticalRing.rotation.z = time * 0.8;
+                // Critical ring pulses red — blink effect
+                be.criticalRing.material.emissiveIntensity = 0.8 + Math.sin(time * 4) * 0.5;
+
+                // High ring rotates slower
+                be.highRing.rotation.z = -time * 0.4;
+
+                // Elevated ring drifts
+                be.elevatedRing.rotation.z = time * 0.2;
+
+                // Capacity ring (green boundary) holds steady — it's the limit
+                be.capacityRing.rotation.z = time * 0.05;
+                be.capacityRing.material.emissiveIntensity = 0.6 + Math.sin(time * 1.5) * 0.2;
+
+                // Demand particles orbit the core like pressure closing in
+                be.particles.rotation.y = time * 0.15;
+                be.particles.rotation.x = Math.sin(time * 0.3) * 0.1;
+
+                // Algeria dot pulses amber — the lifeline
+                be.algeriaDot.material.emissiveIntensity = 0.7 + Math.sin(time * 3) * 0.4;
+                be.algeriaDot.scale.setScalar(1 + Math.sin(time * 3) * 0.3);
+
+                // Entire group slow drift — like a live monitoring screen
+                be.group.rotation.y = Math.sin(time * 0.1) * 0.08;
+            }
             if(animatedObjects['map'] && animatedObjects['mapNodes']) {
                 animatedObjects['map'].rotation.y = Math.sin(time * 0.2) * 0.1;
                 animatedObjects['mapNodes'].forEach((node, i) => {
