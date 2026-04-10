@@ -296,3 +296,4 @@ The problem is real. The gap is real. NoorGrid is the answer.
 
 *"There is no digital follow-up system for these grids. And there is no prevention mindset."*
 *— Senior Official, STEG Renewable Energy Division, April 2026*
+*— Senior Official, STEG Renewable Energy Division, April 2026*
