@@ -132,6 +132,36 @@ Headroom = (4,636 − Demand) / 4,636 × 100%
 - HIGH → Industrial demand reduction + reserve turbines
 - ELEVATED → Demand response protocols + grid monitoring
 
+### Trend-Based Composite Risk Scoring (Current Alert Logic)
+
+NoorGrid now uses trend-aware scoring in the frontend operations layer instead of threshold-only alerts.
+
+```
+Risk Score = 0.40 × Deviation + 0.35 × RateOfChange + 0.25 × RegionalCorrelation
+```
+
+All components are normalized to a 0-100 range:
+
+- **Deviation**: current output shortfall from expected output (time-aware baseline)
+- **RateOfChange**: recent drop magnitude from history window (oldest to latest signal)
+  - Wind regions use `wind_speed_ms`
+  - Solar regions use `solar_irradiance_wm2`
+- **RegionalCorrelation**: shared decline pressure when multiple regions drop together in the same window
+
+Risk bands:
+
+| Score | Level |
+|-------|-------|
+| < 35 | NOMINAL |
+| 35-59.9 | ELEVATED |
+| 60-79.9 | HIGH |
+| >= 80 | CRITICAL |
+
+UI impact:
+- Ticker shows **risk level + score** per affected region
+- Threat bar is driven by **max risk score** across all regions
+- Region cards and selected region panel expose **risk components** for explainability
+
 ---
 
 ## Verified 2024 Grid Constants

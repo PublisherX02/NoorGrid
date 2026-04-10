@@ -84,8 +84,12 @@ GOVERNORATES: list[dict] = [
 ]
 
 SOURCE_ICON = {"Wind": "💨", "Solar": "☀️", "Hydro": "💧"}
-ANOMALY_THRESHOLD = 0.20
 WIND_OPERATIONAL_THRESHOLD_MS = 3.0
+RISK_WEIGHTS = {
+    "deviation": 0.40,
+    "rate_of_change": 0.35,
+    "regional_correlation": 0.25,
+}
 
 # ── VERIFIED 2024 STEG Grid Constants — Source: ONEM National Energy Balance ──
 # Total installed: 5,944 MW across 25 plants. STEG controls 92.1% of capacity.
@@ -553,6 +557,116 @@ def is_anomaly(output_mw: float, baseline_mw: float, region: str = "", source_ty
 
 
 @st.cache_data(ttl=300)
+def get_history_series(region: str, days: int = 1) -> list[dict]:
+    """Fetch historical weather snapshots for one region from backend SQLite API."""
+    try:
+        resp = httpx.get(f"{BACKEND_URL}/history/{region}", params={"days": days}, timeout=15)
+        resp.raise_for_status()
+        records = resp.json().get("records", [])
+        return sorted(records, key=lambda r: r.get("recorded_at", ""))
+    except Exception:
+        return []
+
+
+def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
+    return max(low, min(high, value))
+
+
+def _signal_values_for_source(history_records: list[dict], source_type: str) -> list[float]:
+    if source_type == "Wind":
+        return [
+            float(r.get("wind_speed_ms", 0.0))
+            for r in history_records
+            if r.get("wind_speed_ms") is not None
+        ]
+    if source_type == "Solar":
+        return [
+            float(r.get("solar_irradiance_wm2", 0.0))
+            for r in history_records
+            if r.get("solar_irradiance_wm2") is not None
+        ]
+    return []
+
+
+def _compute_roc_drop_pct(history_records: list[dict], source_type: str) -> float:
+    """Return positive % drop magnitude based on oldest -> newest signal in window."""
+    vals = _signal_values_for_source(history_records, source_type)
+    if len(vals) < 2:
+        return 0.0
+    start = max(vals[0], 1e-6)
+    end = vals[-1]
+    change_pct = ((end - start) / start) * 100.0
+    return max(0.0, -change_pct)
+
+
+def _risk_level_from_score(score: float) -> str:
+    if score >= 80:
+        return "CRITICAL"
+    if score >= 60:
+        return "HIGH"
+    if score >= 35:
+        return "ELEVATED"
+    return "NOMINAL"
+
+
+def apply_trend_risk_scoring(rows: list[dict], scenario: str = "NOMINAL (Live Data)") -> list[dict]:
+    """Compute composite risk using baseline deviation + ROC + regional correlation."""
+    # Scenario runs are synthetic; keep alerts tied to the simulation output itself.
+    if "NOMINAL" not in scenario:
+        for row in rows:
+            expected = get_expected_output(row["name"], row["source"], row["baseline_mw"])
+            deviation_pct = 0.0 if expected <= 0 else max(0.0, ((expected - row["output_mw"]) / expected) * 100.0)
+            row["risk_components"] = {
+                "deviation": round(_clamp(deviation_pct), 1),
+                "rate_of_change": 0.0,
+                "regional_correlation": 0.0,
+            }
+            row["risk_score"] = round(_clamp(deviation_pct), 1)
+            row["risk_level"] = _risk_level_from_score(row["risk_score"])
+            row["anomaly"] = row["risk_level"] in {"ELEVATED", "HIGH", "CRITICAL"}
+        return rows
+
+    history_by_region = {row["name"]: get_history_series(row["name"], days=1) for row in rows}
+    roc_drop_by_region: dict[str, float] = {}
+    for row in rows:
+        roc_drop_by_region[row["name"]] = _compute_roc_drop_pct(
+            history_by_region.get(row["name"], []),
+            row["source"],
+        )
+
+    # Regional correlation: if many regions decline together, boost local risk.
+    declining_regions = [name for name, drop in roc_drop_by_region.items() if drop >= 12.0]
+    regional_ratio = len(declining_regions) / max(len(rows), 1)
+
+    for row in rows:
+        expected = get_expected_output(row["name"], row["source"], row["baseline_mw"])
+        deviation_pct = 0.0 if expected <= 0 else max(0.0, ((expected - row["output_mw"]) / expected) * 100.0)
+
+        deviation_score = _clamp(deviation_pct)
+        roc_score = _clamp(roc_drop_by_region[row["name"]] * 2.2)  # 45% drop ~= high risk
+        corr_multiplier = 1.0 if roc_drop_by_region[row["name"]] >= 6.0 else 0.5
+        regional_corr_score = _clamp(regional_ratio * 100.0 * corr_multiplier)
+
+        risk_score = _clamp(
+            deviation_score * RISK_WEIGHTS["deviation"]
+            + roc_score * RISK_WEIGHTS["rate_of_change"]
+            + regional_corr_score * RISK_WEIGHTS["regional_correlation"]
+        )
+        risk_level = _risk_level_from_score(risk_score)
+
+        row["risk_components"] = {
+            "deviation": round(deviation_score, 1),
+            "rate_of_change": round(roc_score, 1),
+            "regional_correlation": round(regional_corr_score, 1),
+        }
+        row["risk_score"] = round(risk_score, 1)
+        row["risk_level"] = risk_level
+        row["anomaly"] = risk_level in {"ELEVATED", "HIGH", "CRITICAL"}
+
+    return rows
+
+
+@st.cache_data(ttl=300)
 def build_gov_data(scenario: str = "NOMINAL (Live Data)") -> list[dict]:
     weather = get_weather()
     billing_df = load_billing_data()
@@ -595,7 +709,7 @@ def build_gov_data(scenario: str = "NOMINAL (Live Data)") -> list[dict]:
             "anomaly": anomaly,
             "wind_speed_ms": wind_speed,
         })
-    return rows
+    return apply_trend_risk_scoring(rows, scenario)
 
 
 # ── Live clock fragment (defined at module level to keep a stable fragment ID) ─
@@ -631,7 +745,11 @@ if not st.session_state.mission_log:
 
 for g in anomalous:
     if g["name"] not in st.session_state.anomaly_logged:
-        _log(f"ANOMALY DETECTED — {g['name']} {g['source']}", "warn")
+        _log(
+            f"RISK ELEVATED — {g['name']} {g['source']} "
+            f"(score {g.get('risk_score', 0):.1f}, {g.get('risk_level', 'NOMINAL')})",
+            "warn",
+        )
         st.session_state.anomaly_logged.add(g["name"])
 
 if st.session_state.get("agent_mode", False) and anomalous:
@@ -677,7 +795,11 @@ if anomalous:
     for g in anomalous:
         spd = f" — {g['wind_speed_ms']:.2f} m/s" if g.get("wind_speed_ms") is not None else ""
         status = " — DRONE DISPATCHED" if g["name"] in st.session_state.drone_dispatched else ""
-        parts.append(f"⚠ ANOMALY — {g['name']} {g['source']}{spd}{status}")
+        parts.append(
+            f"⚠ {g.get('risk_level', 'ELEVATED')} RISK — {g['name']} {g['source']} "
+            f"[{g.get('risk_score', 0):.1f}]"
+            f"{spd}{status}"
+        )
     # repeat to fill the scroll loop
     ticker_text = ("  ◆  ".join(parts) + "  ◆  ") * 4
     st.markdown(
@@ -733,7 +855,15 @@ _THREAT_LEVELS = [
     ("CRITICAL",  "#ff3333", "#1a0000"),
     ("BLACKOUT",  "#660000", "#0d0000"),
 ]
-_threat_idx = min(len(anomalous), 3)  # 0→NOMINAL 1→ELEVATED 2→HIGH 3+→CRITICAL
+_max_risk_score = max((g.get("risk_score", 0.0) for g in gov_data), default=0.0)
+if _max_risk_score >= 80:
+    _threat_idx = 3
+elif _max_risk_score >= 60:
+    _threat_idx = 2
+elif _max_risk_score >= 35:
+    _threat_idx = 1
+else:
+    _threat_idx = 0
 
 segs_html = ""
 for i, (label, color, bg) in enumerate(_THREAT_LEVELS):
@@ -784,7 +914,7 @@ with st.sidebar:
     st.markdown('<div class="section-hdr">▸ SELECT TARGET</div>', unsafe_allow_html=True)
     for gov in gov_data:
         icon = SOURCE_ICON.get(gov["source"], "⚡")
-        tag = " [!ANOMALY]" if gov["anomaly"] else ""
+        tag = f" [{gov.get('risk_level', 'NOMINAL')} {gov.get('risk_score', 0):.0f}]" if gov["anomaly"] else ""
         if st.button(f"> {icon} {gov['name']}{tag}", key=f"btn_{gov['name']}", use_container_width=True):
             st.session_state.selected_gov = gov["name"]
 
@@ -1067,6 +1197,7 @@ for col, g in zip(cols, gov_data):
             f'</div>'
             f'<div class="gov-row">Output &nbsp;&nbsp;&nbsp;<span>{g["output_mw"]:.2f} MW</span></div>'
             f'<div class="gov-row">Baseline <span>{g["baseline_mw"]:.0f} MW</span></div>'
+            f'<div class="gov-row">Risk &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>{g.get("risk_level","NOMINAL")} ({g.get("risk_score",0):.1f})</span></div>'
             f'<div class="gov-row">Carbon &nbsp;&nbsp;<span>{g["carbon_score_kg"]:,.0f} kg CO₂</span></div>'
         )
 
@@ -1110,7 +1241,17 @@ if sel:
         delta=f"{sel['output_mw'] - sel['baseline_mw']:.2f} vs baseline",
     )
     c3.metric("Carbon Score", f"{sel['carbon_score_kg']:,.0f} kg CO₂")
-    c4.metric("Status", "⚠ ANOMALY" if sel["anomaly"] else "● NOMINAL")
+    c4.metric("Risk", f"{sel.get('risk_level', 'NOMINAL')} ({sel.get('risk_score', 0):.1f})")
+
+    _rc = sel.get("risk_components", {})
+    st.markdown(
+        f'<div style="margin-top:8px;font-size:0.72em;color:#8b949e;letter-spacing:0.06em">'
+        f'RISK COMPONENTS — DEV {_rc.get("deviation", 0):.1f} · '
+        f'ROC {_rc.get("rate_of_change", 0):.1f} · '
+        f'REGIONAL {_rc.get("regional_correlation", 0):.1f}'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
 
     if sel["source"] == "Wind" and sel.get("wind_speed_ms") is not None:
         ctx = wind_context_label(sel["wind_speed_ms"])
