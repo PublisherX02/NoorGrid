@@ -3,7 +3,8 @@
 
 ---
 ## Presentation
-https://publisherx02.github.io/NoorGrid/presentation.html
+
+[![NoorGrid Interactive Presentation](assets/presentation-preview.svg)](https://publisherx02.github.io/NoorGrid/presentation.html)
 
 
 ---
