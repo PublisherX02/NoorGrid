@@ -28,7 +28,7 @@ def wind_power_mw(wind_speed: float, rotor_area: float, efficiency: float) -> fl
         Power output in MW.
     """
     power_w = 0.5 * AIR_DENSITY * rotor_area * (wind_speed ** 3) * efficiency
-    return round(power_w * W_TO_MW, 4)
+    return round(power_w * W_TO_MW, 10)
 
 
 def solar_power_mw(irradiance: float, panel_area: float, efficiency: float) -> float:
@@ -45,7 +45,7 @@ def solar_power_mw(irradiance: float, panel_area: float, efficiency: float) -> f
         Power output in MW.
     """
     power_w = irradiance * panel_area * efficiency
-    return round(power_w * W_TO_MW, 4)
+    return round(power_w * W_TO_MW, 8)
 
 
 def hydro_power_mw(flow_rate: float, head_height: float, efficiency: float) -> float:
@@ -62,7 +62,7 @@ def hydro_power_mw(flow_rate: float, head_height: float, efficiency: float) -> f
         Power output in MW.
     """
     power_w = WATER_DENSITY * GRAVITY * flow_rate * head_height * efficiency
-    return round(power_w * W_TO_MW, 4)
+    return round(power_w * W_TO_MW, 8)
 
 
 def carbon_score(consumption_kwh: float, renewable_kwh: float) -> float:

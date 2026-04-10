@@ -54,6 +54,31 @@ class WeatherResponse(BaseModel):
     data: list[WeatherEntry]
 
 
+# ── History models ──────────────────────────────────────────────────────────────
+
+class HistoryRecord(BaseModel):
+    region: str
+    latitude: float
+    longitude: float
+    wind_speed_ms: float
+    solar_irradiance_wm2: float
+    recorded_at: str
+
+
+class RegionHistoryResponse(BaseModel):
+    region: str
+    days: int
+    records: list[HistoryRecord]
+
+
+class HistoryRecordRequest(BaseModel):
+    data: list[WeatherEntry]
+
+
+class HistoryRecordResponse(BaseModel):
+    inserted: int
+
+
 # ── Blackout prediction models ────────────────────────────────────────────────
 
 class BlackoutRequest(BaseModel):

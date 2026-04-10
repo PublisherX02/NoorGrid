@@ -1102,6 +1102,64 @@ if sel:
             unsafe_allow_html=True,
         )
 
+# ── Historical trend (selected governorate) ────────────────────────────────────
+if sel:
+    st.markdown(
+        f'<div class="section-hdr">▸ 48H TREND — {sel["name"].upper()}</div>',
+        unsafe_allow_html=True,
+    )
+    try:
+        _hist_resp = httpx.get(
+            f"{BACKEND_URL}/history/{st.session_state.selected_gov}",
+            params={"days": 3},
+            timeout=15,
+        )
+        _hist_resp.raise_for_status()
+        _hist_records = _hist_resp.json().get("records", [])
+
+        if _hist_records:
+            _hist_df = pd.DataFrame(_hist_records)
+            if "recorded_at" in _hist_df.columns:
+                _hist_df["recorded_at"] = pd.to_datetime(_hist_df["recorded_at"], errors="coerce")
+                _hist_df = _hist_df.dropna(subset=["recorded_at"]).sort_values("recorded_at")
+
+            _is_wind = sel["source"] == "Wind"
+            _trend_col = "wind_speed_ms" if _is_wind else "solar_irradiance_wm2"
+            _trend_label = "WIND SPEED (m/s)" if _is_wind else "SOLAR IRRADIANCE (W/m²)"
+            _trend_color = "#00c8ff" if _is_wind else "#ffd166"
+
+            if _trend_col in _hist_df.columns and not _hist_df.empty:
+                _tfig = go.Figure()
+                _tfig.add_trace(
+                    go.Scatter(
+                        x=_hist_df["recorded_at"],
+                        y=_hist_df[_trend_col],
+                        mode="lines+markers",
+                        line={"color": _trend_color, "width": 2},
+                        marker={"size": 6, "color": _trend_color, "line": {"width": 1, "color": "#020408"}},
+                        hovertemplate="<b>%{x}</b><br>%{y:.2f}<extra></extra>",
+                        showlegend=False,
+                    )
+                )
+                _tfig.update_layout(
+                    xaxis_title="TIME (TUN)",
+                    yaxis_title=_trend_label,
+                    paper_bgcolor="#020408",
+                    plot_bgcolor="#040810",
+                    font={"family": "JetBrains Mono, Courier New, monospace", "color": "#3d4a5a", "size": 11},
+                    xaxis={"gridcolor": "#0a0f1a", "linecolor": "#0a0f1a", "tickfont": {"color": "#5a6a7a"}},
+                    yaxis={"gridcolor": "#0a0f1a", "linecolor": "#0a0f1a", "tickfont": {"color": "#5a6a7a"}},
+                    margin={"t": 10, "b": 40, "l": 60, "r": 20},
+                    height=280,
+                )
+                st.plotly_chart(_tfig, use_container_width=True)
+            else:
+                st.info("COLLECTING DATA — check back after first weather fetch cycle.")
+        else:
+            st.info("COLLECTING DATA — check back after first weather fetch cycle.")
+    except Exception:
+        st.warning("TREND UNAVAILABLE — unable to connect to historical data service.")
+
 # ── Blackout Prediction Engine ────────────────────────────────────────────────
 st.markdown(
     '<div class="section-hdr">▸ BLACKOUT PREDICTION ENGINE — 72H FORECAST</div>',

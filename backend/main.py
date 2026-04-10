@@ -14,14 +14,18 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw
+from db import get_region_history, init_db, insert_weather_entries
 from models import (
     BlackoutRequest,
     BlackoutResponse,
     CarbonRequest,
     CarbonResponse,
+    HistoryRecordRequest,
+    HistoryRecordResponse,
     HourlyPrediction,
     HydroRequest,
     PowerResponse,
+    RegionHistoryResponse,
     SolarRequest,
     WeatherResponse,
     WindRequest,
@@ -40,6 +44,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def startup_event():
+    init_db()
 
 
 @app.get("/health")
@@ -136,7 +145,24 @@ async def get_weather():
             status_code=502,
             detail=f"Failed to fetch weather data: {exc}",
         ) from exc
+
+    insert_weather_entries(entries)
     return WeatherResponse(data=entries)
+
+
+@app.post("/history/record", response_model=HistoryRecordResponse, tags=["History"])
+def record_history(req: HistoryRecordRequest):
+    inserted = insert_weather_entries([entry.model_dump() for entry in req.data])
+    return HistoryRecordResponse(inserted=inserted)
+
+
+@app.get("/history/{region}", response_model=RegionHistoryResponse, tags=["History"])
+def get_history(region: str, days: int = 7):
+    if days < 1 or days > 365:
+        raise HTTPException(status_code=422, detail="days must be between 1 and 365")
+
+    records = get_region_history(region, days)
+    return RegionHistoryResponse(region=region, days=days, records=records)
 
 
 # ── Blackout prediction endpoint ──────────────────────────────────────────────
