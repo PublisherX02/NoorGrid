@@ -496,7 +496,7 @@ def estimate_output(gov: dict, weather: dict) -> float:
 
     # Hydro fallback only — wind and solar should never fake output
     if gov["source"] == "Hydro":
-        return float(gov["baseline_mw"]) * 0.75
+        return float(gov.get("baseline_mw", 0)) * 0.75
     return 0.0
 
 
