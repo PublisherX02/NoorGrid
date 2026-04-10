@@ -341,8 +341,8 @@
                                <div class="text-gray-500 text-[9px]">When correlation is high → score adjusted down. Two regions dropping simultaneously = weather event, not equipment failure. Drone dispatch suppressed. Grid operator notified instead.</div>
                            </div>
                        </div>`,
-                camPos: { x: 100 + camOffset, y: 8, z: -60 }, lookAt: { x: 100 + camOffset, y: 0, z: -90 },
-                objId: 'layered_network', showLabels: false, interactiveGraph: false
+                camPos: { x: 120 + camOffset, y: 5, z: -50 }, lookAt: { x: 120 + camOffset, y: 0, z: -80 },
+                objId: 'risk_scoring', showLabels: false, interactiveGraph: false
             },
             {
                 chapter: "Ch. XI", subtitle: "The Prediction", title: "72 Hours Before The Blackout",
@@ -380,7 +380,43 @@
                 objId: 'blackout_engine', showLabels: false, interactiveGraph: false
             },
             {
-                chapter: "Ch. XII", subtitle: "The Plan", title: "From Pilot to Infrastructure",
+                chapter: "Ch. XII", subtitle: "The Simulation", title: "Replay August 14. Change The Outcome.",
+                body: `<p class="text-sm text-gray-300 mb-4">NoorGrid doesn't just predict future risk. It lets operators <strong class="text-cyan-400">simulate scenarios</strong> and test interventions before committing to them.</p>
+                       <div class="space-y-3 mono-text text-[10px]">
+                           <div class="bg-red-900/10 border border-red-500/40 p-3 rounded">
+                               <div class="text-red-400 font-bold tracking-widest mb-2">LIVE SIMULATION — 30°C SCENARIO</div>
+                               <div class="grid grid-cols-2 gap-2">
+                                   <div><span class="text-gray-500">Demand</span><br><span class="text-red-300 font-bold">4,788 MW</span></div>
+                                   <div><span class="text-gray-500">Capacity</span><br><span class="text-gray-300">4,636 MW</span></div>
+                                   <div><span class="text-gray-500">Import Required</span><br><span class="text-red-300 font-bold">152 MW</span></div>
+                                   <div><span class="text-gray-500">Headroom</span><br><span class="text-red-300 font-bold">−3.3% CRITICAL</span></div>
+                               </div>
+                               <div class="mt-2 text-amber-400 text-[9px]">Action: INITIATE IMPORTS + CONTROLLED LOAD SHEDDING</div>
+                           </div>
+                           <div class="bg-gray-900/60 border border-gray-700/40 p-3 rounded">
+                               <div class="text-cyan-400 font-bold tracking-widest mb-2">SIMULATION CONTROLS</div>
+                               <div class="space-y-1 text-[9px] text-gray-400">
+                                   <div class="flex justify-between"><span>Demand delta %</span><span class="text-cyan-300">−20% to +50%</span></div>
+                                   <div class="flex justify-between"><span>Temperature °C</span><span class="text-cyan-300">15°C to 48°C</span></div>
+                                   <div class="flex justify-between"><span>Reserve MW</span><span class="text-cyan-300">0 to 1,000 MW</span></div>
+                                   <div class="flex justify-between"><span>Peak-hour factor</span><span class="text-cyan-300">ON / OFF</span></div>
+                               </div>
+                           </div>
+                           <div class="bg-cyan-900/10 border border-cyan-500/30 p-3 rounded">
+                               <div class="text-cyan-400 font-bold tracking-widest mb-1">WHAT THIS ENABLES</div>
+                               <div class="text-gray-400 text-[9px] space-y-1">
+                                   <div>→ Test: "What if we add 200 MW of reserve before peak hours?"</div>
+                                   <div>→ Test: "What if temperature hits 45°C and demand surges 20%?"</div>
+                                   <div>→ Test: "What is the minimum renewable share to avoid imports?"</div>
+                               </div>
+                           </div>
+                           <div class="text-gray-600 text-[9px] border-t border-gray-800 pt-2">Renewables: 3.2% of supply. The gap between red and green is the argument for NoorGrid.</div>
+                       </div>`,
+                camPos: { x: -120 + camOffset, y: 5, z: -60 }, lookAt: { x: -120 + camOffset, y: 0, z: -90 },
+                objId: 'grid_sim', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. XIII", subtitle: "The Plan", title: "From Pilot to Infrastructure",
                 body: `<div class="space-y-6 relative border-l-2 border-gray-800 ml-3 pl-6">
                            <div class="relative">
                                <div class="absolute -left-[31px] top-1 w-3 h-3 bg-gray-900 border-2 border-cyan-400 rounded-full"></div>
@@ -405,7 +441,7 @@
                 objId: 'roadmap', showLabels: false, interactiveGraph: false
             },
             {
-                chapter: "Ch. XIII", subtitle: "The Mission", title: "Tunisia Cannot Wait",
+                chapter: "Ch. XIV", subtitle: "The Mission", title: "Tunisia Cannot Wait",
                 body: `<div class="space-y-4 text-sm font-light text-gray-300">
                            <p>"93.7% of Tunisia's electricity comes from fossil fuels today."</p>
                            <p>"Grid losses reached 22% in 2024. Energy import dependency grew from 10% in 2010 to nearly 50% today."</p>
@@ -420,7 +456,7 @@
                 objId: 'map', showLabels: false, interactiveGraph: false
             },
             {
-                chapter: "Ch. XIV", subtitle: "The Experience", title: "Enter The Grid",
+                chapter: "Ch. XV", subtitle: "The Experience", title: "Enter The Grid",
                 body: `<div class="flex flex-col space-y-8 mt-4 text-center">
                            <p class="text-lg font-light text-gray-300">The architecture is built. The data is live. The only thing missing is you.</p>
                            <div class="space-y-4">
@@ -435,7 +471,7 @@
                 objId: 'qrportal', showLabels: false, interactiveGraph: false
             },
             {
-                chapter: "Ch. XV", subtitle: "The Foundation", title: "Data Sources & Intelligence",
+                chapter: "Ch. XVI", subtitle: "The Foundation", title: "Data Sources & Intelligence",
                 body: `<div class="space-y-4 text-[11px] font-light text-gray-300 h-[400px] overflow-y-auto pr-2" style="scrollbar-width: thin; scrollbar-color: #06b6d4 transparent;">
                            <p class="text-cyan-400 mb-4 font-bold tracking-widest text-xs uppercase border-b border-gray-800 pb-2">Verified Open Data & Reports</p>
                            <ul class="space-y-3 list-none p-0">
@@ -505,7 +541,9 @@
             buildScience();
             buildRoadmap();
             buildTunisiaMap();
-            buildBlackoutEngine(); // Ch. X — grid stress visualization
+            buildBlackoutEngine(); // Ch. XI — grid stress visualization
+            buildRiskScoring();    // Ch. X — composite risk scoring visualization
+            buildGridSim();        // Ch. XII — national grid simulation console
             buildStarfield();
             buildQRCodePortal(); // NEW: The 3D QR Code Scene
             buildSources();      // Ch. XIII data sources floating orbs
@@ -954,6 +992,123 @@
             animatedObjects['sources'] = group;
         }
 
+        function buildRiskScoring() {
+            // Ch. X — Composite risk scoring visualization
+            // Three weighted input streams (Deviation, RoC, Correlation)
+            // flowing into a central Risk Score node.
+            // Visual: three orbiting source spheres, each emitting a beam
+            // toward the central core. Core glows brighter as score rises.
+
+            const group = new THREE.Group();
+            group.position.set(120, 0, -80);
+
+            // ── Central Risk Score core ───────────────────────────────────────
+            const coreMat = new THREE.MeshStandardMaterial({
+                color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 0.8
+            });
+            const core = new THREE.Mesh(new THREE.OctahedronGeometry(1.8, 0), coreMat);
+            group.add(core);
+
+            // Outer wireframe shell
+            const shell = new THREE.Mesh(
+                new THREE.OctahedronGeometry(2.4, 0),
+                new THREE.MeshBasicMaterial({ color: 0x06b6d4, wireframe: true, transparent: true, opacity: 0.2 })
+            );
+            group.add(shell);
+
+            // ── Three input component nodes ───────────────────────────────────
+            // Deviation (amber) — weight 0.40 — largest node
+            // Rate of Change (emerald) — weight 0.35 — medium node
+            // Regional Correlation (purple) — weight 0.25 — smallest node
+            const components = [
+                { color: 0xfbbf24, emissive: 0xf59e0b, size: 1.1, angle: 0,          label: 'DEV',  weight: '0.40', orbitR: 7 },
+                { color: 0x10b981, emissive: 0x059669, size: 0.95, angle: Math.PI * 2/3, label: 'ROC',  weight: '0.35', orbitR: 7 },
+                { color: 0xa855f7, emissive: 0x9333ea, size: 0.8,  angle: Math.PI * 4/3, label: 'COR',  weight: '0.25', orbitR: 7 },
+            ];
+
+            const inputNodes = [];
+            const beams = [];
+
+            components.forEach((c) => {
+                // Input node sphere
+                const node = new THREE.Mesh(
+                    new THREE.SphereGeometry(c.size, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: c.color, emissive: c.emissive, emissiveIntensity: 0.7 })
+                );
+                node.position.set(
+                    Math.cos(c.angle) * c.orbitR,
+                    Math.sin(c.angle * 0.5) * 2,
+                    Math.sin(c.angle) * c.orbitR
+                );
+                group.add(node);
+                inputNodes.push({ mesh: node, angle: c.angle, orbitR: c.orbitR, color: c.color });
+
+                // Beam from node to core
+                const beamGeo = new THREE.BufferGeometry().setFromPoints([
+                    node.position.clone(),
+                    new THREE.Vector3(0, 0, 0)
+                ]);
+                const beam = new THREE.Line(
+                    beamGeo,
+                    new THREE.LineBasicMaterial({ color: c.color, transparent: true, opacity: 0.5 })
+                );
+                group.add(beam);
+                beams.push({ line: beam, node });
+
+                // Weight badge — small floating sphere near node
+                const badge = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.25, 8, 8),
+                    new THREE.MeshBasicMaterial({ color: c.color })
+                );
+                badge.position.copy(node.position).multiplyScalar(0.65);
+                group.add(badge);
+
+                // Particle trail from node toward core
+                const trailCount = 8;
+                for (let t = 0; t < trailCount; t++) {
+                    const frac = (t + 1) / (trailCount + 1);
+                    const trailPos = node.position.clone().lerp(new THREE.Vector3(0, 0, 0), frac);
+                    const trail = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.08 * (1 - frac * 0.5), 6, 6),
+                        new THREE.MeshBasicMaterial({ color: c.color, transparent: true, opacity: 0.6 - frac * 0.4 })
+                    );
+                    trail.position.copy(trailPos);
+                    group.add(trail);
+                }
+            });
+
+            // ── Risk band ring around core ─────────────────────────────────────
+            // Color transitions from green (NOMINAL) to red (CRITICAL)
+            const riskRing = new THREE.Mesh(
+                new THREE.TorusGeometry(3.5, 0.06, 16, 100),
+                new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0xff3333, emissiveIntensity: 0.5 })
+            );
+            riskRing.rotation.x = Math.PI / 6;
+            group.add(riskRing);
+
+            // ── Output beam — risk score radiating outward ────────────────────
+            const outputPoints = [
+                new THREE.Vector3(0, 0, 0),
+                new THREE.Vector3(0, 6, 0)
+            ];
+            const outputBeam = new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints(outputPoints),
+                new THREE.LineBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.6 })
+            );
+            group.add(outputBeam);
+
+            // Output node — the risk score result
+            const outputNode = new THREE.Mesh(
+                new THREE.SphereGeometry(0.5, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 1.0 })
+            );
+            outputNode.position.set(0, 6, 0);
+            group.add(outputNode);
+
+            scene.add(group);
+            animatedObjects['risk_scoring'] = { group, core, shell, inputNodes, riskRing, outputNode };
+        }
+
         function buildBlackoutEngine() {
             // Ch. X — Grid stress visualization representing the blackout prediction engine
             // Visual concept: Tunisia's grid as a central power core surrounded by
@@ -1096,6 +1251,127 @@
                 capacityRing, criticalRing, highRing, elevatedRing, nominalRing,
                 particles, algeriaDot
             };
+        }
+
+        function buildGridSim() {
+            // Ch. XII — National Grid Simulation Console
+            // Visual: Tunisia's full grid as a large power sphere with
+            // demand pressure (red) vs capacity ceiling (green).
+            // Import lifeline shown as an amber beam from Algeria.
+            // Renewable contribution shown as tiny cyan nodes — visually tiny
+            // to represent the real 3.2% renewable share.
+
+            const group = new THREE.Group();
+            group.position.set(-120, 0, -90);
+
+            // ── Main grid sphere — total capacity 5,944 MW ────────────────────
+            const gridSphere = new THREE.Mesh(
+                new THREE.SphereGeometry(5, 32, 32),
+                new THREE.MeshStandardMaterial({
+                    color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.15,
+                    transparent: true, opacity: 0.12, wireframe: false
+                })
+            );
+            group.add(gridSphere);
+
+            const gridWire = new THREE.Mesh(
+                new THREE.SphereGeometry(5, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0x00ff88, wireframe: true, transparent: true, opacity: 0.2 })
+            );
+            group.add(gridWire);
+
+            // ── Effective capacity ring — 4,636 MW boundary ───────────────────
+            const capRing = new THREE.Mesh(
+                new THREE.TorusGeometry(4.2, 0.08, 16, 100),
+                new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.7 })
+            );
+            capRing.rotation.x = Math.PI / 2;
+            group.add(capRing);
+
+            // ── Demand pressure sphere — fills inward when over capacity ──────
+            // At 30°C: demand 4,788 MW > capacity 4,636 MW = radius slightly > capRing
+            const demandSphere = new THREE.Mesh(
+                new THREE.SphereGeometry(4.5, 32, 32),
+                new THREE.MeshStandardMaterial({
+                    color: 0xff3333, emissive: 0xff3333, emissiveIntensity: 0.3,
+                    transparent: true, opacity: 0.18
+                })
+            );
+            group.add(demandSphere);
+
+            // Demand wireframe — shows it's breaking through capacity ring
+            const demandWire = new THREE.Mesh(
+                new THREE.SphereGeometry(4.5, 12, 12),
+                new THREE.MeshBasicMaterial({ color: 0xff3333, wireframe: true, transparent: true, opacity: 0.25 })
+            );
+            group.add(demandWire);
+
+            // ── Renewable nodes — tiny cyan dots (3.2% of supply) ─────────────
+            const renewableCount = 6; // intentionally few — shows tiny share visually
+            for (let i = 0; i < renewableCount; i++) {
+                const angle = (i / renewableCount) * Math.PI * 2;
+                const rNode = new THREE.Mesh(
+                    new THREE.SphereGeometry(0.18, 8, 8),
+                    new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 1.0 })
+                );
+                rNode.position.set(Math.cos(angle) * 4.8, 1.5 + Math.sin(angle * 0.5), Math.sin(angle) * 4.8);
+                group.add(rNode);
+            }
+
+            // ── Algeria import beam — the lifeline ────────────────────────────
+            const algStart = new THREE.Vector3(-12, 0, -2);
+            const algEnd   = new THREE.Vector3(-4.2, 0, 0);
+            const algLine  = new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints([algStart, algEnd]),
+                new THREE.LineBasicMaterial({ color: 0xfbbf24, transparent: true, opacity: 0.8 })
+            );
+            group.add(algLine);
+
+            const algSource = new THREE.Mesh(
+                new THREE.SphereGeometry(0.6, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0xfbbf24, emissive: 0xfbbf24, emissiveIntensity: 1.0 })
+            );
+            algSource.position.copy(algStart);
+            group.add(algSource);
+
+            // Import label — small sphere where beam hits capacity ring
+            const importHit = new THREE.Mesh(
+                new THREE.SphereGeometry(0.3, 8, 8),
+                new THREE.MeshBasicMaterial({ color: 0xfbbf24 })
+            );
+            importHit.position.copy(algEnd);
+            group.add(importHit);
+
+            // ── Headroom indicator — shows −3.3% visually ────────────────────
+            // Red spike breaking through the green capacity ring
+            const spike = new THREE.Mesh(
+                new THREE.ConeGeometry(0.25, 1.5, 8),
+                new THREE.MeshBasicMaterial({ color: 0xff3333 })
+            );
+            spike.position.set(0, 4.8, 0); // above capacity ring
+            group.add(spike);
+
+            // ── Demand particles — pressure storm ─────────────────────────────
+            const pCount = 150;
+            const pGeo = new THREE.BufferGeometry();
+            const pPos = new Float32Array(pCount * 3);
+            for (let i = 0; i < pCount * 3; i += 3) {
+                const r = 4.2 + Math.random() * 1.2;
+                const t = Math.random() * Math.PI * 2;
+                const p = Math.acos(2 * Math.random() - 1);
+                pPos[i]     = r * Math.sin(p) * Math.cos(t);
+                pPos[i + 1] = r * Math.sin(p) * Math.sin(t) * 0.4;
+                pPos[i + 2] = r * Math.cos(p);
+            }
+            pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+            const demandParticles = new THREE.Points(
+                pGeo,
+                new THREE.PointsMaterial({ color: 0xff3333, size: 0.12, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending })
+            );
+            group.add(demandParticles);
+
+            scene.add(group);
+            animatedObjects['grid_sim'] = { group, gridWire, demandSphere, demandWire, capRing, algSource, spike, demandParticles };
         }
 
         function buildStarfield() {
@@ -1316,7 +1592,48 @@
             }
             if(animatedObjects['roadmap']) animatedObjects['roadmap'].rotation.y = Math.sin(time * 0.3) * 0.2;
 
-            // --- Blackout Engine Animation (Ch. X) ---
+            // --- Risk Scoring Animation (Ch. X) ---
+            if(animatedObjects['risk_scoring']) {
+                const rs = animatedObjects['risk_scoring'];
+
+                // Core rotates — the brain processing inputs
+                rs.core.rotation.y = time * 0.6;
+                rs.core.rotation.x = time * 0.3;
+                rs.shell.rotation.y = -time * 0.2;
+                rs.shell.rotation.z = time * 0.15;
+
+                // Core pulses — score being calculated
+                const scorePulse = 1 + Math.sin(time * 2) * 0.12;
+                rs.core.scale.set(scorePulse, scorePulse, scorePulse);
+                rs.core.material.emissiveIntensity = 0.6 + Math.sin(time * 2) * 0.3;
+
+                // Input nodes orbit at different speeds — weight difference
+                rs.inputNodes.forEach((n, i) => {
+                    const speed = [0.4, 0.35, 0.25][i]; // orbit speed = weight
+                    const baseAngle = [0, Math.PI * 2/3, Math.PI * 4/3][i];
+                    const orbitR = n.orbitR;
+                    n.mesh.position.x = Math.cos(baseAngle + time * speed) * orbitR;
+                    n.mesh.position.z = Math.sin(baseAngle + time * speed) * orbitR;
+                    n.mesh.position.y = Math.sin(time * speed * 1.5 + i) * 2;
+                    // Pulse each node
+                    const np = 1 + Math.sin(time * 3 + i * 2) * 0.15;
+                    n.mesh.scale.set(np, np, np);
+                });
+
+                // Risk ring rotates — danger signal
+                rs.riskRing.rotation.z = time * 0.4;
+                rs.riskRing.material.emissiveIntensity = 0.4 + Math.sin(time * 1.5) * 0.3;
+
+                // Output node pulses — the risk score being emitted
+                const op = 1 + Math.sin(time * 4) * 0.25;
+                rs.outputNode.scale.set(op, op, op);
+                rs.outputNode.material.emissiveIntensity = 0.8 + Math.sin(time * 4) * 0.4;
+
+                // Whole group slow rotation
+                rs.group.rotation.y = Math.sin(time * 0.08) * 0.15;
+            }
+
+            // --- Blackout Engine Animation (Ch. XI) ---
             if(animatedObjects['blackout_engine']) {
                 const be = animatedObjects['blackout_engine'];
 
@@ -1353,6 +1670,32 @@
 
                 // Entire group slow drift — like a live monitoring screen
                 be.group.rotation.y = Math.sin(time * 0.1) * 0.08;
+            }
+
+            // --- Grid Simulation Animation (Ch. XII) ---
+            if(animatedObjects['grid_sim']) {
+                const gs = animatedObjects['grid_sim'];
+                // Demand sphere pulses red — pressure building
+                const demPulse = 1 + Math.sin(time * 1.8) * 0.04;
+                gs.demandSphere.scale.set(demPulse, demPulse, demPulse);
+                gs.demandSphere.material.emissiveIntensity = 0.2 + Math.sin(time * 1.8) * 0.15;
+                gs.demandWire.rotation.y = time * 0.1;
+                // Grid wireframe slow rotation
+                gs.gridWire.rotation.y = time * 0.05;
+                gs.gridWire.rotation.x = Math.sin(time * 0.2) * 0.05;
+                // Capacity ring steady green pulse
+                gs.capRing.rotation.z = time * 0.06;
+                gs.capRing.material.emissiveIntensity = 0.5 + Math.sin(time * 1.2) * 0.2;
+                // Algeria source pulses amber urgently
+                gs.algSource.material.emissiveIntensity = 0.8 + Math.sin(time * 3.5) * 0.4;
+                gs.algSource.scale.setScalar(1 + Math.sin(time * 3.5) * 0.25);
+                // Spike blinks — headroom breached
+                gs.spike.material.opacity = 0.5 + Math.sin(time * 5) * 0.5;
+                // Demand particles swarm
+                gs.demandParticles.rotation.y = time * 0.12;
+                gs.demandParticles.rotation.x = Math.sin(time * 0.4) * 0.08;
+                // Group slow drift
+                gs.group.rotation.y = Math.sin(time * 0.09) * 0.1;
             }
             if(animatedObjects['map'] && animatedObjects['mapNodes']) {
                 animatedObjects['map'].rotation.y = Math.sin(time * 0.2) * 0.1;

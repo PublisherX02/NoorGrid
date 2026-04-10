@@ -31,6 +31,14 @@ class CarbonRequest(BaseModel):
     renewable_kwh: float = Field(..., ge=0, description="Renewable energy produced in kWh")
 
 
+class GridSimulationRequest(BaseModel):
+    renewable_output_mw: float = Field(..., ge=0, description="Current total renewable output in MW")
+    demand_delta_pct: float = Field(default=0, ge=-50, le=100, description="Demand adjustment in %")
+    temperature_c: float = Field(default=25, ge=-10, le=60, description="Ambient temperature in °C")
+    include_peak_hour_factor: bool = Field(default=True)
+    reserve_capacity_mw: float = Field(default=0, ge=0, description="Dispatchable reserve capacity in MW")
+
+
 # ── Response models ───────────────────────────────────────────────────────────
 
 class PowerResponse(BaseModel):
@@ -40,6 +48,21 @@ class PowerResponse(BaseModel):
 class CarbonResponse(BaseModel):
     region: str
     carbon_score_kg: float = Field(..., description="Carbon score in kg CO₂")
+
+
+class GridSimulationResponse(BaseModel):
+    total_demand_mw: float
+    renewable_output_mw: float
+    effective_capacity_mw: float
+    deficit_mw: float
+    import_required_mw: float
+    import_reliance_pct: float
+    renewable_share_pct: float
+    headroom_pct: float
+    risk_level: str
+    risk_score: float
+    recommended_action: str
+    drivers: dict
 
 
 class WeatherEntry(BaseModel):
