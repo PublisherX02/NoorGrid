@@ -517,6 +517,31 @@ def get_carbon(gov_name: str, consumption_kwh: float, renewable_kwh: float) -> f
         return (consumption_kwh - renewable_kwh) * 0.468
 
 
+def simulate_national_grid(
+    renewable_output_mw: float,
+    demand_delta_pct: float,
+    temperature_c: float,
+    include_peak_hour_factor: bool,
+    reserve_capacity_mw: float,
+) -> dict:
+    try:
+        resp = httpx.post(
+            f"{BACKEND_URL}/grid/simulate",
+            json={
+                "renewable_output_mw": renewable_output_mw,
+                "demand_delta_pct": demand_delta_pct,
+                "temperature_c": temperature_c,
+                "include_peak_hour_factor": include_peak_hour_factor,
+                "reserve_capacity_mw": reserve_capacity_mw,
+            },
+            timeout=12,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        return {}
+
+
 def load_billing_data() -> pd.DataFrame:
     data_path = os.path.join(
         os.path.dirname(__file__), "..", "data", "steg_billing_sample.csv"
@@ -1560,6 +1585,97 @@ except Exception as _pred_err:
         f'⚠ PREDICTION ENGINE OFFLINE — {_pred_err}</div>',
         unsafe_allow_html=True,
     )
+
+# ── National Grid Simulation Console ───────────────────────────────────────────
+st.markdown(
+    '<div class="section-hdr">▸ NATIONAL GRID SIMULATION CONSOLE</div>',
+    unsafe_allow_html=True,
+)
+_sim_c1, _sim_c2, _sim_c3, _sim_c4 = st.columns([1.2, 1.2, 1.2, 1.0])
+with _sim_c1:
+    _sim_demand_delta = st.slider("Demand delta %", min_value=-20, max_value=50, value=0, step=1)
+with _sim_c2:
+    _sim_temp = st.slider("Temperature °C", min_value=15, max_value=50, value=30, step=1)
+with _sim_c3:
+    _sim_reserve = st.slider("Reserve MW", min_value=0, max_value=1000, value=0, step=25)
+with _sim_c4:
+    _sim_peak = st.toggle("Peak-hour factor", value=True)
+
+_grid_sim = simulate_national_grid(
+    renewable_output_mw=total_mw,
+    demand_delta_pct=_sim_demand_delta,
+    temperature_c=_sim_temp,
+    include_peak_hour_factor=_sim_peak,
+    reserve_capacity_mw=_sim_reserve,
+)
+
+if _grid_sim:
+    _gk1, _gk2, _gk3, _gk4 = st.columns(4)
+    _gk1.metric("Demand (MW)", f"{_grid_sim['total_demand_mw']:.1f}")
+    _gk2.metric("Capacity (MW)", f"{_grid_sim['effective_capacity_mw']:.1f}")
+    _gk3.metric("Import Required (MW)", f"{_grid_sim['import_required_mw']:.1f}")
+    _gk4.metric("Import Reliance", f"{_grid_sim['import_reliance_pct']:.1f}%")
+
+    _risk_color = {
+        "NOMINAL": "#00ff88",
+        "ELEVATED": "#d4e000",
+        "HIGH": "#ff8800",
+        "CRITICAL": "#ff3333",
+    }.get(_grid_sim["risk_level"], "#5a6a7a")
+    st.markdown(
+        f'<div style="margin-top:6px;background:#040810;border:1px solid {_risk_color}44;border-radius:4px;'
+        f'padding:12px 14px;font-size:0.76em;line-height:1.8;color:#8b949e">'
+        f'RISK: <span style="color:{_risk_color};font-weight:700">{_grid_sim["risk_level"]}</span>'
+        f' &nbsp;|&nbsp; SCORE: <span style="color:{_risk_color};font-weight:700">{_grid_sim["risk_score"]:.1f}</span>'
+        f' &nbsp;|&nbsp; HEADROOM: <span style="color:{_risk_color};font-weight:700">{_grid_sim["headroom_pct"]:.1f}%</span><br/>'
+        f'RENEWABLE SHARE: <span style="color:#06b6d4">{_grid_sim["renewable_share_pct"]:.1f}%</span>'
+        f' &nbsp;|&nbsp; ACTION: <span style="color:{_risk_color}">{_grid_sim["recommended_action"]}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    _grid_fig = go.Figure(
+        data=[
+            go.Bar(
+                name="Demand",
+                x=["National Grid"],
+                y=[_grid_sim["total_demand_mw"]],
+                marker_color="#ff3333",
+            ),
+            go.Bar(
+                name="Effective Capacity",
+                x=["National Grid"],
+                y=[_grid_sim["effective_capacity_mw"]],
+                marker_color="#00ff88",
+            ),
+            go.Bar(
+                name="Renewables",
+                x=["National Grid"],
+                y=[_grid_sim["renewable_output_mw"]],
+                marker_color="#06b6d4",
+            ),
+        ]
+    )
+    _grid_fig.update_layout(
+        barmode="group",
+        yaxis_title="MW",
+        paper_bgcolor="#020408",
+        plot_bgcolor="#040810",
+        font={"color": "#5a6a7a", "family": "JetBrains Mono, Courier New, monospace", "size": 11},
+        legend={
+            "bgcolor": "#040810",
+            "bordercolor": "rgba(0,255,136,0.15)",
+            "borderwidth": 1,
+            "font": {"color": "#8b949e"},
+        },
+        xaxis={"gridcolor": "#0a0f1a", "linecolor": "#0a0f1a", "tickfont": {"color": "#5a6a7a"}},
+        yaxis={"gridcolor": "#0a0f1a", "linecolor": "#0a0f1a", "tickfont": {"color": "#5a6a7a"}},
+        margin={"t": 10, "b": 40, "l": 60, "r": 20},
+        height=280,
+    )
+    st.plotly_chart(_grid_fig, use_container_width=True)
+else:
+    st.warning("GRID SIMULATION OFFLINE — backend /grid/simulate endpoint unavailable.")
 
 # ── Consumption vs Renewable Production chart ─────────────────────────────────
 st.markdown(

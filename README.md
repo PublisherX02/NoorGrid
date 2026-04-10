@@ -232,6 +232,7 @@ Requires `NVIDIA_NIM_API_KEY` in `.env`.
 | GET | `/weather` | Live weather + auto-persist to SQLite |
 | POST | `/history/record` | Manual weather snapshot insertion |
 | GET | `/history/{region}?days=N` | Historical records (1-365 days) |
+| POST | `/grid/simulate` | National demand/capacity/import simulation |
 | POST | `/predict/blackout` | 72h blackout risk forecast |
 
 Interactive docs: `http://localhost:8000/docs`
@@ -273,6 +274,52 @@ Backend docs: `http://localhost:8000/docs`
 pytest -v
 # 18 passed, 0 failed
 ```
+
+---
+
+## CI Quality Gates (GitHub Actions)
+
+The CI workflow (`.github/workflows/ci.yml`) enforces:
+
+1. **Lint**: `ruff check .`
+2. **Type checks**: `mypy backend frontend`
+3. **Tests + coverage threshold**:
+   - `pytest ... --cov=backend --cov=frontend --cov-fail-under=80`
+
+If any gate fails, the workflow fails and PR merge should be blocked by branch protection.
+
+---
+
+## National Grid Simulation Layer
+
+NoorGrid includes a national simulation model for operational planning:
+
+- Models **total demand vs effective capacity**
+- Quantifies **deficit MW** and **import required MW**
+- Computes **import reliance %**, **renewable share %**, and **headroom %**
+- Returns a risk level and recommended action
+
+### Core simulation model
+
+```
+cooling_surge = max(0, (temperature_c - 25) * 0.04)
+base_demand = STEG_Q3_AVG_DEMAND_MW * peak_hour_factor * (1 + cooling_surge)
+total_demand = base_demand * (1 + demand_delta_pct/100)
+
+total_available = STEG_EFFECTIVE_CAPACITY_MW + reserve_capacity_mw
+deficit = max(0, total_demand - total_available)
+import_required = deficit
+```
+
+### Endpoint example
+
+```bash
+curl -X POST http://localhost:8000/grid/simulate ^
+  -H "Content-Type: application/json" ^
+  -d "{\"renewable_output_mw\":320,\"demand_delta_pct\":15,\"temperature_c\":41,\"include_peak_hour_factor\":true,\"reserve_capacity_mw\":200}"
+```
+
+The frontend exposes this through **National Grid Simulation Console** with live sliders.
 
 ---
 

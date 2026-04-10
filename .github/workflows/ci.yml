@@ -7,8 +7,8 @@ on:
     branches: [main]
 
 jobs:
-  test:
-    name: Run Tests
+  quality:
+    name: Lint, Type, Test & Coverage
     runs-on: ubuntu-latest
 
     env:
@@ -40,5 +40,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run tests
-        run: pytest tests/ -v --tb=short
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Mypy type check
+        run: mypy backend frontend
+
+      - name: Run tests with coverage gate
+        run: pytest tests/ -v --tb=short --cov=backend --cov=frontend --cov-report=term-missing --cov-fail-under=80

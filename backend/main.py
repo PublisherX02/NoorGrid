@@ -15,11 +15,14 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw
 from db import get_region_history, init_db, insert_weather_entries
+from grid import GridInputs, simulate_national_grid
 from models import (
     BlackoutRequest,
     BlackoutResponse,
     CarbonRequest,
     CarbonResponse,
+    GridSimulationRequest,
+    GridSimulationResponse,
     HistoryRecordRequest,
     HistoryRecordResponse,
     HourlyPrediction,
@@ -112,6 +115,20 @@ def calculate_carbon(req: CarbonRequest):
     except Exception as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return CarbonResponse(region=req.region, carbon_score_kg=score)
+
+
+@app.post("/grid/simulate", response_model=GridSimulationResponse, tags=["Grid"])
+def simulate_grid(req: GridSimulationRequest):
+    result = simulate_national_grid(
+        GridInputs(
+            renewable_output_mw=req.renewable_output_mw,
+            demand_delta_pct=req.demand_delta_pct,
+            temperature_c=req.temperature_c,
+            include_peak_hour_factor=req.include_peak_hour_factor,
+            reserve_capacity_mw=req.reserve_capacity_mw,
+        )
+    )
+    return GridSimulationResponse(**result)
 
 
 # ── Region config for blackout prediction ────────────────────────────────────
