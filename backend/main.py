@@ -22,6 +22,7 @@ from models import (
     CarbonResponse,
     GridSimulationRequest,
     GridSimulationResponse,
+    HistoryRecord,
     HistoryRecordRequest,
     HistoryRecordResponse,
     HourlyPrediction,
@@ -177,7 +178,7 @@ def get_history(region: str, days: int = 7):
     if days < 1 or days > 365:
         raise HTTPException(status_code=422, detail="days must be between 1 and 365")
 
-    records = get_region_history(region, days)
+    records = [HistoryRecord.model_validate(row) for row in get_region_history(region, days)]
     return RegionHistoryResponse(region=region, days=days, records=records)
 
 

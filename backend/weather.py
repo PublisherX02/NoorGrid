@@ -3,6 +3,7 @@ OpenMeteo weather data fetcher for Tunisian governorates.
 """
 
 import asyncio
+from typing import cast
 
 import httpx
 
@@ -71,5 +72,5 @@ async def fetch_all_weather() -> list[dict]:
                 "solar_irradiance_wm2": 0.0,
             })
         else:
-            output.append(result)
+            output.append(cast(dict[str, float | str], result))
     return output

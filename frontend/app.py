@@ -456,7 +456,7 @@ def estimate_output(gov: dict, weather: dict) -> float:
                 timeout=10,
             )
             resp.raise_for_status()
-            return resp.json()["power_mw"]
+            return float(resp.json()["power_mw"])
 
         if gov["source"] == "Solar":
             irr = w.get("solar_irradiance_wm2", 0.0)
@@ -476,7 +476,7 @@ def estimate_output(gov: dict, weather: dict) -> float:
                 timeout=10,
             )
             resp.raise_for_status()
-            return resp.json()["power_mw"]
+            return float(resp.json()["power_mw"])
 
         if gov["source"] == "Hydro":
             resp = httpx.post(
@@ -489,14 +489,14 @@ def estimate_output(gov: dict, weather: dict) -> float:
                 timeout=10,
             )
             resp.raise_for_status()
-            return resp.json()["power_mw"]
+            return float(resp.json()["power_mw"])
 
     except Exception:
         pass
 
     # Hydro fallback only — wind and solar should never fake output
     if gov["source"] == "Hydro":
-        return gov["baseline_mw"] * 0.75
+        return float(gov["baseline_mw"]) * 0.75
     return 0.0
 
 
@@ -512,7 +512,7 @@ def get_carbon(gov_name: str, consumption_kwh: float, renewable_kwh: float) -> f
             timeout=10,
         )
         resp.raise_for_status()
-        return resp.json()["carbon_score_kg"]
+        return float(resp.json()["carbon_score_kg"])
     except Exception:
         return (consumption_kwh - renewable_kwh) * 0.468
 
@@ -537,7 +537,7 @@ def simulate_national_grid(
             timeout=12,
         )
         resp.raise_for_status()
-        return resp.json()
+        return dict(resp.json())
     except Exception:
         return {}
 
