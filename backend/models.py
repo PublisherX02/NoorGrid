@@ -124,3 +124,20 @@ class HourlyPrediction(BaseModel):
 class BlackoutResponse(BaseModel):
     region: str
     predictions: list[HourlyPrediction]
+
+
+# ── RAG chatbot models ────────────────────────────────────────────────────────
+
+class RAGRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=2000, description="User query")
+    context: dict = Field(
+        default_factory=dict,
+        description="Optional grid context from the frontend (simResult, simParams, selectedGov, isReplay)",
+    )
+
+
+class RAGResponse(BaseModel):
+    response: str = Field(..., description="AI-generated answer")
+    model: str = Field(..., description="LLM model identifier used")
+    mock: bool = Field(default=False, description="True when this is a local fallback response")
+    rejected: bool = Field(default=False, description="True when the query was outside the STEG domain")

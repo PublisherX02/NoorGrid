@@ -1,0 +1,212 @@
+import axios from 'axios'
+
+const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+const client = axios.create({
+  baseURL: BASE_URL,
+  timeout: 12000,
+  headers: { 'Content-Type': 'application/json' },
+})
+
+// ─── Mock Data Generators ─────────────────────────────────────────────────────
+
+const MOCK_WEATHER = {
+  data: [
+    { region: 'Bizerte', latitude: 37.2744, longitude: 9.8739, wind_speed_ms: 8.2, solar_irradiance_wm2: 420 },
+    { region: 'Nabeul', latitude: 36.4561, longitude: 10.7376, wind_speed_ms: 6.5, solar_irradiance_wm2: 580 },
+    { region: 'Tozeur', latitude: 33.9197, longitude: 8.1335, wind_speed_ms: 3.1, solar_irradiance_wm2: 820 },
+    { region: 'Béja', latitude: 36.7256, longitude: 9.1817, wind_speed_ms: 5.8, solar_irradiance_wm2: 390 },
+    { region: 'Sidi Bouzid', latitude: 35.0382, longitude: 9.4858, wind_speed_ms: 4.2, solar_irradiance_wm2: 750 },
+  ],
+}
+
+const _mockHistory = (region, days = 7) => {
+  const records = []
+  const now = new Date()
+  for (let d = days; d >= 0; d--) {
+    for (let h = 0; h < 24; h += 3) {
+      const ts = new Date(now)
+      ts.setDate(ts.getDate() - d)
+      ts.setHours(h, 0, 0, 0)
+      const daylight = h >= 6 && h <= 19
+      records.push({
+        region,
+        latitude: 35.0,
+        longitude: 9.5,
+        wind_speed_ms: +(3 + Math.random() * 9).toFixed(2),
+        solar_irradiance_wm2: daylight ? +(150 + Math.random() * 650).toFixed(1) : 0,
+        recorded_at: ts.toISOString(),
+      })
+    }
+  }
+  return { region, days, records }
+}
+
+const _mockBlackout = (region, forecast_hours = 24) => {
+  const predictions = []
+  for (let i = 0; i < forecast_hours; i++) {
+    const hour = i % 24
+    const temp = +(20 + 14 * Math.sin((hour - 6) * Math.PI / 12) + (Math.random() - 0.5) * 4).toFixed(1)
+    const demandBase = 70 + 35 * Math.sin((hour - 8) * Math.PI / 12)
+    const coolingBoost = temp > 28 ? (temp - 28) * 4 : 0
+    const demand = +(demandBase + coolingBoost + (Math.random() - 0.5) * 8).toFixed(2)
+    const available = +(85 + Math.random() * 25).toFixed(2)
+    const stress = +(demand / available).toFixed(3)
+    const prob = +Math.min(100, Math.max(0, (stress - 1) * 25)).toFixed(1)
+    const risk =
+      stress > 4.0 ? 'CRITICAL' :
+        stress > 2.5 ? 'HIGH' :
+          stress > 1.5 ? 'ELEVATED' : 'NOMINAL'
+    const label = `${String(hour).padStart(2, '0')}:00`
+    predictions.push({
+      hour: i,
+      time_label: label,
+      temperature: temp,
+      estimated_demand_mw: demand,
+      available_mw: available,
+      stress_ratio: stress,
+      risk_level: risk,
+      blackout_probability: prob,
+      prevention_action:
+        risk === 'CRITICAL' ? 'EMERGENCY LOAD SHEDDING — Import from Algeria' :
+          risk === 'HIGH' ? 'ACTIVATE RESERVE CAPACITY — Reduce industrial load' :
+            risk === 'ELEVATED' ? 'MONITOR CLOSELY — Prepare demand response' :
+              'NO ACTION REQUIRED',
+    })
+  }
+  return { region, predictions }
+}
+
+const MOCK_GRID_SIM = {
+  total_demand_mw: 3980.5,
+  renewable_output_mw: 280,
+  effective_capacity_mw: 4636,
+  deficit_mw: 0,
+  import_required_mw: 0,
+  import_reliance_pct: 0,
+  renewable_share_pct: 7.03,
+  headroom_pct: 14.11,
+  risk_level: 'ELEVATED',
+  risk_score: 57.7,
+  recommended_action: 'PREPARE DEMAND RESPONSE + MONITOR GRID FREQUENCY',
+  drivers: {
+    baseline_demand_mw: 2800,
+    seasonal_base_demand_mw: 3800,
+    cooling_surge_factor: 0.08,
+    peak_hour_factor: 1.05,
+    demand_delta_pct: 0,
+    temperature_c: 27,
+    reserve_capacity_mw: 0,
+  },
+}
+
+// ─── API Calls with Mock Fallback ─────────────────────────────────────────────
+
+export const getHealth = async () => {
+  try {
+    const res = await client.get('/health')
+    return { online: true, data: res.data }
+  } catch {
+    return { online: false, data: null }
+  }
+}
+
+export const getWeather = async () => {
+  try {
+    const res = await client.get('/weather')
+    return { data: res.data, mock: false }
+  } catch {
+    return { data: MOCK_WEATHER, mock: true }
+  }
+}
+
+export const getHistory = async (region, days = 7) => {
+  try {
+    const res = await client.get(`/history/${encodeURIComponent(region)}`, { params: { days } })
+    return { data: res.data, mock: false }
+  } catch {
+    return { data: _mockHistory(region, days), mock: true }
+  }
+}
+
+export const predictBlackout = async (region, forecast_hours = 24) => {
+  try {
+    const res = await client.post('/predict/blackout', { region, forecast_hours })
+    return { data: res.data, mock: false }
+  } catch {
+    return { data: _mockBlackout(region, forecast_hours), mock: true }
+  }
+}
+
+export const simulateGrid = async (params) => {
+  try {
+    const res = await client.post('/grid/simulate', params)
+    return { data: res.data, mock: false }
+  } catch {
+    // Scale mock based on params
+    const base = { ...MOCK_GRID_SIM }
+    base.drivers = { ...base.drivers, ...params }
+    return { data: base, mock: true }
+  }
+}
+
+export const calcWindPower = async (wind_speed, rotor_area, efficiency) => {
+  try {
+    const res = await client.post('/energy/wind', { wind_speed, rotor_area, efficiency })
+    return res.data.power_mw
+  } catch {
+    return +(0.5 * 1.225 * rotor_area * Math.pow(wind_speed, 3) * efficiency / 1_000_000).toFixed(2)
+  }
+}
+
+export const calcSolarPower = async (irradiance, panel_area, efficiency) => {
+  try {
+    const res = await client.post('/energy/solar', { irradiance, panel_area, efficiency })
+    return res.data.power_mw
+  } catch {
+    return +(irradiance * panel_area * efficiency / 1_000_000).toFixed(2)
+  }
+}
+
+export const calcCarbon = async (region, consumption_kwh, renewable_kwh) => {
+  try {
+    const res = await client.post('/energy/carbon', { region, consumption_kwh, renewable_kwh })
+    return res.data
+  } catch {
+    const score = Math.max(0, (consumption_kwh - renewable_kwh) * 0.468)
+    return { region, carbon_score_kg: +score.toFixed(2) }
+  }
+}
+
+// ─── RAG Chatbot ──────────────────────────────────────────────────────────────
+// Calls POST /rag/query on the FastAPI backend, which proxies to NVIDIA NIM.
+// No client-side mock fallback — if the backend is unreachable the user sees
+// a clear connection error instead of a fake "AI" response.
+
+export const sendMessageToRAG = async (message, context = {}) => {
+  try {
+    const res = await client.post('/rag/query', { message, context }, { timeout: 32000 })
+    return {
+      content:  res.data.response || '',
+      mock:     false,
+      rejected: res.data.rejected || false,
+      error:    false,
+    }
+  } catch (err) {
+    const status = err?.response?.status
+    const detail = err?.response?.data?.detail || ''
+
+    let errorMsg
+    if (!err?.response) {
+      errorMsg = 'Cannot reach the NoorGrid backend. Make sure the FastAPI server is running on port 8000.'
+    } else if (status === 503) {
+      errorMsg = 'NVIDIA NIM API key is not configured on the server. Add NVIDIA_NIM_API_KEY to the backend .env file.'
+    } else if (status === 502) {
+      errorMsg = `NIM API error: ${detail || 'The language model service is temporarily unavailable.'}`
+    } else {
+      errorMsg = `Backend error (${status || 'unknown'}): ${detail || err.message}`
+    }
+
+    return { content: errorMsg, mock: false, rejected: false, error: true }
+  }
+}
