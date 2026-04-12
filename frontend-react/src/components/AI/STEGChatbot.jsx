@@ -12,7 +12,6 @@ I have access to STEG operational specifications, grid capacity data, maintenanc
 
 Ask me anything about the national grid, blackout risk, renewable resources, or energy policy.`,
   timestamp: new Date(),
-  mock: true,
 }
 
 const SUGGESTED = [
@@ -95,7 +94,12 @@ function MessageBubble({ msg, isStreaming, streamedText }) {
   }
 
   // AI message
+  const isError    = msg.error
+  const isRejected = msg.rejected
+  const accentColor = isError ? '#ff3333' : isRejected ? '#ff9500' : '#00ff88'
+  const avatarIcon  = isError ? '✕' : isRejected ? '⚠' : '◈'
   const lines = content.split('\n')
+
   return (
     <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'flex-start' }}>
       {/* Avatar */}
@@ -104,8 +108,8 @@ function MessageBubble({ msg, isStreaming, streamedText }) {
           width: '22px',
           height: '22px',
           borderRadius: '5px',
-          background: msg.rejected ? 'rgba(255,149,0,0.15)' : 'rgba(0,255,136,0.12)',
-          border: `1px solid ${msg.rejected ? 'rgba(255,149,0,0.3)' : 'rgba(0,255,136,0.25)'}`,
+          background: `${accentColor}15`,
+          border: `1px solid ${accentColor}35`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -114,73 +118,75 @@ function MessageBubble({ msg, isStreaming, streamedText }) {
           marginTop: '2px',
         }}
       >
-        {msg.rejected ? '⚠' : '◈'}
+        {avatarIcon}
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
         <div
           style={{
-            background: '#0d1526',
-            border: '1px solid rgba(255,255,255,0.06)',
+            background: isError ? 'rgba(255,51,51,0.06)' : '#0d1526',
+            border: isError
+              ? '1px solid rgba(255,51,51,0.2)'
+              : '1px solid rgba(255,255,255,0.06)',
             borderRadius: '2px 10px 10px 10px',
             padding: '8px 12px',
             fontSize: '0.73rem',
             lineHeight: 1.65,
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',
-            fontFamily: "'JetBrains Mono', monospace",
+            fontFamily: isError ? "'Inter', sans-serif" : "'JetBrains Mono', monospace",
+            color: isError ? '#ff9999' : undefined,
           }}
         >
-          {/* Colorize lines */}
-          {lines.map((line, i) => {
-            const isSection  = /^[A-Z][A-Z\s\-–·:]{4,}$/.test(line.trim()) && line.trim().length > 0
-            const isHeader   = line.startsWith('▸') || line.startsWith('CURRENT') || line.startsWith('AUGUST') || line.startsWith('STEG') || line.startsWith('NOOG') || line.startsWith('TUNIS')
-            const isCritical = line.includes('CRITICAL') || line.includes('IMMEDIATE') || line.includes('EMERGENCY') || line.includes('DEFICIT')
-            const isGood     = line.includes('✓') || line.includes('Surplus') || line.includes('NOMINAL') || line.includes('No action')
-            const isSep      = line.startsWith('─') || line.startsWith('  ─')
-            const isFooter   = line.startsWith('Source:') || line.startsWith('Policy Ref') || line.startsWith('NoorGrid:')
+          {isError ? (
+            content
+          ) : (
+            <>
+              {lines.map((line, i) => {
+                const isSection  = /^[A-Z][A-Z\s\-–·:]{4,}$/.test(line.trim()) && line.trim().length > 0
+                const isHeader   = line.startsWith('▸') || line.startsWith('CURRENT') || line.startsWith('AUGUST') || line.startsWith('STEG') || line.startsWith('NOOG') || line.startsWith('TUNIS')
+                const isCritical = line.includes('CRITICAL') || line.includes('IMMEDIATE') || line.includes('EMERGENCY') || line.includes('DEFICIT')
+                const isGood     = line.includes('✓') || line.includes('Surplus') || line.includes('NOMINAL') || line.includes('No action')
+                const isSep      = line.startsWith('─') || line.startsWith('  ─')
+                const isFooter   = line.startsWith('Source:') || line.startsWith('Policy Ref') || line.startsWith('NoorGrid:')
 
-            return (
-              <div
-                key={i}
-                style={{
-                  color: isSep || isFooter ? '#2a3a4a'
-                       : isSection        ? '#06b6d4'
-                       : isHeader         ? (msg.rejected ? '#ff9500' : '#00ff88')
-                       : isCritical       ? '#ff6666'
-                       : isGood           ? '#00ff88'
-                       : '#c8d8e8',
-                  fontWeight: isSection ? 700 : 400,
-                  marginTop: isSection ? '2px' : 0,
-                }}
-              >
-                {line || '\u00A0'}
-              </div>
-            )
-          })}
-          {/* Blinking cursor during stream */}
-          {showCursor && (
-            <span
-              style={{
-                display: 'inline-block',
-                width: '6px',
-                height: '12px',
-                background: '#00ff88',
-                verticalAlign: 'text-bottom',
-                animation: 'blink 0.7s step-end infinite',
-                borderRadius: '1px',
-                marginLeft: '2px',
-              }}
-            />
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      color: isSep || isFooter ? '#2a3a4a'
+                           : isSection        ? '#06b6d4'
+                           : isHeader         ? (isRejected ? '#ff9500' : '#00ff88')
+                           : isCritical       ? '#ff6666'
+                           : isGood           ? '#00ff88'
+                           : '#c8d8e8',
+                      fontWeight: isSection ? 700 : 400,
+                      marginTop: isSection ? '2px' : 0,
+                    }}
+                  >
+                    {line || '\u00A0'}
+                  </div>
+                )
+              })}
+              {showCursor && (
+                <span
+                  style={{
+                    display: 'inline-block',
+                    width: '6px',
+                    height: '12px',
+                    background: '#00ff88',
+                    verticalAlign: 'text-bottom',
+                    animation: 'blink 0.7s step-end infinite',
+                    borderRadius: '1px',
+                    marginLeft: '2px',
+                  }}
+                />
+              )}
+            </>
           )}
         </div>
-        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginTop: '3px' }}>
+        <div style={{ marginTop: '3px' }}>
           <span style={{ fontSize: '0.55rem', color: '#4a5568' }}>{ts}</span>
-          {msg.mock && !msg.rejected && (
-            <span style={{ fontSize: '0.52rem', color: '#4a5568', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '2px', padding: '1px 4px' }}>
-              MOCK RAG
-            </span>
-          )}
         </div>
       </div>
     </div>
@@ -273,21 +279,25 @@ export default function STEGChatbot({ context = {}, style = {}, height = 480 }) 
     setInput('')
     setIsLoading(true)
 
-    const { content, mock, rejected } = await sendMessageToRAG(trimmed, context)
+    const { content, rejected, error } = await sendMessageToRAG(trimmed, context)
     const aiId = Date.now() + 1
     const aiMsg = {
       id: aiId,
       role: 'assistant',
       content,
       timestamp: new Date(),
-      mock,
       rejected,
+      error,
     }
 
     setMessages((prev) => [...prev, aiMsg])
     setIsLoading(false)
-    setStreamTarget(content)
-    setStreamingId(aiId)
+
+    // Don't stream error messages — show them instantly
+    if (!error) {
+      setStreamTarget(content)
+      setStreamingId(aiId)
+    }
   }, [isLoading, context])
 
   const handleKeyDown = (e) => {
