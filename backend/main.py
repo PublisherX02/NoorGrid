@@ -28,6 +28,8 @@ from models import (
     HourlyPrediction,
     HydroRequest,
     PowerResponse,
+    RAGRequest,
+    RAGResponse,
     RegionHistoryResponse,
     SolarRequest,
     WeatherResponse,
@@ -275,3 +277,146 @@ async def predict_blackout(req: BlackoutRequest):
         ))
 
     return BlackoutResponse(region=req.region, predictions=predictions)
+
+
+# ── RAG chatbot endpoint ──────────────────────────────────────────────────────
+
+_NIM_URL   = "https://integrate.api.nvidia.com/v1/chat/completions"
+_NIM_MODEL = "meta/llama-3.1-70b-instruct"
+
+_GUARDRAIL_MARKER = "Outside my operational domain"
+
+_SYSTEM_PROMPT = """\
+You are the NoorGrid Operations AI — the intelligence layer for Tunisia's national \
+energy grid management platform, built in partnership with STEG \
+(Société Tunisienne de l'Electricité et du Gaz).
+
+KNOWLEDGE DOMAINS:
+▸ Grid capacity & infrastructure: 5,944 MW installed, 4,636 MW effective, 22% grid losses
+▸ August 14, 2024 crisis: 4,888 MW peak demand, 252 MW deficit, Algeria emergency import activated
+▸ Renewable resources (24 governorates): solar (Tozeur 820 W/m², Sidi Bouzid 750 W/m²), \
+wind (Bizerte 8.2 m/s, Kasserine 8.5 m/s), hydro (Béja 33 MW, Jendouba 42 MW)
+▸ Algeria–Tunisia Transmed HVDC: 600 MW capacity, 14% of peak demand dependency
+▸ Blackout risk scoring: demand stress 40%, temperature deviation 25%, \
+rate-of-change 20%, regional correlation 15%
+▸ Maintenance schedules and STEG outage protocols (Q2/Q3 2025)
+▸ Investment pipeline 2025–2030: €585M committed — Sidi Bouzid solar 200 MW, \
+Bizerte offshore wind 120 MW, Sfax battery 150 MWh
+▸ Carbon & emissions: 0.468 kg CO₂/kWh grid factor, NDC target 1.80 kg CO₂/cap/day by 2030
+▸ Generation mix: 93.7% fossil, 6.0% renewable — gap vs 35% target by 2030
+▸ Energy independence: 41% (2024), down from 48% (2023)
+
+RESPONSE FORMAT: Structure your answers with ALL-CAPS section headers where useful, \
+▸ bullet points for lists, and precise numerical values (MW, %, °C, m/s). \
+Be concise — operational staff need fast, accurate answers. Avoid preamble.
+
+GUARDRAILS: You ONLY answer questions about energy systems, grid operations, STEG policies, \
+Tunisia's electricity sector, renewable energy, blackout prediction, maintenance, or investment. \
+If a question falls outside this domain (sports, politics, personal topics, general knowledge, \
+programming, etc.), your ENTIRE response must be exactly this sentence and nothing else: \
+"Outside my operational domain. I am specialized for STEG grid operations, \
+renewable energy, and Tunisia's electricity sector."\
+"""
+
+
+def _build_context_block(context: dict) -> str:
+    """Serialize frontend grid state into a compact text block for the system prompt."""
+    parts: list[str] = []
+
+    sim    = context.get("simResult")
+    params = context.get("simParams") or {}
+
+    if sim and isinstance(sim, dict):
+        parts.append("ACTIVE SIMULATION STATE:")
+        parts.append(f"  Risk level       : {sim.get('risk_level', '—')}  "
+                     f"(score {float(sim.get('risk_score', 0)):.0f}/100)")
+        parts.append(f"  Total demand     : {float(sim.get('total_demand_mw', 0)):,.0f} MW")
+        parts.append(f"  Effective cap.   : {float(sim.get('effective_capacity_mw', 0)):,.0f} MW")
+        parts.append(f"  Headroom         : {float(sim.get('headroom_pct', 0)):.1f}%")
+        parts.append(f"  Renewable share  : {float(sim.get('renewable_share_pct', 0)):.1f}%")
+        parts.append(f"  Import required  : {float(sim.get('import_required_mw', 0)):.0f} MW")
+        if params:
+            parts.append(f"  Temperature      : {params.get('temperature_c', '—')}°C")
+            delta = params.get('demand_delta_pct', 0)
+            parts.append(f"  Demand delta     : {delta:+}%")
+        parts.append(f"  Recommended      : {sim.get('recommended_action', '—')}")
+
+    gov = context.get("selectedGov")
+    if gov and isinstance(gov, dict):
+        parts.append(f"SELECTED GOVERNORATE: {gov.get('name', '—')} "
+                     f"({gov.get('region', '—')})")
+        parts.append(f"  Energy source    : {gov.get('source', '—')}")
+        parts.append(f"  Live output      : {gov.get('mock_mw', '—')} MW")
+        parts.append(f"  Risk status      : {gov.get('mock_risk', '—')}")
+
+    if context.get("isReplay"):
+        parts.append("REPLAY MODE: August 14, 2024 crisis scenario is active.")
+
+    return "\n".join(parts) if parts else ""
+
+
+@app.post("/rag/query", response_model=RAGResponse, tags=["RAG"])
+async def rag_query(req: RAGRequest):
+    """
+    Query the NoorGrid/STEG knowledge base via NVIDIA NIM LLM.
+    Raises 503 if the API key is absent, 502 on NIM network/HTTP errors.
+    The frontend falls back to its local mock on any non-2xx response.
+    """
+    nim_key = os.getenv("NVIDIA_NIM_API_KEY", "").strip()
+    if not nim_key:
+        raise HTTPException(status_code=503, detail="NVIDIA_NIM_API_KEY not configured")
+
+    # Build dynamic system prompt with injected grid context
+    context_block = _build_context_block(req.context)
+    system_content = _SYSTEM_PROMPT
+    if context_block:
+        system_content += (
+            "\n\nCURRENT PLATFORM STATE (live data from the frontend dashboard):\n"
+            + context_block
+        )
+
+    payload = {
+        "model": _NIM_MODEL,
+        "messages": [
+            {"role": "system", "content": system_content},
+            {"role": "user",   "content": req.message},
+        ],
+        "temperature": 0.25,
+        "top_p": 0.90,
+        "max_tokens": 700,
+        "stream": False,
+    }
+
+    headers = {
+        "Authorization": f"Bearer {nim_key}",
+        "Content-Type": "application/json",
+    }
+
+    try:
+        async with httpx.AsyncClient() as http:
+            nim_resp = await http.post(
+                _NIM_URL, json=payload, headers=headers, timeout=30.0
+            )
+            nim_resp.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"NIM API returned {exc.response.status_code}: "
+                   f"{exc.response.text[:300]}",
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"NIM API unreachable: {exc}",
+        ) from exc
+
+    data     = nim_resp.json()
+    content  = data["choices"][0]["message"]["content"].strip()
+    rejected = content.startswith(_GUARDRAIL_MARKER)
+
+    return RAGResponse(
+        response=content,
+        model=data.get("model", _NIM_MODEL),
+        mock=False,
+        rejected=rejected,
+    )
