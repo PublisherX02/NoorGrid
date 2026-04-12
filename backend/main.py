@@ -9,6 +9,12 @@ import sys
 # which directory uvicorn is launched from.
 sys.path.insert(0, os.path.dirname(__file__))
 
+# Load .env from the repo root (one directory above backend/).
+# Must happen before any os.getenv() call.
+from dotenv import load_dotenv
+_env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
+load_dotenv(dotenv_path=_env_path, override=False)
+
 import httpx
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
