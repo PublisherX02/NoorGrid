@@ -334,7 +334,7 @@ function peakRiskLevel(preds) {
 export default function Dashboard() {
   const navigate = useNavigate()
   const { weather, loading: wLoading, isMock, backendOnline } = useWeather()
-  const { predictions, fetchPrediction, peakWindow, loading: bLoading } = useBlackout()
+  const { predictions, region: blackoutRegion, fetchPrediction, peakWindow, loading: bLoading } = useBlackout()
   const [selectedGov, setSelectedGov] = useState(null)
   // liveRiskMap: { [govName]: risk_level } — populated from real API predictions
   const [liveRiskMap, setLiveRiskMap] = useState({})
@@ -358,11 +358,11 @@ export default function Dashboard() {
 
   // Sync liveRiskMap when a new prediction comes in for the selected gov
   useEffect(() => {
-    if (predictions && selectedGov) {
+    if (predictions && selectedGov && blackoutRegion === selectedGov.name) {
       const level = peakRiskLevel(predictions)
       if (level) setLiveRiskMap((prev) => ({ ...prev, [selectedGov.name]: level }))
     }
-  }, [predictions, selectedGov])
+  }, [predictions, selectedGov, blackoutRegion])
 
   // Load default blackout prediction on mount
   useEffect(() => {

@@ -142,14 +142,19 @@ def simulate_grid(req: GridSimulationRequest):
 # ── Region config for blackout prediction ────────────────────────────────────
 _REGION_CFG: dict[str, dict] = {
     "Bizerte":     {"lat": 37.2744, "lon": 9.8739,  "source": "Wind",  "baseline_mw": 97.0,
-                    "rotor_area": 7854.0,   "efficiency": 0.40},
+                    "rotor_area": 7854.0,   "efficiency": 0.40,
+                    "installed_capacity_mw": 120.0, "avg_demand_mw": 178.0},
     "Nabeul":      {"lat": 36.4561, "lon": 10.7376, "source": "Wind",  "baseline_mw": 55.0,
-                    "rotor_area": 4418.0,   "efficiency": 0.40},
+                    "rotor_area": 4418.0,   "efficiency": 0.40,
+                    "installed_capacity_mw": 75.0,  "avg_demand_mw": 142.0},
     "Tozeur":      {"lat": 33.9197, "lon": 8.1335,  "source": "Solar", "baseline_mw": 20.0,
-                    "panel_area": 120_000.0, "efficiency": 0.18},
-    "Béja":        {"lat": 36.7256, "lon": 9.1817,  "source": "Hydro", "baseline_mw": 33.0},
+                    "panel_area": 120_000.0, "efficiency": 0.18,
+                    "installed_capacity_mw": 25.0,  "avg_demand_mw": 44.0},
+    "Béja":        {"lat": 36.7256, "lon": 9.1817,  "source": "Hydro", "baseline_mw": 33.0,
+                    "installed_capacity_mw": 40.0,  "avg_demand_mw": 74.0},
     "Sidi Bouzid": {"lat": 35.0382, "lon": 9.4858,  "source": "Solar", "baseline_mw": 100.0,
-                    "panel_area": 600_000.0, "efficiency": 0.18},
+                    "panel_area": 600_000.0, "efficiency": 0.18,
+                    "installed_capacity_mw": 130.0, "avg_demand_mw": 92.0},
 }
 
 _OPENMETEO_URL = "https://api.open-meteo.com/v1/forecast"
@@ -234,30 +239,35 @@ async def predict_blackout(req: BlackoutRequest):
 
         # Cooling demand factor — rises sharply above 25 °C
         cooling_factor = max(0.0, (temp - 25) * 0.08)
-        baseline = cfg["baseline_mw"]
-        estimated_demand_mw = baseline * (1 + cooling_factor)
+        avg_demand = cfg["avg_demand_mw"]
+        estimated_demand_mw = avg_demand * (1 + cooling_factor)
 
-        # Available renewable MW from weather forecast
+        # Available renewable MW from weather forecast (used for display and prob adjustment)
         source = cfg["source"]
+        installed_capacity = cfg["installed_capacity_mw"]
         if source == "Wind":
             available_mw = max(0.1, wind_power_mw(wind, cfg["rotor_area"], cfg["efficiency"]))
         elif source == "Solar":
             available_mw = max(0.1, solar_power_mw(irr, cfg["panel_area"], cfg["efficiency"]))
-        else:  # Hydro — weather-independent
-            available_mw = baseline
+        else:  # Hydro — weather-independent, runs at rated capacity
+            available_mw = installed_capacity
 
-        stress_ratio = estimated_demand_mw / max(available_mw, 1.0)
+        # Stress = demand vs installed capacity (stable denominator — no nighttime collapse)
+        stress_ratio = estimated_demand_mw / max(installed_capacity, 1.0)
 
-        if stress_ratio > 4.0:
+        if stress_ratio > 1.4:
             risk = "CRITICAL"
-        elif stress_ratio > 2.5:
+        elif stress_ratio > 1.2:
             risk = "HIGH"
-        elif stress_ratio > 1.5:
+        elif stress_ratio > 1.0:
             risk = "ELEVATED"
         else:
             risk = "NOMINAL"
 
-        blackout_probability = round(min(100.0, max(0.0, (stress_ratio - 1) * 25)), 1)
+        # Renewable output reduces probability by up to 30%
+        renewable_pct = min(1.0, available_mw / max(installed_capacity, 0.1))
+        base_prob = (stress_ratio - 0.5) * 50
+        blackout_probability = round(min(100.0, max(0.0, base_prob * (1.0 - renewable_pct * 0.3))), 1)
 
         if risk == "CRITICAL":
             action = ("EMERGENCY LOAD SHEDDING REQUIRED"

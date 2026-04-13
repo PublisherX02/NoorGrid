@@ -54,9 +54,9 @@ const _mockBlackout = (region, forecast_hours = 24) => {
     const stress = +(demand / available).toFixed(3)
     const prob = +Math.min(100, Math.max(0, (stress - 1) * 25)).toFixed(1)
     const risk =
-      stress > 4.0 ? 'CRITICAL' :
-        stress > 2.5 ? 'HIGH' :
-          stress > 1.5 ? 'ELEVATED' : 'NOMINAL'
+      stress > 1.4 ? 'CRITICAL' :
+        stress > 1.2 ? 'HIGH' :
+          stress > 1.0 ? 'ELEVATED' : 'NOMINAL'
     const label = `${String(hour).padStart(2, '0')}:00`
     predictions.push({
       hour: i,
