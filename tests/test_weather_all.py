@@ -71,3 +71,60 @@ def test_region_cfg_solar_have_panel_area():
     solar = [name for name, cfg in _REGION_CFG.items() if cfg["source"] == "Solar"]
     for name in solar:
         assert "panel_area" in _REGION_CFG[name], f"{name} missing panel_area"
+
+
+from fastapi.testclient import TestClient
+from unittest.mock import patch
+from main import app, _compute_region_output
+
+client = TestClient(app)
+
+def test_compute_region_output_wind():
+    cfg = _REGION_CFG["Bizerte"]
+    result = _compute_region_output(cfg, wind_ms=8.2, irradiance=420.0)
+    assert result["source"] == "Wind"
+    assert result["output_mw"] > 0
+    assert result["risk_level"] in {"NOMINAL", "ELEVATED", "HIGH", "CRITICAL"}
+
+def test_compute_region_output_solar():
+    cfg = _REGION_CFG["Tozeur"]
+    result = _compute_region_output(cfg, wind_ms=3.1, irradiance=820.0)
+    assert result["source"] == "Solar"
+    assert result["output_mw"] > 0
+
+def test_compute_region_output_hydro():
+    cfg = _REGION_CFG["Béja"]
+    result = _compute_region_output(cfg, wind_ms=5.8, irradiance=390.0)
+    assert result["source"] == "Hydro"
+    assert result["output_mw"] == cfg["baseline_mw"]
+
+def test_compute_region_output_mixed():
+    cfg = _REGION_CFG["Tunis"]
+    result = _compute_region_output(cfg, wind_ms=5.1, irradiance=510.0)
+    assert result["source"] == "Mixed"
+    assert result["output_mw"] >= 0.60 * cfg["baseline_mw"]
+
+def test_weather_all_endpoint_returns_24():
+    async def _mock_fetch():
+        return [
+            {"region": name, "latitude": cfg["lat"], "longitude": cfg["lon"],
+             "wind_speed_ms": 5.0, "solar_irradiance_wm2": 500.0}
+            for name, cfg in _REGION_CFG.items()
+        ]
+    with patch("main.fetch_all_weather", new=_mock_fetch):
+        resp = client.get("/weather/all")
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert len(data) == 24
+
+def test_weather_all_entry_has_required_fields():
+    async def _mock_fetch():
+        return [
+            {"region": name, "latitude": cfg["lat"], "longitude": cfg["lon"],
+             "wind_speed_ms": 5.0, "solar_irradiance_wm2": 500.0}
+            for name, cfg in _REGION_CFG.items()
+        ]
+    with patch("main.fetch_all_weather", new=_mock_fetch):
+        resp = client.get("/weather/all")
+    first = resp.json()["data"][0]
+    assert {"region", "wind_ms", "irradiance", "output_mw", "risk_level", "source"} <= first.keys()

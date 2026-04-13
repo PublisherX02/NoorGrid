@@ -38,6 +38,8 @@ from models import (
     RAGResponse,
     RegionHistoryResponse,
     SolarRequest,
+    WeatherAllEntry,
+    WeatherAllResponse,
     WeatherResponse,
     WindRequest,
 )
@@ -219,6 +221,36 @@ _REGION_CFG: dict[str, dict] = {
 _OPENMETEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 
+def _compute_region_output(cfg: dict, wind_ms: float, irradiance: float) -> dict:
+    """Compute energy output MW and risk level for one region given current weather."""
+    source = cfg["source"]
+    avg_demand = cfg["avg_demand_mw"]
+
+    if source == "Wind":
+        output_mw = wind_power_mw(wind_ms, cfg["rotor_area"], cfg["efficiency"])
+    elif source == "Solar":
+        output_mw = solar_power_mw(irradiance, cfg["panel_area"], cfg["efficiency"])
+    elif source == "Hydro":
+        output_mw = cfg["baseline_mw"]
+    else:  # Mixed: 60% fossil baseline + 40% wind offset
+        wind_offset = wind_power_mw(wind_ms, cfg["rotor_area"], cfg["efficiency"])
+        output_mw = 0.60 * cfg["baseline_mw"] + 0.40 * wind_offset
+
+    output_mw = round(max(0.0, output_mw), 2)
+    ratio = output_mw / max(avg_demand, 1.0)
+
+    if ratio < 0.30:
+        risk = "CRITICAL"
+    elif ratio < 0.50:
+        risk = "HIGH"
+    elif ratio < 0.70:
+        risk = "ELEVATED"
+    else:
+        risk = "NOMINAL"
+
+    return {"output_mw": output_mw, "risk_level": risk, "source": source}
+
+
 # ── Weather data endpoint ─────────────────────────────────────────────────────
 
 @app.get("/weather", response_model=WeatherResponse, tags=["Weather"])
@@ -237,6 +269,42 @@ async def get_weather():
 
     insert_weather_entries(entries)
     return WeatherResponse(data=entries)
+
+
+@app.get("/weather/all", response_model=WeatherAllResponse, tags=["Weather"])
+async def get_weather_all():
+    """
+    Fetch current weather for all 24 Tunisian governorates and compute
+    energy output + risk level for each. Returns rich per-region data.
+    """
+    try:
+        raw = await fetch_all_weather()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to fetch weather data: {exc}",
+        ) from exc
+
+    insert_weather_entries(raw)
+
+    lookup = {entry["region"]: entry for entry in raw}
+    results: list[WeatherAllEntry] = []
+
+    for name, cfg in _REGION_CFG.items():
+        entry = lookup.get(name, {})
+        wind_ms = entry.get("wind_speed_ms", 0.0)
+        irradiance = entry.get("solar_irradiance_wm2", 0.0)
+        computed = _compute_region_output(cfg, wind_ms, irradiance)
+        results.append(WeatherAllEntry(
+            region=name,
+            wind_ms=round(wind_ms, 3),
+            irradiance=round(irradiance, 3),
+            output_mw=computed["output_mw"],
+            risk_level=computed["risk_level"],
+            source=computed["source"],
+        ))
+
+    return WeatherAllResponse(data=results)
 
 
 @app.post("/history/record", response_model=HistoryRecordResponse, tags=["History"])
