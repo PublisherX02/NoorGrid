@@ -3,20 +3,16 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { GOVERNORATES, RISK_COLORS, SOURCE_ICON } from '../../constants/grid'
 
-// Merge weather data into governorate list
-function mergeWeather(govs, weatherData) {
-  const map = {}
-  if (weatherData?.data) {
-    for (const w of weatherData.data) {
-      map[w.region] = w
-    }
-  }
+// Merge weatherMap (keyed by region name) into governorate list
+function mergeWeather(govs, weatherMap = {}) {
   return govs.map((g) => {
-    const w = map[g.name]
+    const w = weatherMap[g.name]
     return {
       ...g,
-      live_wind:      w ? w.wind_speed_ms         : g.mock_wind,
-      live_irradiance: w ? w.solar_irradiance_wm2  : g.mock_irradiance,
+      live_wind:       w ? w.wind_ms    : g.mock_wind,
+      live_irradiance: w ? w.irradiance : g.mock_irradiance,
+      live_output_mw:  w ? w.output_mw  : g.mock_mw,
+      live_risk:       w ? w.risk_level : g.mock_risk,
     }
   })
 }
@@ -54,8 +50,10 @@ function createIcon(risk) {
 }
 
 function buildPopup(gov) {
-  const color = RISK_COLORS[gov.mock_risk] || '#00ff88'
+  const risk = gov.live_risk || gov.mock_risk
+  const color = RISK_COLORS[risk] || '#00ff88'
   const sourceIcon = SOURCE_ICON[gov.source] || '⚡'
+  const outputMw = gov.live_output_mw ?? gov.mock_mw
   return `
     <div style="padding:12px 14px;min-width:180px;font-family:'Inter',sans-serif;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -64,7 +62,7 @@ function buildPopup(gov) {
           font-family:'JetBrains Mono',monospace;font-size:0.58rem;font-weight:700;
           padding:2px 6px;border-radius:4px;letter-spacing:0.08em;
           color:${color};border:1px solid ${color}66;background:${color}15;
-        ">${gov.mock_risk}</span>
+        ">${risk}</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.75rem;">
         <div>
@@ -73,7 +71,7 @@ function buildPopup(gov) {
         </div>
         <div>
           <div style="color:#8899aa;margin-bottom:2px;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;">Output</div>
-          <div style="font-family:'JetBrains Mono',monospace;color:${color};">${gov.mock_mw} MW</div>
+          <div style="font-family:'JetBrains Mono',monospace;color:${color};">${outputMw} MW</div>
         </div>
         <div>
           <div style="color:#8899aa;margin-bottom:2px;font-size:0.62rem;text-transform:uppercase;letter-spacing:0.06em;">Wind</div>
@@ -90,7 +88,7 @@ function buildPopup(gov) {
     </div>`
 }
 
-export default function TunisiaMap({ weatherData, selectedGov, onSelectGov, liveRiskMap = {}, style = {} }) {
+export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, liveRiskMap = {}, style = {} }) {
   const containerRef = useRef(null)
   const mapRef       = useRef(null)
   const markersRef   = useRef([])
@@ -135,11 +133,11 @@ export default function TunisiaMap({ weatherData, selectedGov, onSelectGov, live
     markersRef.current.forEach((m) => m.remove())
     markersRef.current = []
 
-    const govs = mergeWeather(GOVERNORATES, weatherData)
+    const govs = mergeWeather(GOVERNORATES, weatherMap)
 
     govs.forEach((gov) => {
-      // Prefer live predicted risk over hardcoded mock
-      const risk   = liveRiskMap[gov.name] || gov.mock_risk
+      // Prefer weatherMap risk, then liveRiskMap, then mock
+      const risk   = gov.live_risk || liveRiskMap[gov.name] || gov.mock_risk
       const icon   = createIcon(risk)
       const marker = L.marker([gov.lat, gov.lon], { icon })
 
@@ -153,7 +151,7 @@ export default function TunisiaMap({ weatherData, selectedGov, onSelectGov, live
       marker.addTo(map)
       markersRef.current.push(marker)
     })
-  }, [weatherData, onSelectGov, liveRiskMap])
+  }, [weatherMap, onSelectGov, liveRiskMap])
 
   // Pan to selected governorate
   useEffect(() => {

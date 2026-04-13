@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { GOVERNORATES } from '../constants/grid'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -117,6 +118,44 @@ export const getWeather = async () => {
     return { data: res.data, mock: false }
   } catch {
     return { data: MOCK_WEATHER, mock: true }
+  }
+}
+
+const _mockWeatherAll = () => ({
+  data: GOVERNORATES.map((g) => {
+    const wind = g.mock_wind || 5.0
+    const irr  = g.mock_irradiance || 500
+
+    let output_mw
+    if (g.source === 'Wind') {
+      output_mw = +(0.5 * 1.225 * (g.rotor_area || 5000) * Math.pow(wind, 3) * (g.efficiency || 0.4) / 1e6).toFixed(2)
+    } else if (g.source === 'Solar') {
+      output_mw = +(irr * (g.panel_area || 100000) * (g.efficiency || 0.18) / 1e6).toFixed(2)
+    } else if (g.source === 'Hydro') {
+      output_mw = g.baseline_mw
+    } else {
+      // Mixed: 60% fossil baseline + 40% wind offset
+      const wind_offset = 0.5 * 1.225 * (g.rotor_area || 5000) * Math.pow(wind, 3) * (g.efficiency || 0.35) / 1e6
+      output_mw = +(0.60 * g.baseline_mw + 0.40 * wind_offset).toFixed(2)
+    }
+    output_mw = Math.max(0, output_mw)
+
+    const ratio = output_mw / Math.max(g.avg_demand_mw || 1, 1)
+    const risk_level =
+      ratio < 0.30 ? 'CRITICAL' :
+      ratio < 0.50 ? 'HIGH' :
+      ratio < 0.70 ? 'ELEVATED' : 'NOMINAL'
+
+    return { region: g.name, wind_ms: wind, irradiance: irr, output_mw, risk_level, source: g.source }
+  }),
+})
+
+export const getWeatherAll = async () => {
+  try {
+    const res = await client.get('/weather/all')
+    return { data: res.data, mock: false }
+  } catch {
+    return { data: _mockWeatherAll(), mock: true }
   }
 }
 
