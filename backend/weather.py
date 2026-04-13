@@ -7,13 +7,11 @@ import httpx
 
 # Tunisian governorate coordinates (lat, lon)
 GOVERNORATES: list[dict] = [
-    # ── Original 5 ──
     {"region": "Bizerte",     "lat": 37.2744, "lon": 9.8739},
     {"region": "Nabeul",      "lat": 36.4561, "lon": 10.7376},
     {"region": "Tozeur",      "lat": 33.9197, "lon": 8.1335},
     {"region": "Béja",        "lat": 36.7256, "lon": 9.1817},
     {"region": "Sidi Bouzid", "lat": 35.0382, "lon": 9.4858},
-    # ── Newly added ──
     {"region": "Tunis",       "lat": 36.8190, "lon": 10.1658},
     {"region": "Ariana",      "lat": 36.8665, "lon": 10.1647},
     {"region": "Ben Arous",   "lat": 36.7533, "lon": 10.2281},
