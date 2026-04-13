@@ -77,6 +77,19 @@ class WeatherResponse(BaseModel):
     data: list[WeatherEntry]
 
 
+class WeatherAllEntry(BaseModel):
+    region: str
+    wind_ms: float = Field(..., description="Wind speed at 10 m in m/s")
+    irradiance: float = Field(..., description="Solar irradiance in W/m²")
+    output_mw: float = Field(..., description="Computed energy output in MW")
+    risk_level: str = Field(..., description="NOMINAL | ELEVATED | HIGH | CRITICAL")
+    source: str = Field(..., description="Wind | Solar | Hydro | Mixed")
+
+
+class WeatherAllResponse(BaseModel):
+    data: list[WeatherAllEntry]
+
+
 # ── History models ──────────────────────────────────────────────────────────────
 
 class HistoryRecord(BaseModel):

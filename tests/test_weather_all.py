@@ -25,3 +25,26 @@ EXPECTED_REGIONS = {
 def test_all_24_expected_regions_present():
     names = {g["region"] for g in GOVERNORATES}
     assert names == EXPECTED_REGIONS
+
+
+from models import WeatherAllEntry, WeatherAllResponse
+
+def test_weather_all_entry_fields():
+    entry = WeatherAllEntry(
+        region="Bizerte",
+        wind_ms=8.2,
+        irradiance=420.0,
+        output_mw=87.3,
+        risk_level="NOMINAL",
+        source="Wind",
+    )
+    assert entry.region == "Bizerte"
+    assert entry.output_mw == 87.3
+
+def test_weather_all_response_wraps_list():
+    entries = [
+        WeatherAllEntry(region="Bizerte", wind_ms=8.2, irradiance=420.0,
+                        output_mw=87.3, risk_level="NOMINAL", source="Wind")
+    ]
+    resp = WeatherAllResponse(data=entries)
+    assert len(resp.data) == 1
