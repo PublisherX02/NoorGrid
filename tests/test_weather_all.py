@@ -48,3 +48,26 @@ def test_weather_all_response_wraps_list():
     ]
     resp = WeatherAllResponse(data=entries)
     assert len(resp.data) == 1
+
+
+from main import _REGION_CFG
+
+def test_region_cfg_has_24_entries():
+    assert len(_REGION_CFG) == 24
+
+def test_region_cfg_mixed_have_rotor_area():
+    mixed = [name for name, cfg in _REGION_CFG.items() if cfg["source"] == "Mixed"]
+    assert len(mixed) == 6
+    for name in mixed:
+        assert "rotor_area" in _REGION_CFG[name], f"{name} missing rotor_area"
+        assert "efficiency" in _REGION_CFG[name], f"{name} missing efficiency"
+
+def test_region_cfg_wind_have_rotor_area():
+    wind = [name for name, cfg in _REGION_CFG.items() if cfg["source"] == "Wind"]
+    for name in wind:
+        assert "rotor_area" in _REGION_CFG[name], f"{name} missing rotor_area"
+
+def test_region_cfg_solar_have_panel_area():
+    solar = [name for name, cfg in _REGION_CFG.items() if cfg["source"] == "Solar"]
+    for name in solar:
+        assert "panel_area" in _REGION_CFG[name], f"{name} missing panel_area"
