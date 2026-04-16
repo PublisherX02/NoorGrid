@@ -72,7 +72,7 @@ class TestCarbonScore:
     def test_positive_when_consumption_exceeds_renewable(self):
         score = carbon_score(consumption_kwh=1000.0, renewable_kwh=400.0)
         assert score > 0
-        assert abs(score - 600.0 * 0.468) < 0.001
+        assert abs(score - 600.0 * 0.423) < 0.001
 
     def test_zero_when_equal(self):
         score = carbon_score(consumption_kwh=500.0, renewable_kwh=500.0)
@@ -86,3 +86,11 @@ class TestCarbonScore:
     def test_returns_float(self):
         score = carbon_score(consumption_kwh=1000.0, renewable_kwh=200.0)
         assert isinstance(score, float)
+
+
+class TestConstants:
+    def test_carbon_intensity_is_verified_2024_value(self):
+        from calculations import CARBON_INTENSITY
+        assert CARBON_INTENSITY == 0.423, (
+            f"CARBON_INTENSITY should be 0.423 (verified 2024 ONEM figure), got {CARBON_INTENSITY}"
+        )

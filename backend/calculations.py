@@ -9,7 +9,7 @@ WATER_DENSITY = 1000.0
 # Gravitational acceleration (m/s²)
 GRAVITY = 9.81
 # Carbon intensity factor (kg CO₂ per kWh)
-CARBON_INTENSITY = 0.468
+CARBON_INTENSITY = 0.423  # 423 gCO2eq/kWh — verified 2024 ONEM figure
 # Conversion from Watts to Megawatts
 W_TO_MW = 1e-6
 
@@ -68,7 +68,7 @@ def hydro_power_mw(flow_rate: float, head_height: float, efficiency: float) -> f
 def carbon_score(consumption_kwh: float, renewable_kwh: float) -> float:
     """
     Calculate carbon score in kg CO₂.
-    C = (E_consumed - E_renewable) × 0.468
+    C = (E_consumed - E_renewable) × 0.423
 
     Args:
         consumption_kwh: Total energy consumed in kWh.
