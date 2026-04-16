@@ -16,6 +16,8 @@ import {
 import { useAlerts } from '../hooks/useAlerts'
 import CrisisModal from '../components/Crisis/CrisisModal'
 import AlertFeed from '../components/Crisis/AlertFeed'
+import { useTranslation } from 'react-i18next'
+import i18n from '../i18n'
 
 
 // ─── Tunisia Clock ──────────────────────────────────────────────────────────
@@ -343,6 +345,8 @@ export default function Dashboard() {
   // liveRiskMap: { [govName]: risk_level } — populated from blackout predictions
   const [liveRiskMap, setLiveRiskMap] = useState({})
 
+  const { t } = useTranslation()
+
   const { alerts, loading: alertLoading, error: alertError, triggerSimulation } = useAlerts()
   const [activeAlert, setActiveAlert] = useState(null)
   const [showCrisisModal, setShowCrisisModal] = useState(false)
@@ -441,7 +445,7 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span className="live-dot" />
             <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#00ff88', letterSpacing: '0.12em' }}>
-              LIVE
+              {t('status.live')}
             </span>
           </div>
           {isMock && (
@@ -457,16 +461,16 @@ export default function Dashboard() {
                 letterSpacing: '0.06em',
               }}
             >
-              SIMULATED DATA
+              {t('status.simulated')}
             </span>
           )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {[
-            { label: 'Backend', online: backendOnline },
-            { label: 'Weather API', online: !isMock },
-            { label: 'Prediction Engine', online: true },
+            { label: t('status.backend'), online: backendOnline },
+            { label: t('status.weatherApi'), online: !isMock },
+            { label: t('status.predictionEngine'), online: true },
           ].map(({ label, online }) => (
             <div
               key={label}
@@ -512,13 +516,30 @@ export default function Dashboard() {
               animation: activeAlert ? 'none' : 'undefined',
             }}
           >
-            ⚡ SIMULATE CRISIS
+            {t('crisis.simulateButton') || '⚡ SIMULATE CRISIS'}
+          </button>
+          <button
+            onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'fr' : 'en')}
+            style={{
+              background: 'none',
+              border: '1px solid rgba(0,255,136,0.2)',
+              borderRadius: '4px',
+              padding: '2px 8px',
+              fontSize: '0.65rem',
+              color: '#00ff88',
+              cursor: 'pointer',
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+            }}
+          >
+            {i18n.language === 'en' ? 'FR' : 'EN'}
           </button>
           <div style={{ display: 'flex', gap: '2px', marginLeft: '8px' }}>
             {[
-              { label: 'Analytics', path: '/analytics' },
-              { label: 'Simulation', path: '/simulation' },
-              { label: 'About', path: '/about' },
+              { label: t('nav.analytics'), path: '/analytics' },
+              { label: t('nav.simulation'), path: '/simulation' },
+              { label: t('nav.about'), path: '/about' },
             ].map(({ label, path }) => (
               <button
                 key={path}

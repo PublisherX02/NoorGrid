@@ -1,5 +1,7 @@
+import { useTranslation } from 'react-i18next'
 const RISK_ICON = { CRITICAL: '⚠', HIGH: '▲', ELEVATED: '●', NOMINAL: '○' }
 const RISK_COLOR = { CRITICAL: '#ff3333', HIGH: '#ff9500', ELEVATED: '#ffd700', NOMINAL: '#00ff88' }
+
 
 function formatTime(isoStr) {
   if (!isoStr) return '—'
@@ -13,6 +15,7 @@ function formatTime(isoStr) {
 }
 
 function ActiveAlertCard({ alert, onAcknowledge }) {
+  const { t } = useTranslation()
   const color = RISK_COLOR[alert.risk_level] || '#ff3333'
   return (
     <div
@@ -30,7 +33,7 @@ function ActiveAlertCard({ alert, onAcknowledge }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ color, fontSize: '1rem' }}>{RISK_ICON[alert.risk_level] || '⚠'}</span>
           <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.78rem', fontWeight: 700, color }}>
-            {alert.risk_level} — {alert.region}
+            {t(`risk.${alert.risk_level}`)} — {alert.region}
           </span>
         </div>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.65rem', color: '#8899aa' }}>
@@ -73,7 +76,7 @@ function ActiveAlertCard({ alert, onAcknowledge }) {
           cursor: 'pointer',
         }}
       >
-        ACKNOWLEDGE
+        {t('crisis.acknowledge') || 'ACKNOWLEDGE'}
       </button>
     </div>
   )
@@ -108,6 +111,7 @@ function HistoricalAlertRow({ alert }) {
 }
 
 export default function AlertFeed({ activeAlert, historicalAlerts = [], onAcknowledge }) {
+  const { t } = useTranslation()
   if (!activeAlert && historicalAlerts.length === 0) return null
 
   return (
@@ -137,7 +141,7 @@ export default function AlertFeed({ activeAlert, historicalAlerts = [], onAcknow
           marginBottom: '12px',
         }}
       >
-        ALERT FEED
+        {t('crisis.alertFeedTitle') || 'ALERT FEED'}
       </div>
 
       {activeAlert && (

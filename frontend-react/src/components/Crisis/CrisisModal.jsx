@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { GOVERNORATES } from '../../constants/grid'
+import { useTranslation } from 'react-i18next'
+
 
 const SCENARIOS = [
   {
@@ -23,9 +25,11 @@ const SCENARIOS = [
 ]
 
 export default function CrisisModal({ onClose, onTrigger, loading, error }) {
+  const { t } = useTranslation()
   const [selected, setSelected] = useState(null)
   const [customRegion, setCustomRegion] = useState(GOVERNORATES[0]?.name || '')
   const [customRisk, setCustomRisk] = useState('CRITICAL')
+
 
   const isCustom = selected === 'custom'
   const canTrigger = selected !== null
@@ -102,7 +106,7 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
               letterSpacing: '0.1em',
             }}
           >
-            CRISIS SCENARIO — SELECT EVENT
+            {t('crisis.modalTitle') || 'CRISIS SCENARIO — SELECT EVENT'}
           </div>
           <button
             onClick={onClose}
@@ -121,7 +125,7 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
               onClick={() => setSelected(i)}
             >
               <div style={{ fontSize: '0.75rem', fontWeight: 700, color: s.risk_level === 'CRITICAL' ? '#ff3333' : '#ff9500', marginBottom: '4px' }}>
-                {s.risk_level} — {s.region}
+                {s.risk_level === 'CRITICAL' ? t('risk.CRITICAL') : t('risk.HIGH')} — {s.region}
               </div>
               <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>{s.label}</div>
               <div style={{ fontSize: '0.68rem', color: '#8899aa', lineHeight: 1.4 }}>{s.description}</div>
@@ -133,7 +137,7 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
             style={selected === 'custom' ? cardSelected : cardBase}
             onClick={() => setSelected('custom')}
           >
-            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#8899aa', marginBottom: '8px' }}>CUSTOM</div>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#8899aa', marginBottom: '8px' }}>{t('crisis.custom') || 'CUSTOM'}</div>
             {isCustom ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <select
@@ -204,7 +208,7 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
             transition: 'all 0.15s',
           }}
         >
-          {loading ? 'TRIGGERING...' : 'TRIGGER CRISIS'}
+          {loading ? t('crisis.triggering') : t('crisis.triggerButton')}
         </button>
       </div>
     </div>
