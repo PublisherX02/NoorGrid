@@ -118,7 +118,7 @@ def calculate_carbon(req: CarbonRequest):
     """
     Calculate regional carbon score in kg CO₂.
 
-    Formula: C = (E_consumed − E_renewable) × 0.468
+    Formula: C = (E_consumed − E_renewable) × 0.423
     """
     try:
         score = carbon_score(req.consumption_kwh, req.renewable_kwh)
@@ -445,9 +445,13 @@ rate-of-change 20%, regional correlation 15%
 ▸ Maintenance schedules and STEG outage protocols (Q2/Q3 2025)
 ▸ Investment pipeline 2025–2030: €585M committed — Sidi Bouzid solar 200 MW, \
 Bizerte offshore wind 120 MW, Sfax battery 150 MWh
-▸ Carbon & emissions: 0.468 kg CO₂/kWh grid factor, NDC target 1.80 kg CO₂/cap/day by 2030
+▸ Carbon & emissions: 0.423 kg CO₂/kWh grid factor (verified 2024 ONEM), NDC target 1.80 kg CO₂/cap/day by 2030
 ▸ Generation mix: 93.7% fossil, 6.0% renewable — gap vs 35% target by 2030
-▸ Energy independence: 41% (2024), down from 48% (2023)
+▸ Energy independence: 39% Q1 2025 (was 41% in 2024, 48% in 2023) — accelerating decline
+▸ Energy trade deficit: 2.92 billion TND by end 2025
+▸ Total 2025 generation: 20,535 GWh (+6% vs 2024)
+▸ Nawara gas field: production down 27% in early 2025 — southern grid stress driver
+▸ Algeria gas imports: up 23% in 2025; electricity imports cover 11% of August peak demand
 
 RESPONSE FORMAT: Structure your answers with ALL-CAPS section headers where useful, \
 ▸ bullet points for lists, and precise numerical values (MW, %, °C, m/s). \
