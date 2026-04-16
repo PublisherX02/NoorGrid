@@ -348,15 +348,18 @@ export default function Dashboard() {
   const { t } = useTranslation()
 
   const { alerts, loading: alertLoading, error: alertError, triggerSimulation } = useAlerts()
-  const [activeAlert, setActiveAlert] = useState(null)
+  const [activeAlert, setActiveAlert]     = useState(null)
+  const [cascadeAlerts, setCascadeAlerts] = useState([])
   const [showCrisisModal, setShowCrisisModal] = useState(false)
 
-  const handleAlertTriggered = (alert) => {
+  const handleAlertTriggered = (alert, cascadeRegions = []) => {
     setActiveAlert(alert)
+    setCascadeAlerts(cascadeRegions)
   }
 
   const handleAcknowledge = () => {
     setActiveAlert(null)
+    setCascadeAlerts([])
   }
 
 
@@ -738,6 +741,7 @@ export default function Dashboard() {
                 onSelectGov={handleSelectGov}
                 liveRiskMap={liveRiskMap}
                 activeAlert={activeAlert}
+                cascadeAlerts={cascadeAlerts}
                 style={{ height: '100%', width: '100%' }}
               />
             )}
@@ -958,9 +962,9 @@ export default function Dashboard() {
       {showCrisisModal && (
         <CrisisModal
           onClose={() => setShowCrisisModal(false)}
-          onTrigger={async (region, risk_level, scenario_label) => {
+          onTrigger={async (region, risk_level, scenario_label, cascadeRegions) => {
             const alert = await triggerSimulation(region, risk_level, scenario_label)
-            handleAlertTriggered(alert)
+            handleAlertTriggered(alert, cascadeRegions)
           }}
           loading={alertLoading}
           error={alertError}
@@ -970,6 +974,7 @@ export default function Dashboard() {
       {/* Alert feed — positioned absolute inside ops-room */}
       <AlertFeed
         activeAlert={activeAlert}
+        cascadeAlerts={cascadeAlerts}
         historicalAlerts={activeAlert ? alerts.filter((a) => a.id !== activeAlert?.id) : []}
         onAcknowledge={handleAcknowledge}
       />
