@@ -3,6 +3,7 @@ import { getHistory } from '../services/api'
 import { GOVERNORATES, RISK_COLORS, RISK_ORDER } from '../constants/grid'
 import { useWeather } from '../hooks/useWeather'
 import RiskBadge from '../components/UI/RiskBadge'
+import BlackoutForecastPanel from '../components/Forecast/BlackoutForecastPanel'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, Cell,
@@ -112,10 +113,16 @@ export default function Analytics() {
   const loadHistory = useCallback(async (gov) => {
     setLoading(true)
     try {
-      if (gov.hasBackend) {
-        const result  = await getHistory(gov.name, 2)
-        const records = result.data.records || []
-        setIsMock(result.mock)
+      const result  = await getHistory(gov.name, 2)
+      const records = result.data.records || []
+
+      if (records.length === 0 || result.mock) {
+        // No real data yet — fall back to deterministic synthetic series
+        setHistoryData(_mockHistory48h(gov))
+        setTableData([])
+        setIsMock(true)
+      } else {
+        setIsMock(false)
 
         const sampled = records
           .filter((_, i) => i % Math.max(1, Math.floor(records.length / 48)) === 0)
@@ -127,9 +134,11 @@ export default function Analytics() {
             : '',
           wind_ms:    +r.wind_speed_ms.toFixed(2),
           irradiance: +r.solar_irradiance_wm2.toFixed(0),
-          output_mw:
-            gov.source === 'Wind'
-              ? +(0.5 * 1.225 * (gov.rotor_area  || 5000)   * Math.pow(r.wind_speed_ms, 3) * (gov.efficiency || 0.4)  / 1e6).toFixed(2)
+          // Use stored output_mw from DB when available; recompute as fallback
+          output_mw: r.output_mw != null
+            ? +r.output_mw.toFixed(2)
+            : gov.source === 'Wind'
+              ? +(0.5 * 1.225 * (gov.rotor_area  || 5000) * Math.pow(r.wind_speed_ms, 3) * (gov.efficiency || 0.4)  / 1e6).toFixed(2)
               : gov.source === 'Solar'
               ? +(r.solar_irradiance_wm2 * (gov.panel_area || 100000) * (gov.efficiency || 0.18) / 1e6).toFixed(2)
               : gov.baseline_mw,
@@ -144,11 +153,6 @@ export default function Analytics() {
             region:     r.region,
           }))
         )
-      } else {
-        // Non-backend: generate synthetic series immediately, no network call
-        setHistoryData(_mockHistory48h(gov))
-        setTableData([])
-        setIsMock(true)
       }
     } finally {
       setLoading(false)
@@ -625,6 +629,9 @@ export default function Analytics() {
             </div>
           </div>
         </div>
+
+        {/* ── Blackout Forecast ───────────────────────────────────────────── */}
+        <BlackoutForecastPanel selectedGov={selectedGov} liveRisk={selectedLiveRisk} />
 
         {/* ── Historical Data Table ────────────────────────────────────────── */}
         <div className="card" style={{ padding: '1.25rem' }}>
