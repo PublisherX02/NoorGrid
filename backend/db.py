@@ -6,6 +6,7 @@ Connection driver is selected by DATABASE_URL env var:
   - Set       → PostgreSQL via psycopg2 (use Alembic to initialise schema)
 """
 
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -179,7 +180,6 @@ def insert_alert(
     is_test: bool = True,
 ) -> int:
     """Insert a simulated or real alert into alerts_log. Returns the new row id."""
-    import json
     init_db()
     with get_engine().begin() as conn:
         result = conn.execute(
@@ -200,7 +200,6 @@ def insert_alert(
 
 def get_alerts_feed(limit: int = 10) -> list[dict]:
     """Return the most recent alerts ordered by triggered_at DESC."""
-    import json
     init_db()
     with get_engine().connect() as conn:
         rows = conn.execute(

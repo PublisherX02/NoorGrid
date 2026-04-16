@@ -69,10 +69,14 @@ _scheduler = AsyncIOScheduler()
 
 _FACTS_PATH = os.path.join(os.path.dirname(__file__), "data", "tunisia_energy_facts_2024_2025.json")
 
+# Load once at import time — used by _compute_region_output and prediction loop
+with open(_FACTS_PATH, "r", encoding="utf-8") as _f:
+    _NATIONAL_FACTS: dict = json.load(_f)
+
 
 def _load_national_facts() -> dict:
-    with open(_FACTS_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """Return the cached national facts. File is read once at startup."""
+    return _NATIONAL_FACTS
 
 
 async def scheduled_ingest() -> None:
@@ -571,12 +575,16 @@ async def predict_blackout(req: BlackoutRequest):
             renewable_mw = max(0.1, wind_power_mw(wind, cfg["rotor_area"], cfg["efficiency"]))
         elif source == "Solar":
             renewable_mw = max(0.1, solar_power_mw(irr, cfg["panel_area"], cfg["efficiency"]))
+        elif source == "Mixed":
+            # 40% renewable wind offset + 60% fossil backbone (mirrors _compute_region_output)
+            wind_offset = wind_power_mw(wind, cfg["rotor_area"], cfg["efficiency"])
+            renewable_mw = max(0.1, 0.40 * wind_offset)
         else:  # Hydro — weather-independent, runs at rated capacity
             renewable_mw = installed_capacity
 
         # Tunisia's grid is predominantly fossil-backed; include fossil baseline
-        # so risk doesn't assume a renewables-only supply model.
-        fossil_baseline_mw = installed_capacity * fossil_share
+        # using avg_demand as the reference (consistent with _compute_region_output).
+        fossil_baseline_mw = avg_demand * fossil_share
         available_mw = max(0.1, renewable_mw + fossil_baseline_mw)
 
         # Stress = demand vs effective available supply (fossil baseline + renewable)
