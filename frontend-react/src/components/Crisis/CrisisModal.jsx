@@ -1,9 +1,6 @@
 import { useState } from 'react'
-import { GOVERNORATES } from '../../constants/grid'
+import { GOVERNORATES, RISK_COLORS, SOURCE_COLOR } from '../../constants/grid'
 import { useTranslation } from 'react-i18next'
-
-const RISK_COLOR = { CRITICAL: '#ff3333', HIGH: '#ff9500', ELEVATED: '#ffd700', NOMINAL: '#00ff88' }
-const SOURCE_COLOR = { Wind: '#06b6d4', Solar: '#ffd700', Hydro: '#3b82f6', Mixed: '#a78bfa' }
 
 // preview_actions match what backend/main.py _PREVENTION_ACTIONS returns for that source+risk_level
 export const SCENARIOS = [
@@ -123,8 +120,8 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
   }
 
   const accentColor = scenario
-    ? RISK_COLOR[scenario.risk_level]
-    : isCustom ? RISK_COLOR[customRisk]
+    ? RISK_COLORS[scenario.risk_level]
+    : isCustom ? RISK_COLORS[customRisk]
     : 'rgba(255,51,51,0.4)'
 
   return (
@@ -162,7 +159,7 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '10px', marginBottom: '16px' }}>
           {SCENARIOS.map((s, i) => {
             const isActive  = selected === i
-            const riskColor = RISK_COLOR[s.risk_level]
+            const riskColor = RISK_COLORS[s.risk_level]
             const srcColor  = SOURCE_COLOR[s.source] || '#8899aa'
             return (
               <div
@@ -296,9 +293,9 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
                 key={c.name}
                 style={{
                   fontSize: '0.65rem', fontWeight: 600,
-                  color: RISK_COLOR[c.risk_level] || '#8899aa',
-                  background: `${RISK_COLOR[c.risk_level] || '#8899aa'}14`,
-                  border: `1px solid ${RISK_COLOR[c.risk_level] || '#8899aa'}33`,
+                  color: RISK_COLORS[c.risk_level] || '#8899aa',
+                  background: `${RISK_COLORS[c.risk_level] || '#8899aa'}14`,
+                  border: `1px solid ${RISK_COLORS[c.risk_level] || '#8899aa'}33`,
                   borderRadius: '4px',
                   padding: '2px 8px',
                 }}
