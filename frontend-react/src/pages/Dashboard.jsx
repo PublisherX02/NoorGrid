@@ -13,6 +13,10 @@ import {
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
+import { useAlerts } from '../hooks/useAlerts'
+import CrisisModal from '../components/Crisis/CrisisModal'
+import AlertFeed from '../components/Crisis/AlertFeed'
+
 
 // ─── Tunisia Clock ──────────────────────────────────────────────────────────
 function TunisiaClock() {
@@ -339,6 +343,19 @@ export default function Dashboard() {
   // liveRiskMap: { [govName]: risk_level } — populated from blackout predictions
   const [liveRiskMap, setLiveRiskMap] = useState({})
 
+  const { alerts, loading: alertLoading, error: alertError, triggerSimulation } = useAlerts()
+  const [activeAlert, setActiveAlert] = useState(null)
+  const [showCrisisModal, setShowCrisisModal] = useState(false)
+
+  const handleAlertTriggered = (alert) => {
+    setActiveAlert(alert)
+  }
+
+  const handleAcknowledge = () => {
+    setActiveAlert(null)
+  }
+
+
   // Helpers: weatherMap is the primary live source; liveRiskMap from blackout predictions is secondary
   const effectiveRisk = useCallback(
     (gov) => weatherMap[gov.name]?.risk_level || liveRiskMap[gov.name] || gov.mock_risk,
@@ -479,6 +496,24 @@ export default function Dashboard() {
               {label}
             </div>
           ))}
+          <button
+            onClick={() => setShowCrisisModal(true)}
+            style={{
+              background: activeAlert ? 'rgba(255,51,51,0.15)' : 'rgba(255,51,51,0.06)',
+              border: `1px solid ${activeAlert ? 'rgba(255,51,51,0.6)' : 'rgba(255,51,51,0.25)'}`,
+              borderRadius: '4px',
+              padding: '2px 10px',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              fontFamily: "'JetBrains Mono', monospace",
+              color: '#ff3333',
+              cursor: 'pointer',
+              letterSpacing: '0.06em',
+              animation: activeAlert ? 'none' : 'undefined',
+            }}
+          >
+            ⚡ SIMULATE CRISIS
+          </button>
           <div style={{ display: 'flex', gap: '2px', marginLeft: '8px' }}>
             {[
               { label: 'Analytics', path: '/analytics' },
@@ -681,6 +716,7 @@ export default function Dashboard() {
                 selectedGov={selectedGov}
                 onSelectGov={handleSelectGov}
                 liveRiskMap={liveRiskMap}
+                activeAlert={activeAlert}
                 style={{ height: '100%', width: '100%' }}
               />
             )}
@@ -896,6 +932,26 @@ export default function Dashboard() {
 
       {/* ── Floating RAG Chatbot ─────────────────────────────────────── */}
       <ChatWidget context={{ selectedGov }} />
+
+      {/* Crisis modal */}
+      {showCrisisModal && (
+        <CrisisModal
+          onClose={() => setShowCrisisModal(false)}
+          onTrigger={async (region, risk_level, scenario_label) => {
+            const alert = await triggerSimulation(region, risk_level, scenario_label)
+            handleAlertTriggered(alert)
+          }}
+          loading={alertLoading}
+          error={alertError}
+        />
+      )}
+
+      {/* Alert feed — positioned absolute inside ops-room */}
+      <AlertFeed
+        activeAlert={activeAlert}
+        historicalAlerts={alerts.filter((a) => a.id !== activeAlert?.id)}
+        onAcknowledge={handleAcknowledge}
+      />
     </div>
   )
 }
