@@ -71,6 +71,17 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_region_time
             ON weather_history(region, recorded_at)
         """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS alerts_log (
+                id             INTEGER PRIMARY KEY AUTOINCREMENT,
+                region         TEXT    NOT NULL,
+                risk_level     TEXT    NOT NULL,
+                scenario_label TEXT    NOT NULL,
+                prevention_actions TEXT NOT NULL,
+                triggered_at   TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                is_test        INTEGER NOT NULL DEFAULT 1
+            )
+        """))
 
 
 def insert_weather_entries(entries: list[dict]) -> int:
@@ -148,3 +159,54 @@ def get_daily_summary(days: int = 30) -> list[dict]:
             {"cutoff": cutoff},
         ).fetchall()
     return [dict(row._mapping) for row in rows]
+
+
+def insert_alert(
+    region: str,
+    risk_level: str,
+    scenario_label: str,
+    prevention_actions: list[str],
+    is_test: bool = True,
+) -> int:
+    """Insert a simulated or real alert into alerts_log. Returns the new row id."""
+    import json
+    init_db()
+    with get_engine().begin() as conn:
+        result = conn.execute(
+            text("""
+                INSERT INTO alerts_log (region, risk_level, scenario_label, prevention_actions, is_test)
+                VALUES (:region, :risk_level, :scenario_label, :prevention_actions, :is_test)
+            """),
+            {
+                "region": region,
+                "risk_level": risk_level,
+                "scenario_label": scenario_label,
+                "prevention_actions": json.dumps(prevention_actions),
+                "is_test": 1 if is_test else 0,
+            },
+        )
+        return result.lastrowid
+
+
+def get_alerts_feed(limit: int = 10) -> list[dict]:
+    """Return the most recent alerts ordered by triggered_at DESC."""
+    import json
+    init_db()
+    with get_engine().connect() as conn:
+        rows = conn.execute(
+            text("""
+                SELECT id, region, risk_level, scenario_label,
+                       prevention_actions, triggered_at, is_test
+                FROM alerts_log
+                ORDER BY triggered_at DESC
+                LIMIT :limit
+            """),
+            {"limit": limit},
+        ).fetchall()
+    result = []
+    for row in rows:
+        d = dict(row._mapping)
+        d["prevention_actions"] = json.loads(d["prevention_actions"])
+        d["is_test"] = bool(d["is_test"])
+        result.append(d)
+    return result

@@ -106,3 +106,64 @@ def test_get_daily_summary_aggregates():
     assert row["max_wind"] == pytest.approx(10.0)
     assert row["avg_wind"] == pytest.approx(8.0)
     assert row["avg_output_mw"] == pytest.approx(60.0)
+
+
+def test_init_db_creates_alerts_log_table():
+    import db
+    db.init_db()
+    with db.get_engine().connect() as conn:
+        from sqlalchemy import text
+        result = conn.execute(
+            text("SELECT name FROM sqlite_master WHERE type='table' AND name='alerts_log'")
+        ).fetchone()
+    assert result is not None, "alerts_log table should exist after init_db()"
+
+
+def test_insert_alert_returns_id():
+    import db
+    db.init_db()
+    aid = db.insert_alert(
+        region="Gabès",
+        risk_level="CRITICAL",
+        scenario_label="Nawara Field Failure",
+        prevention_actions=["Action 1", "Action 2"],
+        is_test=True,
+    )
+    assert isinstance(aid, int)
+    assert aid >= 1
+
+
+def test_get_alerts_feed_returns_inserted_alert():
+    import db
+    db.init_db()
+    db.insert_alert(
+        region="Bizerte",
+        risk_level="HIGH",
+        scenario_label="Test scenario",
+        prevention_actions=["Act A"],
+        is_test=True,
+    )
+    feed = db.get_alerts_feed(limit=10)
+    assert len(feed) == 1
+    row = feed[0]
+    assert row["region"] == "Bizerte"
+    assert row["risk_level"] == "HIGH"
+    assert row["scenario_label"] == "Test scenario"
+    assert row["prevention_actions"] == ["Act A"]
+    assert row["is_test"] is True
+
+
+def test_get_alerts_feed_respects_limit():
+    import db
+    db.init_db()
+    for i in range(5):
+        db.insert_alert(
+            region="Tunis",
+            risk_level="CRITICAL",
+            scenario_label=f"Scenario {i}",
+            prevention_actions=["Act"],
+            is_test=True,
+        )
+    feed = db.get_alerts_feed(limit=3)
+    assert len(feed) == 3
+
