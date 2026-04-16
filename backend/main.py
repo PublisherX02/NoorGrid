@@ -16,6 +16,7 @@ _env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path=_env_path, override=False)
 
 import httpx
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -59,9 +60,42 @@ app.add_middleware(
 )
 
 
+_scheduler = AsyncIOScheduler()
+
+
+async def scheduled_ingest() -> None:
+    """Fetch weather for all 24 regions, compute output_mw, persist to DB."""
+    try:
+        raw = await fetch_all_weather()
+        enriched = []
+        for entry in raw:
+            cfg = _REGION_CFG.get(entry["region"])
+            if cfg:
+                computed = _compute_region_output(
+                    cfg,
+                    entry["wind_speed_ms"],
+                    entry["solar_irradiance_wm2"],
+                )
+                entry["output_mw"] = computed["output_mw"]
+            enriched.append(entry)
+        count = insert_weather_entries(enriched)
+        print(f"[scheduler] ingested {count} weather records")
+    except Exception as exc:
+        print(f"[scheduler] ingest error: {exc}")
+
+
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     init_db()
+    _scheduler.add_job(scheduled_ingest, "interval", minutes=15, id="weather_ingest")
+    _scheduler.start()
+    print("[scheduler] weather ingestion scheduled every 15 minutes")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    _scheduler.shutdown(wait=False)
+    print("[scheduler] stopped")
 
 
 @app.get("/health")
