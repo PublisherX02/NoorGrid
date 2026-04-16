@@ -89,7 +89,7 @@ function buildPopup(gov, riskLabel) {
     </div>`
 }
 
-export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, liveRiskMap = {}, activeAlert = null, style = {} }) {
+export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, liveRiskMap = {}, activeAlert = null, cascadeAlerts = [], style = {} }) {
   const { t } = useTranslation()
   const containerRef = useRef(null)
   const mapRef       = useRef(null)
@@ -136,12 +136,15 @@ export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, 
     markersRef.current = []
 
     const govs = mergeWeather(GOVERNORATES, weatherMap)
+    const cascadeMap = Object.fromEntries(cascadeAlerts.map(c => [c.name, c.risk_level]))
 
     govs.forEach((gov) => {
-      // Prefer weatherMap risk, then liveRiskMap, then mock
-      const risk = (activeAlert?.region === gov.name)
-        ? activeAlert.risk_level
-        : (gov.live_risk || liveRiskMap[gov.name] || gov.mock_risk)
+      // Prefer activeAlert > cascadeAlerts > weatherMap risk > liveRiskMap > mock
+      const overrideRisk =
+        activeAlert?.region === gov.name ? activeAlert.risk_level :
+        cascadeMap[gov.name]             ? cascadeMap[gov.name] :
+        null
+      const risk = overrideRisk || gov.live_risk || liveRiskMap[gov.name] || gov.mock_risk
       const riskLabel = t(`risk.${risk}`) || risk
       const icon   = createIcon(risk)
       const marker = L.marker([gov.lat, gov.lon], { icon })
@@ -156,7 +159,7 @@ export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, 
       marker.addTo(map)
       markersRef.current.push(marker)
     })
-  }, [weatherMap, onSelectGov, liveRiskMap, activeAlert, t])
+  }, [weatherMap, onSelectGov, liveRiskMap, activeAlert, cascadeAlerts, t])
 
   // Pan to selected governorate
   useEffect(() => {
