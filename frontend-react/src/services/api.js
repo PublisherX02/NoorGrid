@@ -1,7 +1,9 @@
 import axios from 'axios'
 import { GOVERNORATES } from '../constants/grid'
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Empty default → relative URLs → Vite dev proxy forwards to localhost:8000.
+// Set VITE_API_URL in .env.local only for production builds served outside Vite.
+const BASE_URL = import.meta.env.VITE_API_URL || ''
 
 const client = axios.create({
   baseURL: BASE_URL,
