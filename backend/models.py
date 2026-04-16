@@ -157,3 +157,22 @@ class RAGResponse(BaseModel):
     model: str = Field(..., description="LLM model identifier used")
     mock: bool = Field(default=False, description="True when this is a local fallback response")
     rejected: bool = Field(default=False, description="True when the query was outside the STEG domain")
+
+
+# ── Alert simulation models ───────────────────────────────────────────────────
+
+class AlertSimulateRequest(BaseModel):
+    region: str = Field(..., description="Governorate name — must exist in _REGION_CFG")
+    risk_level: str = Field(..., description="CRITICAL or HIGH")
+    scenario_label: str = Field(..., min_length=1, max_length=200)
+
+
+class AlertSimulateResponse(BaseModel):
+    id: int
+    region: str
+    risk_level: str
+    scenario_label: str
+    prevention_actions: list[str]
+    triggered_at: str
+    is_test: bool
+
