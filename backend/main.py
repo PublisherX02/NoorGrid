@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 _env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path=_env_path, override=False)
 
+import datetime
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, HTTPException
@@ -401,7 +402,26 @@ async def predict_blackout(req: BlackoutRequest):
         # Cooling demand factor — rises sharply above 25 °C
         cooling_factor = max(0.0, (temp - 25) * 0.08)
         avg_demand = cfg["avg_demand_mw"]
-        estimated_demand_mw = avg_demand * (1 + cooling_factor)
+
+        # Hour-of-day peak factor
+        hour = int(label[:2]) if label and len(label) >= 2 else 12
+        if (8 <= hour <= 12) or (18 <= hour <= 22):
+            peak_factor = 1.15   # morning and evening peaks
+        elif 1 <= hour <= 5:
+            peak_factor = 0.75   # overnight trough
+        else:
+            peak_factor = 1.0
+
+        # Seasonal factor
+        month = datetime.datetime.now().month
+        if month in (6, 7, 8, 9):
+            seasonal_factor = 1.12   # summer cooling load
+        elif month in (12, 1, 2):
+            seasonal_factor = 1.08   # winter heating load
+        else:
+            seasonal_factor = 1.0
+
+        estimated_demand_mw = avg_demand * (1 + cooling_factor) * peak_factor * seasonal_factor
 
         # Available renewable MW from weather forecast (used for display and prob adjustment)
         source = cfg["source"]
@@ -450,6 +470,8 @@ async def predict_blackout(req: BlackoutRequest):
             stress_ratio=round(stress_ratio, 3),
             risk_level=risk,
             blackout_probability=blackout_probability,
+            probability_low=round(max(0.0, blackout_probability - 12.0), 1),
+            probability_high=round(min(100.0, blackout_probability + 12.0), 1),
             prevention_action=action,
         ))
 
