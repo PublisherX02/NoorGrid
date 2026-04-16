@@ -661,7 +661,7 @@ Bizerte offshore wind 120 MW, Sfax battery 150 MWh
 ▸ Energy independence: {energy_independence_q1_2025_pct:.1f}% in Q1 2025
 ▸ Energy trade deficit: {trade_deficit_tnd_billion_2025:.2f} billion TND by end 2025
 ▸ Total generation: {total_generation_gwh_2024:,.0f} GWh (2024), {total_generation_gwh_2025:,.0f} GWh (2025)
-▸ Nawara gas field: production down {nawara_output_change_pct_2025:.0f}% in early 2025
+▸ Nawara gas field: production down {nawara_output_change_pct_2025_abs:.0f}% in early 2025
 ▸ Algeria gas imports: up {algeria_gas_imports_change_pct_2025:.0f}% in 2025; electricity imports cover {electricity_import_coverage_summer_2025_pct:.0f}% of August peak demand
 
 RESPONSE FORMAT: Structure your answers with ALL-CAPS section headers where useful, \

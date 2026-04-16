@@ -112,7 +112,7 @@ function HistoricalAlertRow({ alert }) {
 
 export default function AlertFeed({ activeAlert, historicalAlerts = [], onAcknowledge }) {
   const { t } = useTranslation()
-  if (!activeAlert) return null
+  if (!activeAlert && historicalAlerts.length === 0) return null
 
   return (
     <div
