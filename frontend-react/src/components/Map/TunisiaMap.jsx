@@ -88,7 +88,7 @@ function buildPopup(gov) {
     </div>`
 }
 
-export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, liveRiskMap = {}, style = {} }) {
+export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, liveRiskMap = {}, activeAlert = null, style = {} }) {
   const containerRef = useRef(null)
   const mapRef       = useRef(null)
   const markersRef   = useRef([])
@@ -137,7 +137,9 @@ export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, 
 
     govs.forEach((gov) => {
       // Prefer weatherMap risk, then liveRiskMap, then mock
-      const risk   = gov.live_risk || liveRiskMap[gov.name] || gov.mock_risk
+      const risk = (activeAlert?.region === gov.name)
+        ? activeAlert.risk_level
+        : (gov.live_risk || liveRiskMap[gov.name] || gov.mock_risk)
       const icon   = createIcon(risk)
       const marker = L.marker([gov.lat, gov.lon], { icon })
 
@@ -151,7 +153,7 @@ export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, 
       marker.addTo(map)
       markersRef.current.push(marker)
     })
-  }, [weatherMap, onSelectGov, liveRiskMap])
+  }, [weatherMap, onSelectGov, liveRiskMap, activeAlert])
 
   // Pan to selected governorate
   useEffect(() => {
