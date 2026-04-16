@@ -4,6 +4,7 @@ NoorGrid FastAPI backend — renewable energy production API.
 
 import os
 import sys
+import json
 
 # Ensure backend/ is on sys.path so sibling modules resolve regardless of
 # which directory uvicorn is launched from.
@@ -37,6 +38,7 @@ from models import (
     HistoryRecordResponse,
     HourlyPrediction,
     HydroRequest,
+    NationalStatsResponse,
     PowerResponse,
     RAGRequest,
     RAGResponse,
@@ -64,6 +66,13 @@ app.add_middleware(
 
 
 _scheduler = AsyncIOScheduler()
+
+_FACTS_PATH = os.path.join(os.path.dirname(__file__), "data", "tunisia_energy_facts_2024_2025.json")
+
+
+def _load_national_facts() -> dict:
+    with open(_FACTS_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 async def scheduled_ingest() -> None:
@@ -104,6 +113,11 @@ async def shutdown_event():
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/stats/national", response_model=NationalStatsResponse, tags=["Stats"])
+def get_national_stats():
+    return NationalStatsResponse(**_load_national_facts())
 
 
 # ── Energy calculation endpoints ──────────────────────────────────────────────
@@ -314,16 +328,25 @@ def _compute_region_output(cfg: dict, wind_ms: float, irradiance: float) -> dict
     """Compute energy output MW and risk level for one region given current weather."""
     source = cfg["source"]
     avg_demand = cfg["avg_demand_mw"]
+    facts = _load_national_facts()
+    fossil_share = max(0.0, min(1.0, float(facts.get("fossil_generation_share_pct", 93.7)) / 100.0))
 
     if source == "Wind":
-        output_mw = wind_power_mw(wind_ms, cfg["rotor_area"], cfg["efficiency"])
+        renewable_mw = wind_power_mw(wind_ms, cfg["rotor_area"], cfg["efficiency"])
+        fossil_baseline_mw = avg_demand * fossil_share
+        output_mw = renewable_mw + fossil_baseline_mw
     elif source == "Solar":
-        output_mw = solar_power_mw(irradiance, cfg["panel_area"], cfg["efficiency"])
+        renewable_mw = solar_power_mw(irradiance, cfg["panel_area"], cfg["efficiency"])
+        fossil_baseline_mw = avg_demand * fossil_share
+        output_mw = renewable_mw + fossil_baseline_mw
     elif source == "Hydro":
+        # Keep hydro output stable as configured baseline.
         output_mw = cfg["baseline_mw"]
-    else:  # Mixed: 60% fossil baseline + 40% wind offset
+    else:  # Mixed: renewable component from weathered wind offset + fossil backbone
         wind_offset = wind_power_mw(wind_ms, cfg["rotor_area"], cfg["efficiency"])
-        output_mw = 0.60 * cfg["baseline_mw"] + 0.40 * wind_offset
+        renewable_mw = 0.40 * wind_offset
+        fossil_baseline_mw = avg_demand * fossil_share
+        output_mw = renewable_mw + fossil_baseline_mw
 
     output_mw = round(max(0.0, output_mw), 2)
     ratio = output_mw / max(avg_demand, 1.0)
@@ -435,17 +458,22 @@ def simulate_alert(req: AlertSimulateRequest):
         "Alert on-call operations team",
     ])
 
-    alert_id = insert_alert(
-        region=req.region,
-        risk_level=req.risk_level,
-        scenario_label=req.scenario_label,
-        prevention_actions=actions,
-        is_test=True,
-    )
-
-    # Retrieve the stored record to get the DB-generated triggered_at timestamp
-    feed = get_alerts_feed(limit=1)
-    triggered_at = feed[0]["triggered_at"] if feed else ""
+    alert_id = 0
+    triggered_at = datetime.datetime.utcnow().isoformat()
+    try:
+        alert_id = insert_alert(
+            region=req.region,
+            risk_level=req.risk_level,
+            scenario_label=req.scenario_label,
+            prevention_actions=actions,
+            is_test=True,
+        )
+        # Retrieve the stored record to get the DB-generated triggered_at timestamp
+        feed = get_alerts_feed(limit=1)
+        if feed:
+            triggered_at = feed[0]["triggered_at"]
+    except Exception as exc:
+        print(f"[alerts] failed to persist simulated alert: {exc}")
 
     return AlertSimulateResponse(
         id=alert_id,
@@ -503,6 +531,9 @@ async def predict_blackout(req: BlackoutRequest):
     predictions: list[HourlyPrediction] = []
     n = min(req.forecast_hours, len(temps))
 
+    facts = _load_national_facts()
+    fossil_share = max(0.0, min(1.0, float(facts.get("fossil_generation_share_pct", 93.7)) / 100.0))
+
     for i in range(n):
         temp  = float(temps[i])        if i < len(temps)       else 20.0
         wind  = float(wind_speeds[i])  if i < len(wind_speeds) else 0.0
@@ -533,18 +564,23 @@ async def predict_blackout(req: BlackoutRequest):
 
         estimated_demand_mw = avg_demand * (1 + cooling_factor) * peak_factor * seasonal_factor
 
-        # Available renewable MW from weather forecast (used for display and prob adjustment)
+        # Available renewable MW from weather forecast
         source = cfg["source"]
         installed_capacity = cfg["installed_capacity_mw"]
         if source == "Wind":
-            available_mw = max(0.1, wind_power_mw(wind, cfg["rotor_area"], cfg["efficiency"]))
+            renewable_mw = max(0.1, wind_power_mw(wind, cfg["rotor_area"], cfg["efficiency"]))
         elif source == "Solar":
-            available_mw = max(0.1, solar_power_mw(irr, cfg["panel_area"], cfg["efficiency"]))
+            renewable_mw = max(0.1, solar_power_mw(irr, cfg["panel_area"], cfg["efficiency"]))
         else:  # Hydro — weather-independent, runs at rated capacity
-            available_mw = installed_capacity
+            renewable_mw = installed_capacity
 
-        # Stress = demand vs installed capacity (stable denominator — no nighttime collapse)
-        stress_ratio = estimated_demand_mw / max(installed_capacity, 1.0)
+        # Tunisia's grid is predominantly fossil-backed; include fossil baseline
+        # so risk doesn't assume a renewables-only supply model.
+        fossil_baseline_mw = installed_capacity * fossil_share
+        available_mw = max(0.1, renewable_mw + fossil_baseline_mw)
+
+        # Stress = demand vs effective available supply (fossil baseline + renewable)
+        stress_ratio = estimated_demand_mw / max(available_mw, 1.0)
 
         if stress_ratio > 1.4:
             risk = "CRITICAL"
@@ -595,13 +631,13 @@ _NIM_MODEL = "meta/llama-3.1-70b-instruct"
 
 _GUARDRAIL_MARKER = "Outside my operational domain"
 
-_SYSTEM_PROMPT = """\
+_SYSTEM_PROMPT_TEMPLATE = """\
 You are the NoorGrid Operations AI — the intelligence layer for Tunisia's national \
 energy grid management platform, built in partnership with STEG \
 (Société Tunisienne de l'Electricité et du Gaz).
 
 KNOWLEDGE DOMAINS:
-▸ Grid capacity & infrastructure: 5,944 MW installed, 4,636 MW effective, 22% grid losses
+▸ Grid capacity & infrastructure: {installed_capacity_mw:,.0f}–{installed_capacity_upper_mw:,.0f} MW installed, STEG controls {steg_capacity_share_pct:.1f}% of capacity
 ▸ August 14, 2024 crisis: 4,888 MW peak demand, 252 MW deficit, Algeria emergency import activated
 ▸ Renewable resources (24 governorates): solar (Tozeur 820 W/m², Sidi Bouzid 750 W/m²), \
 wind (Bizerte 8.2 m/s, Kasserine 8.5 m/s), hydro (Béja 33 MW, Jendouba 42 MW)
@@ -611,13 +647,14 @@ rate-of-change 20%, regional correlation 15%
 ▸ Maintenance schedules and STEG outage protocols (Q2/Q3 2025)
 ▸ Investment pipeline 2025–2030: €585M committed — Sidi Bouzid solar 200 MW, \
 Bizerte offshore wind 120 MW, Sfax battery 150 MWh
-▸ Carbon & emissions: 0.423 kg CO₂/kWh grid factor (verified 2024 ONEM), NDC target 1.80 kg CO₂/cap/day by 2030
-▸ Generation mix: 93.7% fossil, 6.0% renewable — gap vs 35% target by 2030
-▸ Energy independence: 39% Q1 2025 (was 41% in 2024, 48% in 2023) — accelerating decline
-▸ Energy trade deficit: 2.92 billion TND by end 2025
-▸ Total 2025 generation: 20,535 GWh (+6% vs 2024)
-▸ Nawara gas field: production down 27% in early 2025 — southern grid stress driver
-▸ Algeria gas imports: up 23% in 2025; electricity imports cover 11% of August peak demand
+▸ Carbon & emissions: {grid_carbon_intensity_gco2_per_kwh:.0f} gCO₂/kWh grid factor, NDC target 1.80 kg CO₂/cap/day by 2030
+▸ Generation mix: {fossil_generation_share_pct:.1f}% fossil (natural gas {natural_gas_share_pct:.1f}%), heavy fuel oil {heavy_fuel_oil_share_pct:.1f}%
+▸ STEG generation share: {steg_generation_share_pct_2024:.1f}% in 2024, {steg_generation_share_pct_2025:.1f}% in 2025
+▸ Energy independence: {energy_independence_q1_2025_pct:.1f}% in Q1 2025
+▸ Energy trade deficit: {trade_deficit_tnd_billion_2025:.2f} billion TND by end 2025
+▸ Total generation: {total_generation_gwh_2024:,.0f} GWh (2024), {total_generation_gwh_2025:,.0f} GWh (2025)
+▸ Nawara gas field: production down {nawara_output_change_pct_2025:.0f}% in early 2025
+▸ Algeria gas imports: up {algeria_gas_imports_change_pct_2025:.0f}% in 2025; electricity imports cover {electricity_import_coverage_summer_2025_pct:.0f}% of August peak demand
 
 RESPONSE FORMAT: Structure your answers with ALL-CAPS section headers where useful, \
 ▸ bullet points for lists, and precise numerical values (MW, %, °C, m/s). \
@@ -681,7 +718,7 @@ async def rag_query(req: RAGRequest):
 
     # Build dynamic system prompt with injected grid context
     context_block = _build_context_block(req.context)
-    system_content = _SYSTEM_PROMPT
+    system_content = _SYSTEM_PROMPT_TEMPLATE.format(**_load_national_facts())
     if context_block:
         system_content += (
             "\n\nCURRENT PLATFORM STATE (live data from the frontend dashboard):\n"

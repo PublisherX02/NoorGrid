@@ -513,7 +513,7 @@ export default function Dashboard() {
               color: '#ff3333',
               cursor: 'pointer',
               letterSpacing: '0.06em',
-              animation: activeAlert ? 'none' : 'undefined',
+              animation: activeAlert ? 'none' : 'livePulse 1.8s ease-in-out infinite',
             }}
           >
             {t('crisis.simulateButton') || '⚡ SIMULATE CRISIS'}
@@ -970,7 +970,7 @@ export default function Dashboard() {
       {/* Alert feed — positioned absolute inside ops-room */}
       <AlertFeed
         activeAlert={activeAlert}
-        historicalAlerts={alerts.filter((a) => a.id !== activeAlert?.id)}
+        historicalAlerts={activeAlert ? alerts.filter((a) => a.id !== activeAlert?.id) : []}
         onAcknowledge={handleAcknowledge}
       />
     </div>

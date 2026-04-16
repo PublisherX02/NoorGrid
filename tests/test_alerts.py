@@ -65,3 +65,25 @@ def test_alerts_feed_empty_when_no_alerts(client):
     resp = client.get("/alerts/feed")
     assert resp.status_code == 200
     assert resp.json() == []
+
+
+def test_simulate_returns_alert_when_db_write_fails(client, monkeypatch):
+    import main
+
+    def boom(*_args, **_kwargs):
+        raise RuntimeError("db write failed")
+
+    monkeypatch.setattr(main, "insert_alert", boom)
+
+    resp = client.post("/alerts/simulate", json={
+        "region": "Gabès",
+        "risk_level": "CRITICAL",
+        "scenario_label": "Failure Tolerance Check",
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["id"] == 0
+    assert data["region"] == "Gabès"
+    assert data["risk_level"] == "CRITICAL"
+    assert len(data["prevention_actions"]) == 3
+    assert data["triggered_at"] != ""

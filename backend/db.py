@@ -82,6 +82,16 @@ def init_db() -> None:
                 is_test        INTEGER NOT NULL DEFAULT 1
             )
         """))
+        # Backward-compatible migration for pre-existing local DBs
+        # that were created before output_mw was introduced.
+        weather_cols = {
+            row[1]
+            for row in conn.execute(text("PRAGMA table_info(weather_history)")).fetchall()
+        }
+        if "output_mw" not in weather_cols:
+            conn.execute(text(
+                "ALTER TABLE weather_history ADD COLUMN output_mw REAL NOT NULL DEFAULT 0.0"
+            ))
 
 
 def insert_weather_entries(entries: list[dict]) -> int:

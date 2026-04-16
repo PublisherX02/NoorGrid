@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { GOVERNORATES, RISK_COLORS, SOURCE_ICON } from '../../constants/grid'
+import { useTranslation } from 'react-i18next'
 
 // Merge weatherMap (keyed by region name) into governorate list
 function mergeWeather(govs, weatherMap = {}) {
@@ -49,7 +50,7 @@ function createIcon(risk) {
   })
 }
 
-function buildPopup(gov) {
+function buildPopup(gov, riskLabel) {
   const risk = gov.live_risk || gov.mock_risk
   const color = RISK_COLORS[risk] || '#00ff88'
   const sourceIcon = SOURCE_ICON[gov.source] || '⚡'
@@ -62,7 +63,7 @@ function buildPopup(gov) {
           font-family:'JetBrains Mono',monospace;font-size:0.58rem;font-weight:700;
           padding:2px 6px;border-radius:4px;letter-spacing:0.08em;
           color:${color};border:1px solid ${color}66;background:${color}15;
-        ">${risk}</span>
+        ">${riskLabel}</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:0.75rem;">
         <div>
@@ -89,6 +90,7 @@ function buildPopup(gov) {
 }
 
 export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, liveRiskMap = {}, activeAlert = null, style = {} }) {
+  const { t } = useTranslation()
   const containerRef = useRef(null)
   const mapRef       = useRef(null)
   const markersRef   = useRef([])
@@ -140,11 +142,12 @@ export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, 
       const risk = (activeAlert?.region === gov.name)
         ? activeAlert.risk_level
         : (gov.live_risk || liveRiskMap[gov.name] || gov.mock_risk)
+      const riskLabel = t(`risk.${risk}`) || risk
       const icon   = createIcon(risk)
       const marker = L.marker([gov.lat, gov.lon], { icon })
 
       // Pass effective risk into popup so it shows the live value
-      marker.bindPopup(buildPopup({ ...gov, mock_risk: risk }), { maxWidth: 240, minWidth: 200 })
+      marker.bindPopup(buildPopup({ ...gov, mock_risk: risk }, riskLabel), { maxWidth: 240, minWidth: 200 })
 
       marker.on('click', () => {
         if (onSelectGov) onSelectGov(gov)
@@ -153,7 +156,7 @@ export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, 
       marker.addTo(map)
       markersRef.current.push(marker)
     })
-  }, [weatherMap, onSelectGov, liveRiskMap, activeAlert])
+  }, [weatherMap, onSelectGov, liveRiskMap, activeAlert, t])
 
   // Pan to selected governorate
   useEffect(() => {

@@ -1,8 +1,11 @@
 {
   "nav": {
+    "home": "Accueil",
+    "dashboard": "Tableau de bord",
     "analytics": "Analytique",
     "simulation": "Simulation",
-    "about": "À propos"
+    "about": "À propos",
+    "liveOpsRoom": "Salle des opérations"
   },
   "status": {
     "live": "EN DIRECT",

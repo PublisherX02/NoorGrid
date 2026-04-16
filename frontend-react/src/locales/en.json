@@ -1,8 +1,11 @@
 {
   "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
     "analytics": "Analytics",
     "simulation": "Simulation",
-    "about": "About"
+    "about": "About",
+    "liveOpsRoom": "Live Ops Room"
   },
   "status": {
     "live": "LIVE",
