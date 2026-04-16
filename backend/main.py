@@ -22,9 +22,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw
-from db import get_region_history, init_db, insert_weather_entries
+from db import get_alerts_feed, get_region_history, init_db, insert_alert, insert_weather_entries
 from grid import GridInputs, simulate_national_grid
 from models import (
+    AlertSimulateRequest,
+    AlertSimulateResponse,
     BlackoutRequest,
     BlackoutResponse,
     CarbonRequest,
@@ -253,6 +255,58 @@ _REGION_CFG: dict[str, dict] = {
                     "installed_capacity_mw": 320.0,  "avg_demand_mw": 382.0},
 }
 
+# Prevention actions by energy source and risk level
+_PREVENTION_ACTIONS: dict[str, dict[str, list[str]]] = {
+    "Wind": {
+        "CRITICAL": [
+            "Activate reserve capacity at nearest thermal plant",
+            "Shed non-critical industrial load (20%)",
+            "Alert STEG National Dispatch Center",
+        ],
+        "HIGH": [
+            "Monitor wind forecast — potential capacity drop",
+            "Pre-position reserve capacity",
+            "Notify regional operators",
+        ],
+    },
+    "Solar": {
+        "CRITICAL": [
+            "Switch affected region to fossil baseline",
+            "Reduce cross-region export allocation",
+            "Alert STEG National Dispatch Center",
+        ],
+        "HIGH": [
+            "Increase cloud-cover monitoring interval",
+            "Prepare fossil baseline switchover",
+            "Notify regional operators",
+        ],
+    },
+    "Hydro": {
+        "CRITICAL": [
+            "Open spillway reserve — maintain minimum head",
+            "Reduce downstream water allocation",
+            "Alert STEG National Dispatch Center",
+        ],
+        "HIGH": [
+            "Review reservoir levels against seasonal baseline",
+            "Coordinate with SONEDE on flow reduction",
+            "Notify regional operators",
+        ],
+    },
+    "Mixed": {
+        "CRITICAL": [
+            "Activate Ghannouch backup generation",
+            "Reduce industrial load by 20% in affected zone",
+            "Alert STEG National Dispatch Center",
+        ],
+        "HIGH": [
+            "Increase gas supply monitoring",
+            "Pre-activate renewable supplement",
+            "Notify regional operators",
+        ],
+    },
+}
+
 _OPENMETEO_URL = "https://api.open-meteo.com/v1/forecast"
 
 
@@ -355,6 +409,62 @@ def get_history(region: str, days: int = 7):
 
     records = get_region_history(region, days)
     return RegionHistoryResponse(region=region, days=days, records=records)
+
+
+# ── Alert simulation endpoints ────────────────────────────────────────────────
+
+@app.post("/alerts/simulate", response_model=AlertSimulateResponse, tags=["Alerts"])
+def simulate_alert(req: AlertSimulateRequest):
+    """
+    Inject a simulated crisis alert for demo and testing purposes.
+    Validates the region, derives prevention actions from its energy source,
+    persists to alerts_log, and returns the full alert object.
+    """
+    cfg = _REGION_CFG.get(req.region)
+    if not cfg:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Region '{req.region}' not found. Must be one of the 24 Tunisian governorates.",
+        )
+
+    source = cfg["source"]
+    level_actions = _PREVENTION_ACTIONS.get(source, {})
+    actions = level_actions.get(req.risk_level, [
+        "Assess situation and contact STEG Dispatch Center",
+        "Review affected region capacity",
+        "Alert on-call operations team",
+    ])
+
+    alert_id = insert_alert(
+        region=req.region,
+        risk_level=req.risk_level,
+        scenario_label=req.scenario_label,
+        prevention_actions=actions,
+        is_test=True,
+    )
+
+    # Retrieve the stored record to get the DB-generated triggered_at timestamp
+    feed = get_alerts_feed(limit=1)
+    triggered_at = feed[0]["triggered_at"] if feed else ""
+
+    return AlertSimulateResponse(
+        id=alert_id,
+        region=req.region,
+        risk_level=req.risk_level,
+        scenario_label=req.scenario_label,
+        prevention_actions=actions,
+        triggered_at=triggered_at,
+        is_test=True,
+    )
+
+
+@app.get("/alerts/feed", response_model=list[AlertSimulateResponse], tags=["Alerts"])
+def get_alerts(limit: int = 10):
+    """Return the most recent alerts (real + simulated), newest first."""
+    if limit < 1 or limit > 50:
+        raise HTTPException(status_code=422, detail="limit must be between 1 and 50")
+    rows = get_alerts_feed(limit=limit)
+    return [AlertSimulateResponse(**row) for row in rows]
 
 
 # ── Blackout prediction endpoint ──────────────────────────────────────────────
