@@ -212,7 +212,7 @@ export const calcCarbon = async (region, consumption_kwh, renewable_kwh) => {
     const res = await client.post('/energy/carbon', { region, consumption_kwh, renewable_kwh })
     return res.data
   } catch {
-    const score = Math.max(0, (consumption_kwh - renewable_kwh) * 0.468)
+    const score = Math.max(0, (consumption_kwh - renewable_kwh) * 0.423)
     return { region, carbon_score_kg: +score.toFixed(2) }
   }
 }
@@ -247,5 +247,23 @@ export const sendMessageToRAG = async (message, context = {}) => {
     }
 
     return { content: errorMsg, mock: false, rejected: false, error: true }
+  }
+}
+
+export const simulateAlert = async (region, risk_level, scenario_label) => {
+  try {
+    const resp = await client.post('/alerts/simulate', { region, risk_level, scenario_label })
+    return resp.data
+  } catch (err) {
+    throw new Error(err.response?.data?.detail || 'Simulation request failed')
+  }
+}
+
+export const getAlertsFeed = async (limit = 10) => {
+  try {
+    const resp = await client.get('/alerts/feed', { params: { limit } })
+    return resp.data
+  } catch (_) {
+    return []
   }
 }
