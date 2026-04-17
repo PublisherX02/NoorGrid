@@ -2,6 +2,7 @@
 Pydantic request/response models for the NoorGrid API.
 """
 
+from typing import Literal
 from pydantic import BaseModel, Field
 
 
@@ -196,3 +197,45 @@ class AlertSimulateResponse(BaseModel):
     triggered_at: str
     is_test: bool
 
+
+# ── Report generation ─────────────────────────────────────────────────────────
+
+class CascadeRegionItem(BaseModel):
+    name: str = Field(..., min_length=1)
+    risk_level: Literal["CRITICAL", "HIGH", "ELEVATED", "NOMINAL"]
+
+
+class ReportRequest(BaseModel):
+    region: str = Field(..., min_length=1)
+    risk_level: Literal["CRITICAL", "HIGH", "ELEVATED", "NOMINAL"]
+    scenario_label: str = Field(..., min_length=1)
+    source: str = Field(..., min_length=1)
+    magnitude_mw: float = Field(..., ge=0)
+    cascade_regions: list[CascadeRegionItem] = []
+    prevention_actions: list[str] = []
+
+
+class ReportResponse(BaseModel):
+    region: str = Field(..., min_length=1)
+    risk_level: Literal["CRITICAL", "HIGH", "ELEVATED", "NOMINAL"]
+    scenario_label: str = Field(..., min_length=1)
+    source: str = Field(..., min_length=1)
+    magnitude_mw: float = Field(..., ge=0)
+    cascade_regions: list[CascadeRegionItem] = []
+    prevention_actions: list[str] = []
+    root_cause: str
+    technical_fix: str
+    impact_summary: str
+    recommended_actions: list[str]
+    generated_at: str
+
+
+class ReportSendRequest(BaseModel):
+    recipients: list[str]
+    report: ReportResponse
+
+
+class ReportSendResponse(BaseModel):
+    sent: bool
+    recipients: list[str]
+    sent_at: str
