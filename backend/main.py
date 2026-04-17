@@ -43,12 +43,17 @@ from models import (
     RAGRequest,
     RAGResponse,
     RegionHistoryResponse,
+    ReportRequest,
+    ReportResponse,
+    ReportSendRequest,
+    ReportSendResponse,
     SolarRequest,
     WeatherAllEntry,
     WeatherAllResponse,
     WeatherResponse,
     WindRequest,
 )
+from report import generate_report_from_nim
 from weather import fetch_all_weather
 
 app = FastAPI(
@@ -497,6 +502,55 @@ def get_alerts(limit: int = 10):
         raise HTTPException(status_code=422, detail="limit must be between 1 and 50")
     rows = get_alerts_feed(limit=limit)
     return [AlertSimulateResponse(**row) for row in rows]
+
+
+# ── Report generation endpoints ───────────────────────────────────────────────
+
+@app.post("/report/generate", response_model=ReportResponse, tags=["Report"])
+async def generate_report(req: ReportRequest):
+    """
+    Generate an AI-powered incident diagnosis report for a triggered crisis.
+    Calls NVIDIA NIM; falls back to mock report if the key is absent.
+    """
+    nim_result = await generate_report_from_nim(
+        region=req.region,
+        risk_level=req.risk_level,
+        scenario_label=req.scenario_label,
+        source=req.source,
+        magnitude_mw=req.magnitude_mw,
+        cascade_regions=[c.model_dump() for c in req.cascade_regions],
+        prevention_actions=req.prevention_actions,
+    )
+    generated_at = datetime.datetime.utcnow().isoformat()
+    return ReportResponse(
+        region=req.region,
+        risk_level=req.risk_level,
+        scenario_label=req.scenario_label,
+        source=req.source,
+        magnitude_mw=req.magnitude_mw,
+        cascade_regions=req.cascade_regions,
+        prevention_actions=req.prevention_actions,
+        root_cause=nim_result.get("root_cause", ""),
+        technical_fix=nim_result.get("technical_fix", ""),
+        impact_summary=nim_result.get("impact_summary", ""),
+        recommended_actions=nim_result.get("recommended_actions", []),
+        generated_at=generated_at,
+    )
+
+
+@app.post("/report/send", response_model=ReportSendResponse, tags=["Report"])
+def send_report(req: ReportSendRequest):
+    """
+    Simulate dispatching an incident report email to engineers/technicians.
+    Logs the send to stdout. Does not deliver real email (simulation mode).
+    """
+    sent_at = datetime.datetime.utcnow().isoformat()
+    print(
+        f"[report] SIMULATED SEND — scenario='{req.report.scenario_label}' "
+        f"region={req.report.region} risk={req.report.risk_level} "
+        f"recipients={req.recipients} sent_at={sent_at}"
+    )
+    return ReportSendResponse(sent=True, recipients=req.recipients, sent_at=sent_at)
 
 
 # ── Blackout prediction endpoint ──────────────────────────────────────────────
