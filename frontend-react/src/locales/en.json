@@ -1,0 +1,40 @@
+{
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "analytics": "Analytics",
+    "simulation": "Simulation",
+    "about": "About",
+    "liveOpsRoom": "Live Ops Room"
+  },
+  "status": {
+    "live": "LIVE",
+    "simulated": "SIMULATED DATA",
+    "backend": "Backend",
+    "weatherApi": "Weather API",
+    "predictionEngine": "Prediction Engine"
+  },
+  "risk": {
+    "CRITICAL": "CRITICAL",
+    "HIGH": "HIGH",
+    "ELEVATED": "ELEVATED",
+    "NOMINAL": "NOMINAL"
+  },
+  "dashboard": {
+    "gridOverview": "Grid Overview",
+    "activeAnomalies": "Active Anomalies",
+    "nationalCarbon": "National Carbon Index",
+    "totalOutput": "Total Output",
+    "criticalRegions": "Critical Regions",
+    "highRiskRegions": "High Risk"
+  },
+  "crisis": {
+    "simulateButton": "SIMULATE CRISIS",
+    "modalTitle": "CRISIS SCENARIO — SELECT EVENT",
+    "triggerButton": "TRIGGER CRISIS",
+    "triggering": "TRIGGERING...",
+    "alertFeedTitle": "ALERT FEED",
+    "acknowledge": "ACKNOWLEDGE",
+    "custom": "CUSTOM"
+  }
+}

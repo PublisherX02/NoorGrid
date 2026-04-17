@@ -4,6 +4,7 @@ NoorGrid FastAPI backend — renewable energy production API.
 
 import os
 import sys
+import json
 
 # Ensure backend/ is on sys.path so sibling modules resolve regardless of
 # which directory uvicorn is launched from.
@@ -15,14 +16,18 @@ from dotenv import load_dotenv
 _env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path=_env_path, override=False)
 
+import datetime
 import httpx
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw
-from db import get_region_history, init_db, insert_weather_entries
+from db import get_alerts_feed, get_region_history, init_db, insert_alert, insert_weather_entries
 from grid import GridInputs, simulate_national_grid
 from models import (
+    AlertSimulateRequest,
+    AlertSimulateResponse,
     BlackoutRequest,
     BlackoutResponse,
     CarbonRequest,
@@ -33,11 +38,14 @@ from models import (
     HistoryRecordResponse,
     HourlyPrediction,
     HydroRequest,
+    NationalStatsResponse,
     PowerResponse,
     RAGRequest,
     RAGResponse,
     RegionHistoryResponse,
     SolarRequest,
+    WeatherAllEntry,
+    WeatherAllResponse,
     WeatherResponse,
     WindRequest,
 )
@@ -57,14 +65,59 @@ app.add_middleware(
 )
 
 
+_scheduler = AsyncIOScheduler()
+
+_FACTS_PATH = os.path.join(os.path.dirname(__file__), "data", "tunisia_energy_facts_2024_2025.json")
+
+
+def _load_national_facts() -> dict:
+    with open(_FACTS_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+async def scheduled_ingest() -> None:
+    """Fetch weather for all 24 regions, compute output_mw, persist to DB."""
+    try:
+        raw = await fetch_all_weather()
+        enriched = []
+        for entry in raw:
+            cfg = _REGION_CFG.get(entry["region"])
+            if cfg:
+                computed = _compute_region_output(
+                    cfg,
+                    entry["wind_speed_ms"],
+                    entry["solar_irradiance_wm2"],
+                )
+                entry["output_mw"] = computed["output_mw"]
+            enriched.append(entry)
+        count = insert_weather_entries(enriched)
+        print(f"[scheduler] ingested {count} weather records")
+    except Exception as exc:
+        print(f"[scheduler] ingest error: {exc}")
+
+
 @app.on_event("startup")
-def startup_event():
+async def startup_event():
     init_db()
+    _scheduler.add_job(scheduled_ingest, "interval", minutes=15, id="weather_ingest")
+    _scheduler.start()
+    print("[scheduler] weather ingestion scheduled every 15 minutes")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    _scheduler.shutdown(wait=False)
+    print("[scheduler] stopped")
 
 
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/stats/national", response_model=NationalStatsResponse, tags=["Stats"])
+def get_national_stats():
+    return NationalStatsResponse(**_load_national_facts())
 
 
 # ── Energy calculation endpoints ──────────────────────────────────────────────
@@ -116,7 +169,7 @@ def calculate_carbon(req: CarbonRequest):
     """
     Calculate regional carbon score in kg CO₂.
 
-    Formula: C = (E_consumed − E_renewable) × 0.468
+    Formula: C = (E_consumed − E_renewable) × 0.423
     """
     try:
         score = carbon_score(req.consumption_kwh, req.renewable_kwh)
@@ -141,23 +194,173 @@ def simulate_grid(req: GridSimulationRequest):
 
 # ── Region config for blackout prediction ────────────────────────────────────
 _REGION_CFG: dict[str, dict] = {
+    # ── Wind ──
     "Bizerte":     {"lat": 37.2744, "lon": 9.8739,  "source": "Wind",  "baseline_mw": 97.0,
-                    "rotor_area": 7854.0,   "efficiency": 0.40,
-                    "installed_capacity_mw": 120.0, "avg_demand_mw": 178.0},
+                    "rotor_area": 7854.0,  "efficiency": 0.40,
+                    "installed_capacity_mw": 120.0,  "avg_demand_mw": 178.0},
     "Nabeul":      {"lat": 36.4561, "lon": 10.7376, "source": "Wind",  "baseline_mw": 55.0,
-                    "rotor_area": 4418.0,   "efficiency": 0.40,
-                    "installed_capacity_mw": 75.0,  "avg_demand_mw": 142.0},
+                    "rotor_area": 4418.0,  "efficiency": 0.40,
+                    "installed_capacity_mw": 75.0,   "avg_demand_mw": 142.0},
+    "Kef":         {"lat": 36.1820, "lon": 8.7046,  "source": "Wind",  "baseline_mw": 45.0,
+                    "rotor_area": 3590.0,  "efficiency": 0.40,
+                    "installed_capacity_mw": 60.0,   "avg_demand_mw": 68.0},
+    "Siliana":     {"lat": 36.0842, "lon": 9.3748,  "source": "Wind",  "baseline_mw": 38.0,
+                    "rotor_area": 3016.0,  "efficiency": 0.40,
+                    "installed_capacity_mw": 50.0,   "avg_demand_mw": 62.0},
+    "Mahdia":      {"lat": 35.5047, "lon": 11.0622, "source": "Wind",  "baseline_mw": 60.0,
+                    "rotor_area": 4712.0,  "efficiency": 0.40,
+                    "installed_capacity_mw": 80.0,   "avg_demand_mw": 128.0},
+    "Kasserine":   {"lat": 35.1721, "lon": 8.8302,  "source": "Wind",  "baseline_mw": 75.0,
+                    "rotor_area": 5890.0,  "efficiency": 0.40,
+                    "installed_capacity_mw": 95.0,   "avg_demand_mw": 108.0},
+    # ── Solar ──
     "Tozeur":      {"lat": 33.9197, "lon": 8.1335,  "source": "Solar", "baseline_mw": 20.0,
                     "panel_area": 120_000.0, "efficiency": 0.18,
-                    "installed_capacity_mw": 25.0,  "avg_demand_mw": 44.0},
-    "Béja":        {"lat": 36.7256, "lon": 9.1817,  "source": "Hydro", "baseline_mw": 33.0,
-                    "installed_capacity_mw": 40.0,  "avg_demand_mw": 74.0},
+                    "installed_capacity_mw": 25.0,   "avg_demand_mw": 44.0},
     "Sidi Bouzid": {"lat": 35.0382, "lon": 9.4858,  "source": "Solar", "baseline_mw": 100.0,
                     "panel_area": 600_000.0, "efficiency": 0.18,
-                    "installed_capacity_mw": 130.0, "avg_demand_mw": 92.0},
+                    "installed_capacity_mw": 130.0,  "avg_demand_mw": 92.0},
+    "Monastir":    {"lat": 35.7643, "lon": 10.8113, "source": "Solar", "baseline_mw": 85.0,
+                    "panel_area": 510_000.0, "efficiency": 0.18,
+                    "installed_capacity_mw": 100.0,  "avg_demand_mw": 174.0},
+    "Kairouan":    {"lat": 35.6781, "lon": 10.0963, "source": "Solar", "baseline_mw": 110.0,
+                    "panel_area": 660_000.0, "efficiency": 0.18,
+                    "installed_capacity_mw": 135.0,  "avg_demand_mw": 168.0},
+    "Gabès":       {"lat": 33.8881, "lon": 10.0975, "source": "Solar", "baseline_mw": 90.0,
+                    "panel_area": 540_000.0, "efficiency": 0.18,
+                    "installed_capacity_mw": 110.0,  "avg_demand_mw": 132.0},
+    "Médenine":    {"lat": 33.3549, "lon": 10.5055, "source": "Solar", "baseline_mw": 65.0,
+                    "panel_area": 390_000.0, "efficiency": 0.18,
+                    "installed_capacity_mw": 80.0,   "avg_demand_mw": 124.0},
+    "Tataouine":   {"lat": 32.9211, "lon": 10.4518, "source": "Solar", "baseline_mw": 40.0,
+                    "panel_area": 240_000.0, "efficiency": 0.18,
+                    "installed_capacity_mw": 50.0,   "avg_demand_mw": 50.0},
+    "Gafsa":       {"lat": 34.4311, "lon": 8.7757,  "source": "Solar", "baseline_mw": 55.0,
+                    "panel_area": 330_000.0, "efficiency": 0.18,
+                    "installed_capacity_mw": 70.0,   "avg_demand_mw": 124.0},
+    "Kebili":      {"lat": 33.7046, "lon": 8.9715,  "source": "Solar", "baseline_mw": 35.0,
+                    "panel_area": 210_000.0, "efficiency": 0.18,
+                    "installed_capacity_mw": 45.0,   "avg_demand_mw": 48.0},
+    # ── Hydro ──
+    "Béja":        {"lat": 36.7256, "lon": 9.1817,  "source": "Hydro", "baseline_mw": 33.0,
+                    "installed_capacity_mw": 40.0,   "avg_demand_mw": 74.0},
+    "Zaghouan":    {"lat": 36.4029, "lon": 10.1427, "source": "Hydro", "baseline_mw": 28.0,
+                    "installed_capacity_mw": 35.0,   "avg_demand_mw": 54.0},
+    "Jendouba":    {"lat": 36.5012, "lon": 8.7803,  "source": "Hydro", "baseline_mw": 42.0,
+                    "installed_capacity_mw": 55.0,   "avg_demand_mw": 96.0},
+    # ── Mixed (60% fossil baseline + 40% wind offset) ──
+    "Tunis":       {"lat": 36.8190, "lon": 10.1658, "source": "Mixed", "baseline_mw": 450.0,
+                    "rotor_area": 15708.0, "efficiency": 0.35,
+                    "installed_capacity_mw": 500.0,  "avg_demand_mw": 820.0},
+    "Ariana":      {"lat": 36.8665, "lon": 10.1647, "source": "Mixed", "baseline_mw": 120.0,
+                    "rotor_area": 7854.0,  "efficiency": 0.35,
+                    "installed_capacity_mw": 135.0,  "avg_demand_mw": 182.0},
+    "Ben Arous":   {"lat": 36.7533, "lon": 10.2281, "source": "Mixed", "baseline_mw": 180.0,
+                    "rotor_area": 7854.0,  "efficiency": 0.35,
+                    "installed_capacity_mw": 200.0,  "avg_demand_mw": 225.0},
+    "Manouba":     {"lat": 36.8092, "lon": 9.9885,  "source": "Mixed", "baseline_mw": 95.0,
+                    "rotor_area": 5027.0,  "efficiency": 0.35,
+                    "installed_capacity_mw": 100.0,  "avg_demand_mw": 132.0},
+    "Sousse":      {"lat": 35.8256, "lon": 10.6368, "source": "Mixed", "baseline_mw": 220.0,
+                    "rotor_area": 10000.0, "efficiency": 0.35,
+                    "installed_capacity_mw": 250.0,  "avg_demand_mw": 258.0},
+    "Sfax":        {"lat": 34.7398, "lon": 10.7600, "source": "Mixed", "baseline_mw": 280.0,
+                    "rotor_area": 12000.0, "efficiency": 0.35,
+                    "installed_capacity_mw": 320.0,  "avg_demand_mw": 382.0},
+}
+
+# Prevention actions by energy source and risk level
+_PREVENTION_ACTIONS: dict[str, dict[str, list[str]]] = {
+    "Wind": {
+        "CRITICAL": [
+            "Activate reserve capacity at nearest thermal plant",
+            "Shed non-critical industrial load (20%)",
+            "Alert STEG National Dispatch Center",
+        ],
+        "HIGH": [
+            "Monitor wind forecast — potential capacity drop",
+            "Pre-position reserve capacity",
+            "Notify regional operators",
+        ],
+    },
+    "Solar": {
+        "CRITICAL": [
+            "Switch affected region to fossil baseline",
+            "Reduce cross-region export allocation",
+            "Alert STEG National Dispatch Center",
+        ],
+        "HIGH": [
+            "Increase cloud-cover monitoring interval",
+            "Prepare fossil baseline switchover",
+            "Notify regional operators",
+        ],
+    },
+    "Hydro": {
+        "CRITICAL": [
+            "Open spillway reserve — maintain minimum head",
+            "Reduce downstream water allocation",
+            "Alert STEG National Dispatch Center",
+        ],
+        "HIGH": [
+            "Review reservoir levels against seasonal baseline",
+            "Coordinate with SONEDE on flow reduction",
+            "Notify regional operators",
+        ],
+    },
+    "Mixed": {
+        "CRITICAL": [
+            "Activate Ghannouch backup generation",
+            "Reduce industrial load by 20% in affected zone",
+            "Alert STEG National Dispatch Center",
+        ],
+        "HIGH": [
+            "Increase gas supply monitoring",
+            "Pre-activate renewable supplement",
+            "Notify regional operators",
+        ],
+    },
 }
 
 _OPENMETEO_URL = "https://api.open-meteo.com/v1/forecast"
+
+
+def _compute_region_output(cfg: dict, wind_ms: float, irradiance: float) -> dict:
+    """Compute energy output MW and risk level for one region given current weather."""
+    source = cfg["source"]
+    avg_demand = cfg["avg_demand_mw"]
+    facts = _load_national_facts()
+    fossil_share = max(0.0, min(1.0, float(facts.get("fossil_generation_share_pct", 93.7)) / 100.0))
+
+    if source == "Wind":
+        renewable_mw = wind_power_mw(wind_ms, cfg["rotor_area"], cfg["efficiency"])
+        fossil_baseline_mw = avg_demand * fossil_share
+        output_mw = renewable_mw + fossil_baseline_mw
+    elif source == "Solar":
+        renewable_mw = solar_power_mw(irradiance, cfg["panel_area"], cfg["efficiency"])
+        fossil_baseline_mw = avg_demand * fossil_share
+        output_mw = renewable_mw + fossil_baseline_mw
+    elif source == "Hydro":
+        # Keep hydro output stable as configured baseline.
+        output_mw = cfg["baseline_mw"]
+    else:  # Mixed: renewable component from weathered wind offset + fossil backbone
+        wind_offset = wind_power_mw(wind_ms, cfg["rotor_area"], cfg["efficiency"])
+        renewable_mw = 0.40 * wind_offset
+        fossil_baseline_mw = avg_demand * fossil_share
+        output_mw = renewable_mw + fossil_baseline_mw
+
+    output_mw = round(max(0.0, output_mw), 2)
+    ratio = output_mw / max(avg_demand, 1.0)
+
+    if ratio < 0.30:
+        risk = "CRITICAL"
+    elif ratio < 0.50:
+        risk = "HIGH"
+    elif ratio < 0.70:
+        risk = "ELEVATED"
+    else:
+        risk = "NOMINAL"
+
+    return {"output_mw": output_mw, "risk_level": risk, "source": source}
 
 
 # ── Weather data endpoint ─────────────────────────────────────────────────────
@@ -180,6 +383,42 @@ async def get_weather():
     return WeatherResponse(data=entries)
 
 
+@app.get("/weather/all", response_model=WeatherAllResponse, tags=["Weather"])
+async def get_weather_all():
+    """
+    Fetch current weather for all 24 Tunisian governorates and compute
+    energy output + risk level for each. Returns rich per-region data.
+    """
+    try:
+        raw = await fetch_all_weather()
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"Failed to fetch weather data: {exc}",
+        ) from exc
+
+    insert_weather_entries(raw)
+
+    lookup = {entry["region"]: entry for entry in raw}
+    results: list[WeatherAllEntry] = []
+
+    for name, cfg in _REGION_CFG.items():
+        entry = lookup.get(name, {})
+        wind_ms = entry.get("wind_speed_ms", 0.0)
+        irradiance = entry.get("solar_irradiance_wm2", 0.0)
+        computed = _compute_region_output(cfg, wind_ms, irradiance)
+        results.append(WeatherAllEntry(
+            region=name,
+            wind_ms=round(wind_ms, 3),
+            irradiance=round(irradiance, 3),
+            output_mw=computed["output_mw"],
+            risk_level=computed["risk_level"],
+            source=computed["source"],
+        ))
+
+    return WeatherAllResponse(data=results)
+
+
 @app.post("/history/record", response_model=HistoryRecordResponse, tags=["History"])
 def record_history(req: HistoryRecordRequest):
     inserted = insert_weather_entries([entry.model_dump() for entry in req.data])
@@ -193,6 +432,67 @@ def get_history(region: str, days: int = 7):
 
     records = get_region_history(region, days)
     return RegionHistoryResponse(region=region, days=days, records=records)
+
+
+# ── Alert simulation endpoints ────────────────────────────────────────────────
+
+@app.post("/alerts/simulate", response_model=AlertSimulateResponse, tags=["Alerts"])
+def simulate_alert(req: AlertSimulateRequest):
+    """
+    Inject a simulated crisis alert for demo and testing purposes.
+    Validates the region, derives prevention actions from its energy source,
+    persists to alerts_log, and returns the full alert object.
+    """
+    cfg = _REGION_CFG.get(req.region)
+    if not cfg:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Region '{req.region}' not found. Must be one of the 24 Tunisian governorates.",
+        )
+
+    source = cfg["source"]
+    level_actions = _PREVENTION_ACTIONS.get(source, {})
+    actions = level_actions.get(req.risk_level, [
+        "Assess situation and contact STEG Dispatch Center",
+        "Review affected region capacity",
+        "Alert on-call operations team",
+    ])
+
+    alert_id = 0
+    triggered_at = datetime.datetime.utcnow().isoformat()
+    try:
+        alert_id = insert_alert(
+            region=req.region,
+            risk_level=req.risk_level,
+            scenario_label=req.scenario_label,
+            prevention_actions=actions,
+            is_test=True,
+        )
+        # Retrieve the stored record to get the DB-generated triggered_at timestamp
+        feed = get_alerts_feed(limit=1)
+        if feed:
+            triggered_at = feed[0]["triggered_at"]
+    except Exception as exc:
+        print(f"[alerts] failed to persist simulated alert: {exc}")
+
+    return AlertSimulateResponse(
+        id=alert_id,
+        region=req.region,
+        risk_level=req.risk_level,
+        scenario_label=req.scenario_label,
+        prevention_actions=actions,
+        triggered_at=triggered_at,
+        is_test=True,
+    )
+
+
+@app.get("/alerts/feed", response_model=list[AlertSimulateResponse], tags=["Alerts"])
+def get_alerts(limit: int = 10):
+    """Return the most recent alerts (real + simulated), newest first."""
+    if limit < 1 or limit > 50:
+        raise HTTPException(status_code=422, detail="limit must be between 1 and 50")
+    rows = get_alerts_feed(limit=limit)
+    return [AlertSimulateResponse(**row) for row in rows]
 
 
 # ── Blackout prediction endpoint ──────────────────────────────────────────────
@@ -231,6 +531,9 @@ async def predict_blackout(req: BlackoutRequest):
     predictions: list[HourlyPrediction] = []
     n = min(req.forecast_hours, len(temps))
 
+    facts = _load_national_facts()
+    fossil_share = max(0.0, min(1.0, float(facts.get("fossil_generation_share_pct", 93.7)) / 100.0))
+
     for i in range(n):
         temp  = float(temps[i])        if i < len(temps)       else 20.0
         wind  = float(wind_speeds[i])  if i < len(wind_speeds) else 0.0
@@ -240,20 +543,44 @@ async def predict_blackout(req: BlackoutRequest):
         # Cooling demand factor — rises sharply above 25 °C
         cooling_factor = max(0.0, (temp - 25) * 0.08)
         avg_demand = cfg["avg_demand_mw"]
-        estimated_demand_mw = avg_demand * (1 + cooling_factor)
 
-        # Available renewable MW from weather forecast (used for display and prob adjustment)
+        # Hour-of-day peak factor
+        hour = int(label[:2]) if label and len(label) >= 2 else 12
+        if (8 <= hour <= 12) or (18 <= hour <= 22):
+            peak_factor = 1.15   # morning and evening peaks
+        elif 1 <= hour <= 5:
+            peak_factor = 0.75   # overnight trough
+        else:
+            peak_factor = 1.0
+
+        # Seasonal factor
+        month = datetime.datetime.now().month
+        if month in (6, 7, 8, 9):
+            seasonal_factor = 1.12   # summer cooling load
+        elif month in (12, 1, 2):
+            seasonal_factor = 1.08   # winter heating load
+        else:
+            seasonal_factor = 1.0
+
+        estimated_demand_mw = avg_demand * (1 + cooling_factor) * peak_factor * seasonal_factor
+
+        # Available renewable MW from weather forecast
         source = cfg["source"]
         installed_capacity = cfg["installed_capacity_mw"]
         if source == "Wind":
-            available_mw = max(0.1, wind_power_mw(wind, cfg["rotor_area"], cfg["efficiency"]))
+            renewable_mw = max(0.1, wind_power_mw(wind, cfg["rotor_area"], cfg["efficiency"]))
         elif source == "Solar":
-            available_mw = max(0.1, solar_power_mw(irr, cfg["panel_area"], cfg["efficiency"]))
+            renewable_mw = max(0.1, solar_power_mw(irr, cfg["panel_area"], cfg["efficiency"]))
         else:  # Hydro — weather-independent, runs at rated capacity
-            available_mw = installed_capacity
+            renewable_mw = installed_capacity
 
-        # Stress = demand vs installed capacity (stable denominator — no nighttime collapse)
-        stress_ratio = estimated_demand_mw / max(installed_capacity, 1.0)
+        # Tunisia's grid is predominantly fossil-backed; include fossil baseline
+        # so risk doesn't assume a renewables-only supply model.
+        fossil_baseline_mw = installed_capacity * fossil_share
+        available_mw = max(0.1, renewable_mw + fossil_baseline_mw)
+
+        # Stress = demand vs effective available supply (fossil baseline + renewable)
+        stress_ratio = estimated_demand_mw / max(available_mw, 1.0)
 
         if stress_ratio > 1.4:
             risk = "CRITICAL"
@@ -289,6 +616,8 @@ async def predict_blackout(req: BlackoutRequest):
             stress_ratio=round(stress_ratio, 3),
             risk_level=risk,
             blackout_probability=blackout_probability,
+            probability_low=round(max(0.0, blackout_probability - 12.0), 1),
+            probability_high=round(min(100.0, blackout_probability + 12.0), 1),
             prevention_action=action,
         ))
 
@@ -302,13 +631,13 @@ _NIM_MODEL = "meta/llama-3.1-70b-instruct"
 
 _GUARDRAIL_MARKER = "Outside my operational domain"
 
-_SYSTEM_PROMPT = """\
+_SYSTEM_PROMPT_TEMPLATE = """\
 You are the NoorGrid Operations AI — the intelligence layer for Tunisia's national \
 energy grid management platform, built in partnership with STEG \
 (Société Tunisienne de l'Electricité et du Gaz).
 
 KNOWLEDGE DOMAINS:
-▸ Grid capacity & infrastructure: 5,944 MW installed, 4,636 MW effective, 22% grid losses
+▸ Grid capacity & infrastructure: {installed_capacity_mw:,.0f}–{installed_capacity_upper_mw:,.0f} MW installed, STEG controls {steg_capacity_share_pct:.1f}% of capacity
 ▸ August 14, 2024 crisis: 4,888 MW peak demand, 252 MW deficit, Algeria emergency import activated
 ▸ Renewable resources (24 governorates): solar (Tozeur 820 W/m², Sidi Bouzid 750 W/m²), \
 wind (Bizerte 8.2 m/s, Kasserine 8.5 m/s), hydro (Béja 33 MW, Jendouba 42 MW)
@@ -318,9 +647,14 @@ rate-of-change 20%, regional correlation 15%
 ▸ Maintenance schedules and STEG outage protocols (Q2/Q3 2025)
 ▸ Investment pipeline 2025–2030: €585M committed — Sidi Bouzid solar 200 MW, \
 Bizerte offshore wind 120 MW, Sfax battery 150 MWh
-▸ Carbon & emissions: 0.468 kg CO₂/kWh grid factor, NDC target 1.80 kg CO₂/cap/day by 2030
-▸ Generation mix: 93.7% fossil, 6.0% renewable — gap vs 35% target by 2030
-▸ Energy independence: 41% (2024), down from 48% (2023)
+▸ Carbon & emissions: {grid_carbon_intensity_gco2_per_kwh:.0f} gCO₂/kWh grid factor, NDC target 1.80 kg CO₂/cap/day by 2030
+▸ Generation mix: {fossil_generation_share_pct:.1f}% fossil (natural gas {natural_gas_share_pct:.1f}%), heavy fuel oil {heavy_fuel_oil_share_pct:.1f}%
+▸ STEG generation share: {steg_generation_share_pct_2024:.1f}% in 2024, {steg_generation_share_pct_2025:.1f}% in 2025
+▸ Energy independence: {energy_independence_q1_2025_pct:.1f}% in Q1 2025
+▸ Energy trade deficit: {trade_deficit_tnd_billion_2025:.2f} billion TND by end 2025
+▸ Total generation: {total_generation_gwh_2024:,.0f} GWh (2024), {total_generation_gwh_2025:,.0f} GWh (2025)
+▸ Nawara gas field: production down {nawara_output_change_pct_2025:.0f}% in early 2025
+▸ Algeria gas imports: up {algeria_gas_imports_change_pct_2025:.0f}% in 2025; electricity imports cover {electricity_import_coverage_summer_2025_pct:.0f}% of August peak demand
 
 RESPONSE FORMAT: Structure your answers with ALL-CAPS section headers where useful, \
 ▸ bullet points for lists, and precise numerical values (MW, %, °C, m/s). \
@@ -384,7 +718,7 @@ async def rag_query(req: RAGRequest):
 
     # Build dynamic system prompt with injected grid context
     context_block = _build_context_block(req.context)
-    system_content = _SYSTEM_PROMPT
+    system_content = _SYSTEM_PROMPT_TEMPLATE.format(**_load_national_facts())
     if context_block:
         system_content += (
             "\n\nCURRENT PLATFORM STATE (live data from the frontend dashboard):\n"

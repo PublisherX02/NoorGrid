@@ -1,15 +1,17 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-
-const NAV_LINKS = [
-  { to: '/',           label: 'Home' },
-  { to: '/dashboard',  label: 'Dashboard' },
-  { to: '/analytics',  label: 'Analytics' },
-  { to: '/simulation', label: 'Simulation' },
-  { to: '/about',      label: 'About' },
-]
+import { useTranslation } from 'react-i18next'
+import i18n from '../../i18n'
 
 export default function Navbar() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
+  const navLinks = [
+    { to: '/', label: t('nav.home') },
+    { to: '/dashboard', label: t('nav.dashboard') },
+    { to: '/analytics', label: t('nav.analytics') },
+    { to: '/simulation', label: t('nav.simulation') },
+    { to: '/about', label: t('nav.about') },
+  ]
 
   return (
     <nav
@@ -71,7 +73,7 @@ export default function Navbar() {
 
       {/* Links */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-        {NAV_LINKS.map(({ to, label }) => (
+        {navLinks.map(({ to, label }) => (
           <NavLink
             key={to}
             to={to}
@@ -96,13 +98,32 @@ export default function Navbar() {
       </div>
 
       {/* CTA */}
-      <button
-        onClick={() => navigate('/dashboard')}
-        className="btn btn-primary btn-sm"
-        style={{ letterSpacing: '0.02em' }}
-      >
-        Live Ops Room →
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <button
+          onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'fr' : 'en')}
+          style={{
+            background: 'none',
+            border: '1px solid rgba(0,255,136,0.2)',
+            borderRadius: '4px',
+            padding: '4px 8px',
+            fontSize: '0.7rem',
+            color: '#00ff88',
+            cursor: 'pointer',
+            fontFamily: "'JetBrains Mono', monospace",
+            fontWeight: 700,
+            letterSpacing: '0.04em',
+          }}
+        >
+          {i18n.language === 'en' ? 'FR' : 'EN'}
+        </button>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="btn btn-primary btn-sm"
+          style={{ letterSpacing: '0.02em' }}
+        >
+          {t('nav.liveOpsRoom')} →
+        </button>
+      </div>
     </nav>
   )
 }

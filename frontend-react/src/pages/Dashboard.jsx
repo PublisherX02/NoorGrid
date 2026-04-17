@@ -8,11 +8,17 @@ import { useWeather } from '../hooks/useWeather'
 import { useBlackout } from '../hooks/useBlackout'
 import { predictBlackout } from '../services/api'
 import {
-  GOVERNORATES, STEG, RISK_COLORS, SOURCE_ICON, SOURCE_COLOR, NATIONAL_CARBON_INDEX,
+  GOVERNORATES, STEG, RISK_COLORS, RISK_ORDER, SOURCE_ICON, SOURCE_COLOR, NATIONAL_CARBON_INDEX,
 } from '../constants/grid'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
+import { useAlerts } from '../hooks/useAlerts'
+import CrisisModal from '../components/Crisis/CrisisModal'
+import AlertFeed from '../components/Crisis/AlertFeed'
+import { useTranslation } from 'react-i18next'
+import i18n from '../i18n'
+
 
 // ─── Tunisia Clock ──────────────────────────────────────────────────────────
 function TunisiaClock() {
@@ -82,7 +88,7 @@ function ConsumptionChart({ govs }) {
 }
 
 // ─── Gov Card (right panel) ─────────────────────────────────────────────────
-function GovCard({ gov, effectiveRisk }) {
+function GovCard({ gov, effectiveRisk, outputMw }) {
   const risk  = effectiveRisk || gov.mock_risk
   const color = RISK_COLORS[risk] || '#00ff88'
   return (
@@ -114,7 +120,7 @@ function GovCard({ gov, effectiveRisk }) {
             marginLeft: 'auto',
           }}
         >
-          {gov.mock_mw} MW
+          {outputMw ?? gov.mock_mw} MW
         </span>
       </div>
     </div>
@@ -140,16 +146,17 @@ function StatCell({ label, value, color }) {
   )
 }
 
-function GovernorateStats({ gov, risk }) {
+function GovernorateStats({ gov, risk, outputMw }) {
   const riskColor = RISK_COLORS[risk] || '#00ff88'
   const srcColor  = SOURCE_COLOR[gov.source] || '#00ff88'
   const srcIcon   = SOURCE_ICON[gov.source] || '⚡'
 
+  const liveOutput = outputMw ?? gov.mock_mw
   const coveragePct = gov.avg_demand_mw
-    ? Math.min((gov.mock_mw / gov.avg_demand_mw) * 100, 150)
+    ? Math.min((liveOutput / gov.avg_demand_mw) * 100, 150)
     : null
   const utilizationPct = gov.installed_capacity_mw
-    ? Math.min((gov.mock_mw / gov.installed_capacity_mw) * 100, 100)
+    ? Math.min((liveOutput / gov.installed_capacity_mw) * 100, 100)
     : null
 
   return (
@@ -210,7 +217,7 @@ function GovernorateStats({ gov, risk }) {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
           <StatCell
             label="Live Output"
-            value={`${gov.mock_mw} MW`}
+            value={`${liveOutput} MW`}
             color={riskColor}
           />
           <StatCell
@@ -323,7 +330,6 @@ function GovernorateStats({ gov, risk }) {
 }
 
 // Peak risk level from a predictions array
-const RISK_ORDER = { CRITICAL: 4, HIGH: 3, ELEVATED: 2, NOMINAL: 1 }
 function peakRiskLevel(preds) {
   if (!preds?.length) return null
   return preds.reduce(
@@ -333,16 +339,36 @@ function peakRiskLevel(preds) {
 
 export default function Dashboard() {
   const navigate = useNavigate()
-  const { weather, loading: wLoading, isMock, backendOnline } = useWeather()
+  const { weatherMap, loading: wLoading, isMock, backendOnline } = useWeather()
   const { predictions, region: blackoutRegion, fetchPrediction, peakWindow, loading: bLoading } = useBlackout()
   const [selectedGov, setSelectedGov] = useState(null)
-  // liveRiskMap: { [govName]: risk_level } — populated from real API predictions
+  // liveRiskMap: { [govName]: risk_level } — populated from blackout predictions
   const [liveRiskMap, setLiveRiskMap] = useState({})
 
-  // Helper: effective risk for a governorate (live > mock)
+  const { t } = useTranslation()
+
+  const { alerts, loading: alertLoading, error: alertError, triggerSimulation } = useAlerts()
+  const [activeAlert, setActiveAlert] = useState(null)
+  const [showCrisisModal, setShowCrisisModal] = useState(false)
+
+  const handleAlertTriggered = (alert) => {
+    setActiveAlert(alert)
+  }
+
+  const handleAcknowledge = () => {
+    setActiveAlert(null)
+  }
+
+
+  // Helpers: weatherMap is the primary live source; liveRiskMap from blackout predictions is secondary
   const effectiveRisk = useCallback(
-    (gov) => liveRiskMap[gov.name] || gov.mock_risk,
-    [liveRiskMap]
+    (gov) => weatherMap[gov.name]?.risk_level || liveRiskMap[gov.name] || gov.mock_risk,
+    [weatherMap, liveRiskMap]
+  )
+
+  const effectiveOutput = useCallback(
+    (gov) => weatherMap[gov.name]?.output_mw ?? gov.mock_mw,
+    [weatherMap]
   )
 
   // Pre-fetch predictions for all 5 backend governorates on mount
@@ -374,7 +400,7 @@ export default function Dashboard() {
     if (gov.hasBackend) fetchPrediction(gov.name, 24)
   }
 
-  const totalMW     = GOVERNORATES.reduce((a, g) => a + g.mock_mw, 0).toFixed(0)
+  const totalMW     = GOVERNORATES.reduce((a, g) => a + effectiveOutput(g), 0).toFixed(0)
   const carbonIndex = NATIONAL_CARBON_INDEX.value
 
   // Sidebar risk groups — use live risk where available
@@ -419,7 +445,7 @@ export default function Dashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span className="live-dot" />
             <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#00ff88', letterSpacing: '0.12em' }}>
-              LIVE
+              {t('status.live')}
             </span>
           </div>
           {isMock && (
@@ -435,16 +461,16 @@ export default function Dashboard() {
                 letterSpacing: '0.06em',
               }}
             >
-              SIMULATED DATA
+              {t('status.simulated')}
             </span>
           )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {[
-            { label: 'Backend', online: backendOnline },
-            { label: 'Weather API', online: !isMock },
-            { label: 'Prediction Engine', online: true },
+            { label: t('status.backend'), online: backendOnline },
+            { label: t('status.weatherApi'), online: !isMock },
+            { label: t('status.predictionEngine'), online: true },
           ].map(({ label, online }) => (
             <div
               key={label}
@@ -474,11 +500,46 @@ export default function Dashboard() {
               {label}
             </div>
           ))}
+          <button
+            onClick={() => setShowCrisisModal(true)}
+            style={{
+              background: activeAlert ? 'rgba(255,51,51,0.15)' : 'rgba(255,51,51,0.06)',
+              border: `1px solid ${activeAlert ? 'rgba(255,51,51,0.6)' : 'rgba(255,51,51,0.25)'}`,
+              borderRadius: '4px',
+              padding: '2px 10px',
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              fontFamily: "'JetBrains Mono', monospace",
+              color: '#ff3333',
+              cursor: 'pointer',
+              letterSpacing: '0.06em',
+              animation: activeAlert ? 'none' : 'livePulse 1.8s ease-in-out infinite',
+            }}
+          >
+            {t('crisis.simulateButton') || '⚡ SIMULATE CRISIS'}
+          </button>
+          <button
+            onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'fr' : 'en')}
+            style={{
+              background: 'none',
+              border: '1px solid rgba(0,255,136,0.2)',
+              borderRadius: '4px',
+              padding: '2px 8px',
+              fontSize: '0.65rem',
+              color: '#00ff88',
+              cursor: 'pointer',
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+            }}
+          >
+            {i18n.language === 'en' ? 'FR' : 'EN'}
+          </button>
           <div style={{ display: 'flex', gap: '2px', marginLeft: '8px' }}>
             {[
-              { label: 'Analytics', path: '/analytics' },
-              { label: 'Simulation', path: '/simulation' },
-              { label: 'About', path: '/about' },
+              { label: t('nav.analytics'), path: '/analytics' },
+              { label: t('nav.simulation'), path: '/simulation' },
+              { label: t('nav.about'), path: '/about' },
             ].map(({ label, path }) => (
               <button
                 key={path}
@@ -672,10 +733,11 @@ export default function Dashboard() {
               </div>
             ) : (
               <TunisiaMap
-                weatherData={weather}
+                weatherMap={weatherMap}
                 selectedGov={selectedGov}
                 onSelectGov={handleSelectGov}
                 liveRiskMap={liveRiskMap}
+                activeAlert={activeAlert}
                 style={{ height: '100%', width: '100%' }}
               />
             )}
@@ -735,7 +797,7 @@ export default function Dashboard() {
               .sort((a, b) => (RISK_ORDER[effectiveRisk(b)] || 0) - (RISK_ORDER[effectiveRisk(a)] || 0))
               .slice(0, 6)
               .map((g) => (
-                <GovCard key={g.name} gov={g} effectiveRisk={effectiveRisk(g)} />
+                <GovCard key={g.name} gov={g} effectiveRisk={effectiveRisk(g)} outputMw={effectiveOutput(g)} />
               ))}
           </div>
 
@@ -762,6 +824,7 @@ export default function Dashboard() {
             <GovernorateStats
               gov={selectedGov}
               risk={effectiveRisk(selectedGov)}
+              outputMw={effectiveOutput(selectedGov)}
             />
           )}
 
@@ -890,6 +953,26 @@ export default function Dashboard() {
 
       {/* ── Floating RAG Chatbot ─────────────────────────────────────── */}
       <ChatWidget context={{ selectedGov }} />
+
+      {/* Crisis modal */}
+      {showCrisisModal && (
+        <CrisisModal
+          onClose={() => setShowCrisisModal(false)}
+          onTrigger={async (region, risk_level, scenario_label) => {
+            const alert = await triggerSimulation(region, risk_level, scenario_label)
+            handleAlertTriggered(alert)
+          }}
+          loading={alertLoading}
+          error={alertError}
+        />
+      )}
+
+      {/* Alert feed — positioned absolute inside ops-room */}
+      <AlertFeed
+        activeAlert={activeAlert}
+        historicalAlerts={activeAlert ? alerts.filter((a) => a.id !== activeAlert?.id) : []}
+        onAcknowledge={handleAcknowledge}
+      />
     </div>
   )
 }

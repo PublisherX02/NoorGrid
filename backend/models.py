@@ -77,6 +77,19 @@ class WeatherResponse(BaseModel):
     data: list[WeatherEntry]
 
 
+class WeatherAllEntry(BaseModel):
+    region: str
+    wind_ms: float = Field(..., description="Wind speed at 10 m in m/s")
+    irradiance: float = Field(..., description="Solar irradiance in W/m²")
+    output_mw: float = Field(..., description="Computed energy output in MW")
+    risk_level: str = Field(..., description="NOMINAL | ELEVATED | HIGH | CRITICAL")
+    source: str = Field(..., description="Wind | Solar | Hydro | Mixed")
+
+
+class WeatherAllResponse(BaseModel):
+    data: list[WeatherAllEntry]
+
+
 # ── History models ──────────────────────────────────────────────────────────────
 
 class HistoryRecord(BaseModel):
@@ -118,7 +131,10 @@ class HourlyPrediction(BaseModel):
     stress_ratio: float
     risk_level: str
     blackout_probability: float = Field(..., description="0–100 %")
+    probability_low: float = Field(..., description="Lower bound of ±12% confidence interval")
+    probability_high: float = Field(..., description="Upper bound of ±12% confidence interval")
     prevention_action: str
+
 
 
 class BlackoutResponse(BaseModel):
@@ -141,3 +157,42 @@ class RAGResponse(BaseModel):
     model: str = Field(..., description="LLM model identifier used")
     mock: bool = Field(default=False, description="True when this is a local fallback response")
     rejected: bool = Field(default=False, description="True when the query was outside the STEG domain")
+
+
+class NationalStatsResponse(BaseModel):
+    source: str
+    installed_capacity_mw: float
+    installed_capacity_upper_mw: float
+    steg_capacity_share_pct: float
+    steg_generation_share_pct_2024: float
+    steg_generation_share_pct_2025: float
+    total_generation_gwh_2024: float
+    total_generation_gwh_2025: float
+    fossil_generation_share_pct: float
+    natural_gas_share_pct: float
+    heavy_fuel_oil_share_pct: float
+    energy_independence_q1_2025_pct: float
+    trade_deficit_tnd_billion_2025: float
+    nawara_output_change_pct_2025: float
+    algeria_gas_imports_change_pct_2025: float
+    electricity_import_coverage_summer_2025_pct: float
+    grid_carbon_intensity_gco2_per_kwh: float
+
+
+# ── Alert simulation models ───────────────────────────────────────────────────
+
+class AlertSimulateRequest(BaseModel):
+    region: str = Field(..., description="Governorate name — must exist in _REGION_CFG")
+    risk_level: str = Field(..., description="CRITICAL or HIGH")
+    scenario_label: str = Field(..., min_length=1, max_length=200)
+
+
+class AlertSimulateResponse(BaseModel):
+    id: int
+    region: str
+    risk_level: str
+    scenario_label: str
+    prevention_actions: list[str]
+    triggered_at: str
+    is_test: bool
+

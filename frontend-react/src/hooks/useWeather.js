@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { getWeather, getHealth } from '../services/api'
+import { getWeatherAll, getHealth } from '../services/api'
 
 const POLL_INTERVAL = 5 * 60 * 1000 // 5 minutes
 
 export function useWeather() {
-  const [weather, setWeather]       = useState(null)
-  const [loading, setLoading]       = useState(true)
-  const [error, setError]           = useState(null)
-  const [isMock, setIsMock]         = useState(false)
-  const [backendOnline, setBackend] = useState(null)
+  const [weatherMap, setWeatherMap]  = useState({})
+  const [loading, setLoading]        = useState(true)
+  const [error, setError]            = useState(null)
+  const [isMock, setIsMock]          = useState(false)
+  const [backendOnline, setBackend]  = useState(null)
   const timerRef = useRef(null)
 
   const fetchWeather = useCallback(async () => {
@@ -16,8 +16,12 @@ export function useWeather() {
       const health = await getHealth()
       setBackend(health.online)
 
-      const result = await getWeather()
-      setWeather(result.data)
+      const result = await getWeatherAll()
+      const map = {}
+      for (const entry of (result.data?.data || [])) {
+        map[entry.region] = entry
+      }
+      setWeatherMap(map)
       setIsMock(result.mock)
       setError(null)
     } catch (err) {
@@ -33,5 +37,5 @@ export function useWeather() {
     return () => clearInterval(timerRef.current)
   }, [fetchWeather])
 
-  return { weather, loading, error, isMock, backendOnline, refetch: fetchWeather }
+  return { weatherMap, loading, error, isMock, backendOnline, refetch: fetchWeather }
 }

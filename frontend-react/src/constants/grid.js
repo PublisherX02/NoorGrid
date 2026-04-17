@@ -20,6 +20,13 @@ export const STEG = {
 }
 
 // ─── Risk Level Configuration ─────────────────────────────────────────────────
+export const RISK_ORDER = {
+  CRITICAL: 4,
+  HIGH: 3,
+  ELEVATED: 2,
+  NOMINAL: 1,
+}
+
 export const RISK_COLORS = {
   CRITICAL: '#ff3333',
   HIGH: '#ff9500',
@@ -137,6 +144,8 @@ export const GOVERNORATES = [
     lat: 36.8190, lon: 10.1658,
     source: 'Mixed',
     baseline_mw: 450,
+    rotor_area: 15708.0,
+    efficiency: 0.35,
     hasBackend: false,
     region: 'North-East',
     mock_mw: 380,
@@ -152,6 +161,8 @@ export const GOVERNORATES = [
     lat: 36.8665, lon: 10.1647,
     source: 'Mixed',
     baseline_mw: 120,
+    rotor_area: 7854.0,
+    efficiency: 0.35,
     hasBackend: false,
     region: 'North-East',
     mock_mw: 95,
@@ -167,6 +178,8 @@ export const GOVERNORATES = [
     lat: 36.7533, lon: 10.2281,
     source: 'Mixed',
     baseline_mw: 180,
+    rotor_area: 7854.0,
+    efficiency: 0.35,
     hasBackend: false,
     region: 'North-East',
     mock_mw: 155,
@@ -182,6 +195,8 @@ export const GOVERNORATES = [
     lat: 36.8092, lon: 9.9885,
     source: 'Mixed',
     baseline_mw: 95,
+    rotor_area: 5027.0,
+    efficiency: 0.35,
     hasBackend: false,
     region: 'North',
     mock_mw: 91,
@@ -257,6 +272,8 @@ export const GOVERNORATES = [
     lat: 35.8256, lon: 10.6368,
     source: 'Mixed',
     baseline_mw: 220,
+    rotor_area: 10000.0,
+    efficiency: 0.35,
     hasBackend: false,
     region: 'Centre-East',
     mock_mw: 195,
@@ -302,6 +319,8 @@ export const GOVERNORATES = [
     lat: 34.7398, lon: 10.7600,
     source: 'Mixed',
     baseline_mw: 280,
+    rotor_area: 12000.0,
+    efficiency: 0.35,
     hasBackend: false,
     region: 'Centre-East',
     mock_mw: 245,

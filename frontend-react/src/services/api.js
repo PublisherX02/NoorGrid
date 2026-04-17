@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { GOVERNORATES } from '../constants/grid'
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -120,6 +121,44 @@ export const getWeather = async () => {
   }
 }
 
+const _mockWeatherAll = () => ({
+  data: GOVERNORATES.map((g) => {
+    const wind = g.mock_wind || 5.0
+    const irr  = g.mock_irradiance || 500
+
+    let output_mw
+    if (g.source === 'Wind') {
+      output_mw = +(0.5 * 1.225 * (g.rotor_area || 5000) * Math.pow(wind, 3) * (g.efficiency || 0.4) / 1e6).toFixed(2)
+    } else if (g.source === 'Solar') {
+      output_mw = +(irr * (g.panel_area || 100000) * (g.efficiency || 0.18) / 1e6).toFixed(2)
+    } else if (g.source === 'Hydro') {
+      output_mw = g.baseline_mw
+    } else {
+      // Mixed: 60% fossil baseline + 40% wind offset
+      const wind_offset = 0.5 * 1.225 * (g.rotor_area || 5000) * Math.pow(wind, 3) * (g.efficiency || 0.35) / 1e6
+      output_mw = +(0.60 * g.baseline_mw + 0.40 * wind_offset).toFixed(2)
+    }
+    output_mw = Math.max(0, output_mw)
+
+    const ratio = output_mw / Math.max(g.avg_demand_mw || 1, 1)
+    const risk_level =
+      ratio < 0.30 ? 'CRITICAL' :
+      ratio < 0.50 ? 'HIGH' :
+      ratio < 0.70 ? 'ELEVATED' : 'NOMINAL'
+
+    return { region: g.name, wind_ms: wind, irradiance: irr, output_mw, risk_level, source: g.source }
+  }),
+})
+
+export const getWeatherAll = async () => {
+  try {
+    const res = await client.get('/weather/all')
+    return { data: res.data, mock: false }
+  } catch {
+    return { data: _mockWeatherAll(), mock: true }
+  }
+}
+
 export const getHistory = async (region, days = 7) => {
   try {
     const res = await client.get(`/history/${encodeURIComponent(region)}`, { params: { days } })
@@ -173,7 +212,7 @@ export const calcCarbon = async (region, consumption_kwh, renewable_kwh) => {
     const res = await client.post('/energy/carbon', { region, consumption_kwh, renewable_kwh })
     return res.data
   } catch {
-    const score = Math.max(0, (consumption_kwh - renewable_kwh) * 0.468)
+    const score = Math.max(0, (consumption_kwh - renewable_kwh) * 0.423)
     return { region, carbon_score_kg: +score.toFixed(2) }
   }
 }
@@ -208,5 +247,23 @@ export const sendMessageToRAG = async (message, context = {}) => {
     }
 
     return { content: errorMsg, mock: false, rejected: false, error: true }
+  }
+}
+
+export const simulateAlert = async (region, risk_level, scenario_label) => {
+  try {
+    const resp = await client.post('/alerts/simulate', { region, risk_level, scenario_label })
+    return resp.data
+  } catch (err) {
+    throw new Error(err.response?.data?.detail || 'Simulation request failed')
+  }
+}
+
+export const getAlertsFeed = async (limit = 10) => {
+  try {
+    const resp = await client.get('/alerts/feed', { params: { limit } })
+    return resp.data
+  } catch (_) {
+    return []
   }
 }
