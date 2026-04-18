@@ -69,7 +69,7 @@ Source: ONEM National Energy Balance 2024 · World Bank TEREG Program · STEG An
 | Algeria deficit (Aug 14) | 252 MW via Transmed HVDC |
 | Energy independence | 41% (down from 48% in 2023) |
 | Population | 11,800,000 |
-| Grid emission factor | 0.468 kg CO₂ / kWh |
+| Grid emission factor | 0.423 kg CO₂ / kWh |
 
 ---
 
@@ -127,14 +127,14 @@ P_hydro = ρ_w × g × Q × H × η
 ### Carbon Score
 
 ```
-C_region = (E_consumed − E_renewable) × 0.468  [kg CO₂]
+C_region = (E_consumed − E_renewable) × 0.423  [kg CO₂]
 
 National Carbon Index = Σ C_region / 11,800,000  [kg CO₂ / capita / day]
 ```
 
 - `E_consumed` from STEG billing data
 - `E_renewable` from live weather calculations
-- 0.468 = Tunisia grid emission factor (kg CO₂/kWh, STEG 2024)
+- 0.423 = Tunisia grid emission factor (kg CO₂/kWh, ONEM National Energy Balance 2024)
 - Current national index: **2.31 kg CO₂/cap/day** → target **1.80 by 2030**
 
 ### Blackout Risk Engine (Prediction)

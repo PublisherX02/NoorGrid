@@ -93,6 +93,14 @@ def init_db() -> None:
                 sent_at     TEXT NOT NULL
             )
         """))
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_alerts_triggered
+            ON alerts_log(triggered_at)
+        """))
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_reports_sent
+            ON report_send_log(sent_at)
+        """))
         # Backward-compatible migration for pre-existing local DBs
         # that were created before output_mw was introduced.
         weather_cols = {

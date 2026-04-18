@@ -4,8 +4,12 @@ NoorGrid FastAPI backend — renewable energy production API.
 
 import datetime
 import json
+import logging
 import os
 import sys
+import threading
+import time
+from collections import defaultdict
 
 # Ensure backend/ is on sys.path so sibling modules resolve regardless of
 # which directory uvicorn is launched from.
@@ -31,7 +35,7 @@ from db import (  # noqa: E402
     insert_report_send,
     insert_weather_entries,
 )
-from fastapi import FastAPI, HTTPException  # noqa: E402
+from fastapi import FastAPI, HTTPException, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from grid import GridInputs, simulate_national_grid  # noqa: E402
 from models import (  # noqa: E402
@@ -66,6 +70,20 @@ from models import (  # noqa: E402
 from report import generate_report_from_nim  # noqa: E402
 from weather import fetch_all_weather  # noqa: E402
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s — %(message)s",
+    datefmt="%Y-%m-%dT%H:%M:%S",
+)
+logger = logging.getLogger("noorgrid")
+
+# ── CORS configuration ────────────────────────────────────────────────────────
+# Set CORS_ORIGINS to a JSON list to restrict in production, e.g.:
+#   CORS_ORIGINS=["https://noorgrid.steg.tn"]
+# Leave unset (or empty) to allow all origins during local development.
+_cors_env = os.getenv("CORS_ORIGINS", "").strip()
+_CORS_ORIGINS: list[str] = json.loads(_cors_env) if _cors_env else ["*"]
+
 app = FastAPI(
     title="NoorGrid API",
     description="Renewable energy production calculations for Tunisia",
@@ -74,10 +92,42 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_CORS_ORIGINS,
+    # Credentials (cookies/auth headers) are only allowed when origins are explicitly
+    # restricted — browsers reject credentials combined with wildcard origins.
+    allow_credentials=(_CORS_ORIGINS != ["*"]),
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ── In-memory rate limiter ────────────────────────────────────────────────────
+# Simple sliding-window rate limiter, thread-safe for single-process deployments.
+# For multi-worker setups consider a Redis-backed solution.
+_rate_lock = threading.Lock()
+_rate_counters: dict[str, list[float]] = defaultdict(list)
+
+
+def _is_rate_limited(key: str, max_requests: int, window_seconds: int) -> bool:
+    """Return True if the given key has exceeded its rate limit.
+
+    Expired timestamp entries and empty buckets are pruned on every call to
+    prevent unbounded memory growth as unique client IPs accumulate.
+    """
+    now = time.monotonic()
+    with _rate_lock:
+        cutoff = now - window_seconds
+        active = [t for t in _rate_counters[key] if t > cutoff]
+        if len(active) >= max_requests:
+            # Restore pruned list even when rejecting so counts stay accurate
+            _rate_counters[key] = active
+            return True
+        active.append(now)
+        if active:
+            _rate_counters[key] = active
+        else:
+            # Prune empty buckets to prevent unbounded memory growth
+            _rate_counters.pop(key, None)
+    return False
 
 
 _scheduler = AsyncIOScheduler()
@@ -110,9 +160,9 @@ async def scheduled_ingest() -> None:
                 entry["output_mw"] = computed["output_mw"]
             enriched.append(entry)
         count = insert_weather_entries(enriched)
-        print(f"[scheduler] ingested {count} weather records")
+        logger.info("[scheduler] ingested %d weather records", count)
     except Exception as exc:
-        print(f"[scheduler] ingest error: {exc}")
+        logger.error("[scheduler] ingest error: %s", exc)
 
 
 @app.on_event("startup")
@@ -120,13 +170,13 @@ async def startup_event():
     init_db()
     _scheduler.add_job(scheduled_ingest, "interval", minutes=15, id="weather_ingest")
     _scheduler.start()
-    print("[scheduler] weather ingestion scheduled every 15 minutes")
+    logger.info("[scheduler] weather ingestion scheduled every 15 minutes")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     _scheduler.shutdown(wait=False)
-    print("[scheduler] stopped")
+    logger.info("[scheduler] stopped")
 
 
 @app.get("/health")
@@ -398,6 +448,14 @@ async def get_weather():
             detail=f"Failed to fetch weather data: {exc}",
         ) from exc
 
+    # Enrich each entry with computed output_mw before persisting
+    for entry in entries:
+        cfg = _REGION_CFG.get(entry["region"])
+        if cfg:
+            computed = _compute_region_output(
+                cfg, entry["wind_speed_ms"], entry["solar_irradiance_wm2"]
+            )
+            entry["output_mw"] = computed["output_mw"]
     insert_weather_entries(entries)
     return WeatherResponse(data=entries)
 
@@ -416,16 +474,24 @@ async def get_weather_all():
             detail=f"Failed to fetch weather data: {exc}",
         ) from exc
 
-    insert_weather_entries(raw)
-
     lookup = {entry["region"]: entry for entry in raw}
     results: list[WeatherAllEntry] = []
+    enriched: list[dict] = []
 
     for name, cfg in _REGION_CFG.items():
         entry = lookup.get(name, {})
         wind_ms = entry.get("wind_speed_ms", 0.0)
         irradiance = entry.get("solar_irradiance_wm2", 0.0)
         computed = _compute_region_output(cfg, wind_ms, irradiance)
+        # Build an enriched record (with output_mw) for DB persistence
+        enriched.append({
+            "region": name,
+            "latitude": cfg["lat"],
+            "longitude": cfg["lon"],
+            "wind_speed_ms": wind_ms,
+            "solar_irradiance_wm2": irradiance,
+            "output_mw": computed["output_mw"],
+        })
         results.append(WeatherAllEntry(
             region=name,
             wind_ms=round(wind_ms, 3),
@@ -435,6 +501,7 @@ async def get_weather_all():
             source=computed["source"],
         ))
 
+    insert_weather_entries(enriched)
     return WeatherAllResponse(data=results)
 
 
@@ -478,7 +545,7 @@ def simulate_alert(req: AlertSimulateRequest):
     ])
 
     alert_id = 0
-    triggered_at = datetime.datetime.utcnow().isoformat()
+    triggered_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     try:
         alert_id = insert_alert(
             region=req.region,
@@ -494,7 +561,7 @@ def simulate_alert(req: AlertSimulateRequest):
         if stored:
             triggered_at = stored["triggered_at"]
     except Exception as exc:
-        print(f"[alerts] failed to persist simulated alert: {exc}")
+        logger.error("[alerts] failed to persist simulated alert: %s", exc)
 
     return AlertSimulateResponse(
         id=alert_id,
@@ -519,11 +586,18 @@ def get_alerts(limit: int = 10):
 # ── Report generation endpoints ───────────────────────────────────────────────
 
 @app.post("/report/generate", response_model=ReportResponse, tags=["Report"])
-async def generate_report(req: ReportRequest):
+async def generate_report(req: ReportRequest, request: Request):
     """
     Generate an AI-powered incident diagnosis report for a triggered crisis.
     Calls NVIDIA NIM; falls back to mock report if the key is absent.
+    Rate limited to 5 requests/minute per client IP.
     """
+    client_ip = request.client.host if request.client else "unknown"
+    if _is_rate_limited(f"report:{client_ip}", max_requests=5, window_seconds=60):
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded. Maximum 5 report generation requests per minute.",
+        )
     nim_result = await generate_report_from_nim(
         region=req.region,
         risk_level=req.risk_level,
@@ -533,7 +607,7 @@ async def generate_report(req: ReportRequest):
         cascade_regions=[c.model_dump() for c in req.cascade_regions],
         prevention_actions=req.prevention_actions,
     )
-    generated_at = datetime.datetime.utcnow().isoformat()
+    generated_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
     return ReportResponse(
         region=req.region,
         risk_level=req.risk_level,
@@ -556,11 +630,11 @@ def send_report(req: ReportSendRequest):
     Simulate dispatching an incident report email to engineers/technicians.
     Logs the send to stdout. Does not deliver real email (simulation mode).
     """
-    sent_at = datetime.datetime.utcnow().isoformat()
-    print(
-        f"[report] SIMULATED SEND — scenario='{req.report.scenario_label}' "
-        f"region={req.report.region} risk={req.report.risk_level} "
-        f"recipients={req.recipients} sent_at={sent_at}"
+    sent_at = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    logger.info(
+        "[report] SIMULATED SEND — scenario='%s' region=%s risk=%s recipients=%s sent_at=%s",
+        req.report.scenario_label, req.report.region, req.report.risk_level,
+        req.recipients, sent_at,
     )
     try:
         insert_report_send(
@@ -572,7 +646,7 @@ def send_report(req: ReportSendRequest):
             alert_id=req.alert_id,
         )
     except Exception as exc:
-        print(f"[report] failed to persist send log: {exc}")
+        logger.error("[report] failed to persist send log: %s", exc)
     return ReportSendResponse(sent=True, recipients=req.recipients, sent_at=sent_at)
 
 
@@ -799,12 +873,19 @@ def _build_context_block(context: dict) -> str:
 
 
 @app.post("/rag/query", response_model=RAGResponse, tags=["RAG"])
-async def rag_query(req: RAGRequest):
+async def rag_query(req: RAGRequest, request: Request):
     """
     Query the NoorGrid/STEG knowledge base via NVIDIA NIM LLM.
     Raises 503 if the API key is absent, 502 on NIM network/HTTP errors.
+    Rate limited to 10 requests/minute per client IP.
     The frontend falls back to its local mock on any non-2xx response.
     """
+    client_ip = request.client.host if request.client else "unknown"
+    if _is_rate_limited(f"rag:{client_ip}", max_requests=10, window_seconds=60):
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limit exceeded. Maximum 10 RAG queries per minute.",
+        )
     nim_key = os.getenv("NVIDIA_NIM_API_KEY", "").strip()
     if not nim_key:
         raise HTTPException(status_code=503, detail="NVIDIA_NIM_API_KEY not configured")
