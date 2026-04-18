@@ -10,6 +10,7 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine
@@ -155,7 +156,7 @@ def insert_weather_entries(entries: list[dict]) -> int:
     return result.rowcount
 
 
-def get_region_history(region: str, days: int) -> list[dict]:
+def get_region_history(region: str, days: int) -> list[dict[str, Any]]:
     init_db()
     cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
     with get_engine().connect() as conn:
@@ -369,10 +370,10 @@ def get_crisis_analytics(days: int) -> dict:
         )
 
     region_names = set(region_primary) | set(region_cascade)
-    region_frequency = []
+    region_frequency: list[dict[str, int | str]] = []
     for name in region_names:
-        primary_count = region_primary.get(name, 0)
-        cascade_count = region_cascade.get(name, 0)
+        primary_count: int = region_primary.get(name, 0)
+        cascade_count: int = region_cascade.get(name, 0)
         region_frequency.append(
             {
                 "region": name,
