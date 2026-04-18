@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useCrisisAnalytics } from '../hooks/useCrisisAnalytics'
 import { RISK_COLORS } from '../constants/grid'
 
@@ -10,10 +11,10 @@ const WINDOWS = [
   { label: 'ALL', days: 365 },
 ]
 
-function fmtDate(iso) {
+function fmtDate(iso, locale) {
   if (!iso) return '—'
   try {
-    return new Date(iso).toLocaleString('en-GB', {
+    return new Date(iso).toLocaleString(locale, {
       day: '2-digit',
       month: 'short',
       hour: '2-digit',
@@ -36,6 +37,8 @@ function MetricCard({ label, value, color = '#e2e8f0', sub }) {
 }
 
 function IncidentRow({ incident }) {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language === 'fr' ? 'fr-FR' : 'en-GB'
   const color = RISK_COLORS[incident.risk_level] || '#94a3b8'
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)', borderLeft: `3px solid ${color}` }}>
@@ -54,7 +57,7 @@ function IncidentRow({ incident }) {
         )}
       </div>
       <div style={{ flexShrink: 0, textAlign: 'right' }}>
-        <div style={{ fontSize: 11, color: '#475569', marginBottom: 4 }}>{fmtDate(incident.triggered_at)}</div>
+        <div style={{ fontSize: 11, color: '#475569', marginBottom: 4 }}>{fmtDate(incident.triggered_at, locale)}</div>
         <span
           style={{
             fontSize: 10,
@@ -66,7 +69,7 @@ function IncidentRow({ incident }) {
             border: `1px solid ${incident.report_sent ? 'rgba(0,196,106,0.3)' : 'rgba(100,116,139,0.2)'}`,
           }}
         >
-          {incident.report_sent ? `✓ RAPPORT ENVOYÉ (${incident.recipients_count})` : 'SANS RAPPORT'}
+          {incident.report_sent ? `✓ ${t('crisisIntel.reportSent')} (${incident.recipients_count})` : t('crisisIntel.noReport')}
         </span>
       </div>
     </div>
@@ -74,8 +77,9 @@ function IncidentRow({ incident }) {
 }
 
 function RiskDonut({ critical, high, elevated }) {
+  const { t } = useTranslation()
   const total = critical + high + elevated
-  if (total === 0) return <div style={{ color: '#475569', fontSize: 12, padding: 12 }}>Aucun incident dans cette période</div>
+  if (total === 0) return <div style={{ color: '#475569', fontSize: 12, padding: 12 }}>{t('crisisIntel.noIncidentsPeriod')}</div>
   const R = 54
   const cx = 70
   const cy = 70
@@ -112,7 +116,7 @@ function RiskDonut({ critical, high, elevated }) {
           return seg
         })}
         <text x={cx} y={cy - 6} textAnchor="middle" fill="#e2e8f0" fontSize={20} fontWeight={700} fontFamily="'JetBrains Mono', monospace">{total}</text>
-        <text x={cx} y={cy + 12} textAnchor="middle" fill="#64748b" fontSize={9}>TOTAL</text>
+        <text x={cx} y={cy + 12} textAnchor="middle" fill="#64748b" fontSize={9}>{t('crisisIntel.total')}</text>
 
       </svg>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -129,8 +133,9 @@ function RiskDonut({ critical, high, elevated }) {
 }
 
 function RegionBars({ regionFrequency }) {
+  const { t } = useTranslation()
   const top8 = (regionFrequency || []).slice(0, 8)
-  if (top8.length === 0) return <div style={{ color: '#475569', fontSize: 12, padding: 12 }}>Pas de données</div>
+  if (top8.length === 0) return <div style={{ color: '#475569', fontSize: 12, padding: 12 }}>{t('crisisIntel.noData')}</div>
   const max = top8[0]?.total || 1
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -150,7 +155,8 @@ function RegionBars({ regionFrequency }) {
 }
 
 function DailyTrend({ dailyCounts }) {
-  if (!dailyCounts || dailyCounts.length === 0) return <div style={{ color: '#475569', fontSize: 12, padding: 12 }}>No data</div>
+  const { t } = useTranslation()
+  if (!dailyCounts || dailyCounts.length === 0) return <div style={{ color: '#475569', fontSize: 12, padding: 12 }}>{t('crisisIntel.noData')}</div>
   const max = Math.max(...dailyCounts.map((d) => d.count), 1)
   const barW = Math.max(4, Math.min(24, Math.floor(200 / dailyCounts.length)))
   return (
@@ -175,6 +181,7 @@ function DailyTrend({ dailyCounts }) {
 
 export default function CrisisIntelligence() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [windowDays, setWindowDays] = useState(7)
   const { data, loading, error, isMock, refetch } = useCrisisAnalytics(windowDays)
   const elevated = data ? data.total_incidents - data.critical_count - data.high_count : 0
@@ -188,16 +195,16 @@ export default function CrisisIntelligence() {
           </button>
           {isMock && (
             <span style={{ fontSize: '0.58rem', color: '#ff9500', background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.25)', borderRadius: 3, padding: '1px 6px', fontWeight: 600, letterSpacing: '0.06em' }}>
-              DONNÉES SIMULÉES
+              {t('status.simulated')}
             </span>
           )}
         </div>
         <div style={{ display: 'flex', gap: 2 }}>
           {[
-            { label: 'Salle Ops', path: '/dashboard' },
-            { label: 'Analytique', path: '/analytics' },
-            { label: 'Simulation', path: '/simulation' },
-            { label: 'À propos', path: '/about' },
+            { label: t('nav.liveOpsRoom'), path: '/dashboard' },
+            { label: t('nav.analytics'), path: '/analytics' },
+            { label: t('nav.simulation'), path: '/simulation' },
+            { label: t('nav.about'), path: '/about' },
           ].map(({ label, path }) => (
             <button
               key={path}
@@ -214,8 +221,8 @@ export default function CrisisIntelligence() {
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
         <div>
-          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 700, color: '#00ff88', letterSpacing: '0.08em' }}>INTELLIGENCE DE CRISE</div>
-          <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>Journal des incidents et analyse d'exposition régionale</div>
+          <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 16, fontWeight: 700, color: '#00ff88', letterSpacing: '0.08em' }}>{t('crisisIntel.title')}</div>
+          <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{t('crisisIntel.subtitle')}</div>
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
           {WINDOWS.map(({ label, days }) => (
@@ -243,46 +250,46 @@ export default function CrisisIntelligence() {
 
       {error && (
         <div style={{ margin: '12px 20px', padding: '10px 14px', background: 'rgba(255,51,51,0.08)', border: '1px solid rgba(255,51,51,0.25)', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 12, color: '#ff3333' }}>Échec du chargement des données analytiques.</span>
-          <button onClick={refetch} style={{ border: '1px solid rgba(255,51,51,0.4)', background: 'none', color: '#ff3333', borderRadius: 4, padding: '2px 10px', fontSize: 11, cursor: 'pointer' }}>Réessayer</button>
+          <span style={{ fontSize: 12, color: '#ff3333' }}>{t('crisisIntel.loadFailed')}</span>
+          <button onClick={refetch} style={{ border: '1px solid rgba(255,51,51,0.4)', background: 'none', color: '#ff3333', borderRadius: 4, padding: '2px 10px', fontSize: 11, cursor: 'pointer' }}>{t('crisisIntel.retry')}</button>
         </div>
       )}
 
       <div style={{ display: 'flex', gap: 10, padding: '14px 20px', flexWrap: 'wrap' }}>
-        <MetricCard label="Total incidents" value={loading ? '…' : (data?.total_incidents ?? 0)} />
-        <MetricCard label="Critique" value={loading ? '…' : (data?.critical_count ?? 0)} color={RISK_COLORS.CRITICAL} />
-        <MetricCard label="Plus exposée" value={loading ? '…' : (data?.most_affected_region ?? '—')} color="#f59e0b" sub="par alertes primaires" />
-        <MetricCard label="Impacts cascade" value={loading ? '…' : (data?.cascade_hits_total ?? 0)} color="#a78bfa" sub="régions secondaires touchées" />
-        <MetricCard label="Rapports envoyés" value={loading ? '…' : (data?.report_dispatch_count ?? 0)} color="#00c46a" />
+        <MetricCard label={t('crisisIntel.totalIncidents')} value={loading ? '…' : (data?.total_incidents ?? 0)} />
+        <MetricCard label={t('crisisIntel.critical')} value={loading ? '…' : (data?.critical_count ?? 0)} color={RISK_COLORS.CRITICAL} />
+        <MetricCard label={t('crisisIntel.mostExposed')} value={loading ? '…' : (data?.most_affected_region ?? '—')} color="#f59e0b" sub={t('crisisIntel.primaryAlerts')} />
+        <MetricCard label={t('crisisIntel.cascadeImpacts')} value={loading ? '…' : (data?.cascade_hits_total ?? 0)} color="#a78bfa" sub={t('crisisIntel.secondaryRegions')} />
+        <MetricCard label={t('crisisIntel.reportsSent')} value={loading ? '…' : (data?.report_dispatch_count ?? 0)} color="#00c46a" />
       </div>
 
       <div style={{ display: 'flex', gap: 0, flex: 1, overflow: 'hidden', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
         <div style={{ flex: 1, overflowY: 'auto', borderRight: '1px solid rgba(255,255,255,0.05)' }}>
           <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            Journal des incidents
+            {t('crisisIntel.incidentLog')}
           </div>
-          {loading && <div style={{ padding: 20, color: '#475569', fontSize: 12 }}>Chargement…</div>}
-          {!loading && data?.incidents?.length === 0 && <div style={{ padding: 20, color: '#475569', fontSize: 12, textAlign: 'center' }}>Aucun incident dans cette période.</div>}
+          {loading && <div style={{ padding: 20, color: '#475569', fontSize: 12 }}>{t('crisisIntel.loading')}</div>}
+          {!loading && data?.incidents?.length === 0 && <div style={{ padding: 20, color: '#475569', fontSize: 12, textAlign: 'center' }}>{t('crisisIntel.noIncidentsPeriod')}</div>}
           {!loading && data?.incidents?.map((inc) => <IncidentRow key={inc.id} incident={inc} />)}
         </div>
 
         <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
           <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Distribution des risques</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>{t('crisisIntel.riskDistribution')}</div>
             {!loading && data && <RiskDonut critical={data.critical_count} high={data.high_count} elevated={elevated} />}
-            {loading && <div style={{ fontSize: 12, color: '#475569' }}>Chargement…</div>}
+            {loading && <div style={{ fontSize: 12, color: '#475569' }}>{t('crisisIntel.loading')}</div>}
           </div>
 
           <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)', flex: 1 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Exposition régionale</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>{t('crisisIntel.regionalExposure')}</div>
             {!loading && data && <RegionBars regionFrequency={data.region_frequency} />}
-            {loading && <div style={{ fontSize: 12, color: '#475569' }}>Chargement…</div>}
+            {loading && <div style={{ fontSize: 12, color: '#475569' }}>{t('crisisIntel.loading')}</div>}
           </div>
 
           <div style={{ padding: '12px 14px' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Tendance quotidienne</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>{t('crisisIntel.dailyTrend')}</div>
             {!loading && data && <DailyTrend dailyCounts={data.daily_counts} />}
-            {loading && <div style={{ fontSize: 12, color: '#475569' }}>Chargement…</div>}
+            {loading && <div style={{ fontSize: 12, color: '#475569' }}>{t('crisisIntel.loading')}</div>}
           </div>
         </div>
       </div>

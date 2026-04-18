@@ -1,28 +1,32 @@
 import { useState } from 'react'
-import { STEG } from '../constants/grid'
-
-const TEAM = [
-  {
-    name: 'PublisherX02',
-    role: 'Fondateur & Ingénieur principal',
-    desc: 'A construit NoorGrid de zéro — backend FastAPI, modèle de jumeau numérique, moteur de prédiction de pannes et infrastructure full-stack.',
-    tag: 'Ingénierie',
-    color: '#00ff88',
-  },
-]
-
-const PROBLEM_STATS = [
-  { value: '4 888 MW', label: 'Pic de demande record', date: '14 août 2024 à 15h41', color: '#ff3333' },
-  { value: '4 636 MW', label: 'Capacité effective du réseau', date: '22% de pertes réseau', color: '#ff9500' },
-  { value: '252 MW',   label: "Couvert par l'Algérie", date: "Via l'interconnecteur Transmed", color: '#ffd700' },
-  { value: '93,7%',   label: 'Dépendance aux fossiles', date: "5-6% d'énergies renouvelables en 2024", color: '#8899aa' },
-  { value: '22%',     label: 'Pertes réseau', date: 'Énergie perdue en transmission', color: '#ff9500' },
-  { value: '41%',     label: 'Indépendance énergétique 2024', date: 'En baisse par rapport à 48% en 2023', color: '#ff3333' },
-]
+import { useTranslation } from 'react-i18next'
 
 export default function About() {
+  const { t } = useTranslation()
   const [formState, setFormState]   = useState({ name: '', email: '', message: '' })
   const [submitted, setSubmitted]   = useState(false)
+  const team = [
+    {
+      name: 'PublisherX02',
+      role: t('about.teamRole'),
+      desc: t('about.teamDesc'),
+      tag: t('about.teamTag'),
+      color: '#00ff88',
+    },
+  ]
+  const problemStats = [
+    { value: '4 888 MW', label: t('about.stat1Label'), date: t('about.stat1Date'), color: '#ff3333' },
+    { value: '4 636 MW', label: t('about.stat2Label'), date: t('about.stat2Date'), color: '#ff9500' },
+    { value: '252 MW',   label: t('about.stat3Label'), date: t('about.stat3Date'), color: '#ffd700' },
+    { value: '93,7%',    label: t('about.stat4Label'), date: t('about.stat4Date'), color: '#8899aa' },
+    { value: '22%',      label: t('about.stat5Label'), date: t('about.stat5Date'), color: '#ff9500' },
+    { value: '41%',      label: t('about.stat6Label'), date: t('about.stat6Date'), color: '#ff3333' },
+  ]
+  const solutions = [
+    { num: '01', title: t('about.solution1Title'), desc: t('about.solution1Desc'), color: '#00ff88' },
+    { num: '02', title: t('about.solution2Title'), desc: t('about.solution2Desc'), color: '#ff3333' },
+    { num: '03', title: t('about.solution3Title'), desc: t('about.solution3Desc'), color: '#06b6d4' },
+  ]
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -62,15 +66,14 @@ export default function About() {
               marginBottom: '1rem',
             }}
           >
-            L'infrastructure manquante d'intelligence
+            {t('about.heroLine1')}
             <br />
             <span style={{ color: '#00ff88', textShadow: '0 0 30px rgba(0,255,136,0.3)' }}>
-              énergétique de la Tunisie
+              {t('about.heroLine2')}
             </span>
           </h1>
           <p style={{ fontSize: '1rem', color: '#8899aa', maxWidth: '600px', margin: '0 auto', lineHeight: 1.6 }}>
-            NoorGrid n'est pas un tableau de bord. Ce n'est pas un outil de surveillance.
-            C'est la couche d'intelligence qui n'a jamais existé.
+            {t('about.heroSub')}
           </p>
         </div>
 
@@ -79,28 +82,21 @@ export default function About() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
             <div style={{ width: '3px', height: '24px', background: '#ff3333', borderRadius: '2px' }} />
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f0f4f8', letterSpacing: '-0.01em' }}>
-              Le Problème
+              {t('about.problemTitle')}
             </h2>
           </div>
 
           <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem', borderColor: 'rgba(255,51,51,0.15)' }}>
             <p style={{ fontSize: '0.9rem', color: '#8899aa', lineHeight: 1.75, marginBottom: '1rem' }}>
-              Le <strong style={{ color: '#ff3333' }}>14 août 2024 à 15h41</strong>, le réseau national tunisien a atteint un record de{' '}
-              <strong style={{ color: '#ff3333' }}>4 888 MW de demande</strong> contre une capacité effective de{' '}
-              <strong style={{ color: '#ff9500' }}>4 636 MW</strong>. Le réseau était en surcapacité.
-              L'Algérie a comblé l'<strong style={{ color: '#ffd700' }}>écart de 252 MW</strong> via l'interconnecteur.
-              Sans elle, la Tunisie fait face à une panne en cascade.
+              {t('about.problemPara1')}
             </p>
             <p style={{ fontSize: '0.9rem', color: '#8899aa', lineHeight: 1.75 }}>
-              Ce n'est pas une hypothèse. Cela se produit chaque été.
-              La Tunisie possède des parcs éoliens, des centrales solaires et des barrages hydroélectriques répartis dans 24 gouvernorats.
-              Chaque installation est surveillée de manière isolée. Il n'existe aucune vue centralisée en temps réel.
-              Pas de prédiction. Pas de prévention.
+              {t('about.problemPara2')}
             </p>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
-            {PROBLEM_STATS.map((s, i) => (
+            {problemStats.map((s, i) => (
               <div
                 key={i}
                 className="card"
@@ -176,8 +172,7 @@ export default function About() {
               letterSpacing: '-0.01em',
             }}
           >
-            Il n'existe aucun système numérique de suivi pour ces réseaux.
-            Et il n'y a aucune culture de la prévention.
+            {t('about.quote')}
           </blockquote>
           <div style={{ paddingLeft: '1rem' }}>
             <div
@@ -190,9 +185,9 @@ export default function About() {
               }}
             />
             <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#e2e8f0' }}>
-              Haut responsable, Division Énergies Renouvelables STEG
+              {t('about.quoteAuthor')}
             </div>
-            <div style={{ fontSize: '0.78rem', color: '#8899aa', marginTop: '3px' }}>Avril 2026</div>
+            <div style={{ fontSize: '0.78rem', color: '#8899aa', marginTop: '3px' }}>{t('about.quoteDate')}</div>
           </div>
         </section>
 
@@ -201,31 +196,12 @@ export default function About() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
             <div style={{ width: '3px', height: '24px', background: '#00ff88', borderRadius: '2px' }} />
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f0f4f8', letterSpacing: '-0.01em' }}>
-              La Solution
+              {t('about.solutionTitle')}
             </h2>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-            {[
-              {
-                num: '01',
-                title: 'Jumeau numérique',
-                desc: "Réplique virtuelle en temps réel du réseau tunisien. Fusion de capteurs IoT. Modèle physique sensible au temps. Déploiement automatisé de drones sur détection d'anomalie.",
-                color: '#00ff88',
-              },
-              {
-                num: '02',
-                title: 'Prédiction de panne',
-                desc: "Prévision 72h utilisant les données météo OpenMeteo, les courbes de demande en heure de pointe et les constantes de capacité STEG. La prévention avant la défaillance.",
-                color: '#ff3333',
-              },
-              {
-                num: '03',
-                title: 'Indice carbone national',
-                desc: "Premier score carbone régionalisé de Tunisie par gouvernorat. Construit à partir de données de facturation réelles et de la production renouvelable en direct. Un chiffre qui n'a jamais existé.",
-                color: '#06b6d4',
-              },
-            ].map((s) => (
+            {solutions.map((s) => (
               <div key={s.num} className="card" style={{ padding: '1.5rem', borderColor: `${s.color}20` }}>
                 <div
                   style={{
@@ -254,12 +230,12 @@ export default function About() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
             <div style={{ width: '3px', height: '24px', background: '#06b6d4', borderRadius: '2px' }} />
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f0f4f8', letterSpacing: '-0.01em' }}>
-              Équipe
+              {t('about.teamTitle')}
             </h2>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
-            {TEAM.map((m) => (
+            {team.map((m) => (
               <div key={m.name} className="card" style={{ padding: '1.5rem', borderColor: `${m.color}20` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                   <div
@@ -312,7 +288,7 @@ export default function About() {
             rel="noopener noreferrer"
             className="btn btn-outline"
           >
-            Dépôt GitHub →
+            {t('about.githubRepo')} →
           </a>
           <a
             href="http://localhost:8000/docs"
@@ -320,7 +296,7 @@ export default function About() {
             rel="noopener noreferrer"
             className="btn btn-secondary"
           >
-            Documentation API →
+            {t('about.apiDocs')} →
           </a>
         </section>
 
@@ -329,7 +305,7 @@ export default function About() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
             <div style={{ width: '3px', height: '24px', background: '#ffd700', borderRadius: '2px' }} />
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f0f4f8', letterSpacing: '-0.01em' }}>
-              Demander une démo
+              {t('about.requestDemo')}
             </h2>
           </div>
 
@@ -345,10 +321,10 @@ export default function About() {
             >
               <div style={{ fontSize: '2rem', marginBottom: '12px' }}>✓</div>
               <div style={{ fontSize: '1rem', fontWeight: 700, color: '#00ff88', marginBottom: '6px' }}>
-                Message envoyé
+                {t('about.messageSent')}
               </div>
               <div style={{ fontSize: '0.83rem', color: '#8899aa' }}>
-                Nous vous contacterons pour organiser une démonstration avec votre équipe.
+                {t('about.messageSentSub')}
               </div>
             </div>
           ) : (
@@ -359,8 +335,8 @@ export default function About() {
             >
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 {[
-                  { key: 'name', label: 'Nom complet', placeholder: 'Votre nom' },
-                  { key: 'email', label: 'Email professionnel', placeholder: 'nom@steg.com.tn', type: 'email' },
+                  { key: 'name', label: t('about.fullName'), placeholder: t('about.fullNamePlaceholder') },
+                  { key: 'email', label: t('about.workEmail'), placeholder: 'nom@steg.com.tn', type: 'email' },
                 ].map(({ key, label, placeholder, type }) => (
                   <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -391,12 +367,12 @@ export default function About() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                 <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Message
+                  {t('about.message')}
                 </label>
                 <textarea
                   required
                   rows={4}
-                  placeholder="Décrivez votre organisation et votre cas d'usage…"
+                  placeholder={t('about.messagePlaceholder')}
                   value={formState.message}
                   onChange={(e) => setFormState((p) => ({ ...p, message: e.target.value }))}
                   style={{
@@ -417,7 +393,7 @@ export default function About() {
                 />
               </div>
               <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
-                Envoyer la demande
+                {t('about.sendRequest')}
               </button>
             </form>
           )}
