@@ -1,0 +1,10 @@
+[run]
+source =
+    backend
+omit =
+    frontend/*
+    */frontend/*
+    tests/*
+
+[report]
+skip_empty = True

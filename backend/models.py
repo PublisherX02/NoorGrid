@@ -2,6 +2,7 @@
 Pydantic request/response models for the NoorGrid API.
 """
 
+from typing import Literal
 from pydantic import BaseModel, Field
 
 
@@ -183,8 +184,9 @@ class NationalStatsResponse(BaseModel):
 
 class AlertSimulateRequest(BaseModel):
     region: str = Field(..., description="Governorate name — must exist in _REGION_CFG")
-    risk_level: str = Field(..., description="CRITICAL or HIGH")
+    risk_level: Literal["CRITICAL", "HIGH", "ELEVATED", "NOMINAL"] = Field(..., description="Risk level")
     scenario_label: str = Field(..., min_length=1, max_length=200)
+    cascade_regions: list[str] = Field(default_factory=list)
 
 
 class AlertSimulateResponse(BaseModel):
@@ -196,3 +198,84 @@ class AlertSimulateResponse(BaseModel):
     triggered_at: str
     is_test: bool
 
+
+# ── Report generation ─────────────────────────────────────────────────────────
+
+class CascadeRegionItem(BaseModel):
+    name: str = Field(..., min_length=1)
+    risk_level: Literal["CRITICAL", "HIGH", "ELEVATED", "NOMINAL"]
+
+
+class ReportRequest(BaseModel):
+    region: str = Field(..., min_length=1)
+    risk_level: Literal["CRITICAL", "HIGH", "ELEVATED", "NOMINAL"]
+    scenario_label: str = Field(..., min_length=1)
+    source: str = Field(..., min_length=1)
+    magnitude_mw: float = Field(..., ge=0)
+    cascade_regions: list[CascadeRegionItem] = []
+    prevention_actions: list[str] = []
+
+
+class ReportResponse(BaseModel):
+    region: str = Field(..., min_length=1)
+    risk_level: Literal["CRITICAL", "HIGH", "ELEVATED", "NOMINAL"]
+    scenario_label: str = Field(..., min_length=1)
+    source: str = Field(..., min_length=1)
+    magnitude_mw: float = Field(..., ge=0)
+    cascade_regions: list[CascadeRegionItem] = []
+    prevention_actions: list[str] = []
+    root_cause: str
+    technical_fix: str
+    impact_summary: str
+    recommended_actions: list[str]
+    generated_at: str
+
+
+class ReportSendRequest(BaseModel):
+    recipients: list[str] = Field(..., min_length=1, max_length=20, description="1–20 recipient email addresses")
+    report: ReportResponse
+    alert_id: int | None = None
+
+
+class ReportSendResponse(BaseModel):
+    sent: bool
+    recipients: list[str]
+    sent_at: str
+
+
+# ── Crisis Analytics models ───────────────────────────────────────────────────
+
+class RegionFrequencyItem(BaseModel):
+    region: str
+    primary_count: int
+    cascade_count: int
+    total: int
+
+
+class DailyCountItem(BaseModel):
+    date: str
+    count: int
+
+
+class IncidentItem(BaseModel):
+    id: int
+    region: str
+    risk_level: str
+    scenario_label: str
+    cascade_regions: list[str]
+    triggered_at: str
+    report_sent: bool
+    recipients_count: int
+
+
+class CrisisAnalyticsResponse(BaseModel):
+    window_days: int
+    total_incidents: int
+    critical_count: int
+    high_count: int
+    most_affected_region: str | None
+    report_dispatch_count: int
+    cascade_hits_total: int
+    incidents: list[IncidentItem]
+    region_frequency: list[RegionFrequencyItem]
+    daily_counts: list[DailyCountItem]

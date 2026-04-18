@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getHistory } from '../services/api'
 import { GOVERNORATES, RISK_COLORS, RISK_ORDER } from '../constants/grid'
 import { useWeather } from '../hooks/useWeather'
 import RiskBadge from '../components/UI/RiskBadge'
+import BlackoutForecastPanel from '../components/Forecast/BlackoutForecastPanel'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
   ResponsiveContainer, CartesianGrid, Cell,
@@ -65,12 +67,12 @@ const ChartTooltip = ({ active, payload, label }) => {
 
 // ─── Risk Breakdown ──────────────────────────────────────────────────────────
 const RISK_COMPONENTS = [
-  { key: 'deviation',   label: 'Output Deviation',    color: '#ff3333', pct: 0 },
-  { key: 'rate_change', label: 'Rate of Change',       color: '#ff9500', pct: 0 },
-  { key: 'correlation', label: 'Regional Correlation', color: '#06b6d4', pct: 0 },
+  { key: 'deviation', color: '#ff3333', pct: 0 },
+  { key: 'rate_change', color: '#ff9500', pct: 0 },
+  { key: 'correlation', color: '#06b6d4', pct: 0 },
 ]
 
-function getRiskComponents(riskLevel) {
+function getRiskComponents(riskLevel, labels) {
   const base = {
     CRITICAL: [78, 65, 82],
     HIGH:     [55, 42, 60],
@@ -79,11 +81,19 @@ function getRiskComponents(riskLevel) {
   }[riskLevel] || [12, 9, 15]
   return RISK_COMPONENTS.map((c, i) => ({
     ...c,
+    label: labels[c.key],
     pct: base[i] + (Math.random() * 8 - 4) | 0,
   }))
 }
 
 export default function Analytics() {
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language === 'fr' ? 'fr-FR' : 'en-GB'
+  const riskComponentLabels = {
+    deviation: t('analytics.riskDeviation'),
+    rate_change: t('analytics.riskRateChange'),
+    correlation: t('analytics.riskCorrelation'),
+  }
   const { weatherMap, isMock: weatherMock } = useWeather()
   const [selectedGov, setSelectedGov]     = useState(ALL_GOVS[0])
   const [historyData, setHistoryData]     = useState([])
@@ -112,10 +122,16 @@ export default function Analytics() {
   const loadHistory = useCallback(async (gov) => {
     setLoading(true)
     try {
-      if (gov.hasBackend) {
-        const result  = await getHistory(gov.name, 2)
-        const records = result.data.records || []
-        setIsMock(result.mock)
+      const result  = await getHistory(gov.name, 2)
+      const records = result.data.records || []
+
+      if (records.length === 0 || result.mock) {
+        // No real data yet — fall back to deterministic synthetic series
+        setHistoryData(_mockHistory48h(gov))
+        setTableData([])
+        setIsMock(true)
+      } else {
+        setIsMock(false)
 
         const sampled = records
           .filter((_, i) => i % Math.max(1, Math.floor(records.length / 48)) === 0)
@@ -123,13 +139,15 @@ export default function Analytics() {
 
         const series = sampled.map((r) => ({
           time: r.recorded_at
-            ? new Date(r.recorded_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+            ? new Date(r.recorded_at).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
             : '',
           wind_ms:    +r.wind_speed_ms.toFixed(2),
           irradiance: +r.solar_irradiance_wm2.toFixed(0),
-          output_mw:
-            gov.source === 'Wind'
-              ? +(0.5 * 1.225 * (gov.rotor_area  || 5000)   * Math.pow(r.wind_speed_ms, 3) * (gov.efficiency || 0.4)  / 1e6).toFixed(2)
+          // Use stored output_mw from DB when available; recompute as fallback
+          output_mw: r.output_mw != null
+            ? +r.output_mw.toFixed(2)
+            : gov.source === 'Wind'
+              ? +(0.5 * 1.225 * (gov.rotor_area  || 5000) * Math.pow(r.wind_speed_ms, 3) * (gov.efficiency || 0.4)  / 1e6).toFixed(2)
               : gov.source === 'Solar'
               ? +(r.solar_irradiance_wm2 * (gov.panel_area || 100000) * (gov.efficiency || 0.18) / 1e6).toFixed(2)
               : gov.baseline_mw,
@@ -138,22 +156,17 @@ export default function Analytics() {
         setHistoryData(series)
         setTableData(
           records.slice(0, 20).map((r) => ({
-            time:       r.recorded_at ? new Date(r.recorded_at).toLocaleString('en-GB') : '',
+            time:       r.recorded_at ? new Date(r.recorded_at).toLocaleString(locale) : '',
             wind_ms:    r.wind_speed_ms.toFixed(2),
             irradiance: r.solar_irradiance_wm2.toFixed(0),
             region:     r.region,
           }))
         )
-      } else {
-        // Non-backend: generate synthetic series immediately, no network call
-        setHistoryData(_mockHistory48h(gov))
-        setTableData([])
-        setIsMock(true)
       }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [locale])
 
   useEffect(() => {
     loadHistory(selectedGov)
@@ -174,7 +187,7 @@ export default function Analytics() {
   }
 
   const selectedLiveRisk = weatherMap[selectedGov?.name]?.risk_level || selectedGov?.mock_risk
-  const components = getRiskComponents(selectedLiveRisk)
+  const components = getRiskComponents(selectedLiveRisk, riskComponentLabels)
 
   // Govs visible in the current filter state
   const visibleGovs = ALL_GOVS.filter((g) => {
@@ -215,21 +228,21 @@ export default function Analytics() {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#00ff88', marginBottom: '6px' }}>
-              Analytics
+              {t('nav.analytics')}
             </div>
             <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f0f4f8', letterSpacing: '-0.02em' }}>
-              Grid Performance & Risk Analysis
+              {t('analytics.title')}
             </h1>
             <p style={{ fontSize: '0.85rem', color: '#8899aa', marginTop: '6px' }}>
-              48-hour trend analysis · Composite risk scoring · Historical data export
+              {t('analytics.subtitle')}
               {(isMock || weatherMock) && (
                 <span style={{ marginLeft: '8px', color: '#ff9500', fontSize: '0.75rem', fontWeight: 600 }}>
-                  [Simulated data]
+                  [{t('status.simulated')}]
                 </span>
               )}
             </p>
           </div>
-          <button onClick={exportCSV} className="btn btn-outline btn-sm">↓ Export CSV</button>
+          <button onClick={exportCSV} className="btn btn-outline btn-sm">↓ {t('analytics.exportCsv')}</button>
         </div>
 
         {/* ── National Overview ───────────────────────────────────────────── */}
@@ -237,20 +250,20 @@ export default function Analytics() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <div>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa' }}>
-                National Grid Snapshot
+                {t('analytics.nationalOverview')}
               </div>
               <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f0f4f8', marginTop: '2px' }}>
-                All 24 Governorates — Output vs Avg Demand
+                {t('analytics.nationalOverviewSub')}
               </div>
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', fontSize: '0.68rem', color: '#8899aa' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <div style={{ width: '10px', height: '10px', background: '#00ff88', borderRadius: '2px' }} />
-                Output MW
+                {t('analytics.productionMw')}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <div style={{ width: '10px', height: '10px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px' }} />
-                Avg Demand MW
+                {t('analytics.avgDemandMw')}
               </div>
             </div>
           </div>
@@ -274,7 +287,7 @@ export default function Analytics() {
               />
               <YAxis tick={false} axisLine={false} />
               <Tooltip content={<ChartTooltip />} />
-              <Bar dataKey="output" name="Output MW" radius={[2, 2, 0, 0]}>
+              <Bar dataKey="output" name={t('analytics.productionMw')} radius={[2, 2, 0, 0]}>
                 {overviewData.map((entry, i) => (
                   <Cell
                     key={i}
@@ -283,7 +296,7 @@ export default function Analytics() {
                   />
                 ))}
               </Bar>
-              <Bar dataKey="demand" name="Avg Demand MW" fill="rgba(255,255,255,0.12)" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="demand" name={t('analytics.avgDemandMw')} fill="rgba(255,255,255,0.12)" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -309,7 +322,7 @@ export default function Analytics() {
                   transition: 'all 0.15s',
                 }}
               >
-                {r || 'All Regions'}
+                {r || t('analytics.allRegions')}
               </button>
             ))}
           </div>
@@ -336,7 +349,7 @@ export default function Analytics() {
                     transition: 'all 0.15s',
                   }}
                 >
-                  {r || 'All Risk'}
+                  {r || t('analytics.allLevels')}
                 </button>
               )
             })}
@@ -359,7 +372,7 @@ export default function Analytics() {
               color: '#e2e8f0',
             }}
           >
-            <span style={{ color: '#8899aa' }}>Viewing:</span>
+            <span style={{ color: '#8899aa' }}>{t('analytics.display')}:</span>
             <span style={{ fontWeight: 700, color: RISK_COLORS[selectedLiveRisk] || '#00ff88' }}>
               {selectedGov.name}
             </span>
@@ -495,10 +508,10 @@ export default function Analytics() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <div>
                 <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa' }}>
-                  48H Trend
+                  {t('analytics.trend48h')}
                 </div>
                 <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f0f4f8', marginTop: '2px' }}>
-                  {selectedGov?.name} — Energy Output
+                  {selectedGov?.name} — {t('analytics.energyOutput')}
                 </div>
               </div>
               {loading && <div className="spinner" />}
@@ -526,9 +539,9 @@ export default function Analytics() {
                   />
                   <YAxis tick={{ fontSize: 9, fill: '#8899aa' }} axisLine={false} tickLine={false} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Area type="monotone" dataKey="output_mw" stroke="#00ff88" fill="url(#gwGrad)" strokeWidth={2} name="Output MW" dot={false} />
+                  <Area type="monotone" dataKey="output_mw" stroke="#00ff88" fill="url(#gwGrad)" strokeWidth={2} name={t('analytics.productionMw')} dot={false} />
                   {selectedGov?.source !== 'Hydro' && (
-                    <Area type="monotone" dataKey="wind_ms" stroke="#06b6d4" fill="url(#irrGrad)" strokeWidth={1.5} name="Wind m/s" dot={false} />
+                    <Area type="monotone" dataKey="wind_ms" stroke="#06b6d4" fill="url(#irrGrad)" strokeWidth={1.5} name={t('analytics.windMs')} dot={false} />
                   )}
                 </AreaChart>
               </ResponsiveContainer>
@@ -543,10 +556,10 @@ export default function Analytics() {
           <div className="card" style={{ padding: '1.25rem' }}>
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa' }}>
-                Risk Analysis
+                {t('analytics.riskAnalysis')}
               </div>
               <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f0f4f8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Composite Risk Score
+                {t('analytics.compositeRiskScore')}
                 <RiskBadge level={selectedLiveRisk} size="sm" />
               </div>
             </div>
@@ -586,7 +599,7 @@ export default function Analytics() {
               }}
             >
               <div style={{ fontSize: '0.6rem', color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
-                Composite Score
+                {t('analytics.compositeScore')}
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <span
@@ -615,7 +628,7 @@ export default function Analytics() {
                   />
                   <YAxis domain={[0, 100]} tick={false} axisLine={false} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="pct" name="Risk %" radius={[3, 3, 0, 0]}>
+                  <Bar dataKey="pct" name={t('analytics.riskPercent')} radius={[3, 3, 0, 0]}>
                     {components.map((c, i) => (
                       <Cell key={i} fill={c.color} />
                     ))}
@@ -626,25 +639,29 @@ export default function Analytics() {
           </div>
         </div>
 
+        {/* ── Blackout Forecast ───────────────────────────────────────────── */}
+        <BlackoutForecastPanel selectedGov={selectedGov} liveRisk={selectedLiveRisk} />
+
         {/* ── Historical Data Table ────────────────────────────────────────── */}
         <div className="card" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa' }}>
-                Historical Records
+                {t('analytics.historyTitle')}
               </div>
               <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f0f4f8', marginTop: '2px' }}>
-                {selectedGov?.name} — Last 48 Hours
+                {selectedGov?.name} — {t('analytics.last48h')}
               </div>
             </div>
-            <button onClick={exportCSV} className="btn btn-secondary btn-sm">↓ CSV</button>
+            <button onClick={exportCSV} className="btn btn-secondary btn-sm">↓ {t('analytics.csv')}</button>
+
           </div>
 
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(0,255,136,0.1)' }}>
-                  {['Timestamp', 'Wind Speed', 'Solar Irradiance', 'Region'].map((h) => (
+                  {[t('analytics.timestamp'), t('analytics.windSpeed'), t('analytics.solarIrradiance'), t('analytics.region')].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -686,10 +703,10 @@ export default function Analytics() {
                   <tr>
                     <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#8899aa', fontSize: '0.8rem' }}>
                       {loading
-                        ? 'Loading historical data…'
+                        ? t('analytics.loadingHistory')
                         : selectedGov?.hasBackend
-                        ? 'No records found'
-                        : 'Synthetic data — no raw records for this governorate'}
+                        ? t('analytics.noRecords')
+                        : t('analytics.syntheticNoRecords')}
                     </td>
                   </tr>
                 )}

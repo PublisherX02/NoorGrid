@@ -23,7 +23,16 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw
-from db import get_alerts_feed, get_region_history, init_db, insert_alert, insert_weather_entries
+from db import (
+    get_alert_by_id,
+    get_alerts_feed,
+    get_crisis_analytics,
+    get_region_history,
+    init_db,
+    insert_alert,
+    insert_report_send,
+    insert_weather_entries,
+)
 from grid import GridInputs, simulate_national_grid
 from models import (
     AlertSimulateRequest,
@@ -32,6 +41,7 @@ from models import (
     BlackoutResponse,
     CarbonRequest,
     CarbonResponse,
+    CrisisAnalyticsResponse,
     GridSimulationRequest,
     GridSimulationResponse,
     HistoryRecordRequest,
@@ -43,12 +53,17 @@ from models import (
     RAGRequest,
     RAGResponse,
     RegionHistoryResponse,
+    ReportRequest,
+    ReportResponse,
+    ReportSendRequest,
+    ReportSendResponse,
     SolarRequest,
     WeatherAllEntry,
     WeatherAllResponse,
     WeatherResponse,
     WindRequest,
 )
+from report import generate_report_from_nim
 from weather import fetch_all_weather
 
 app = FastAPI(
@@ -69,10 +84,14 @@ _scheduler = AsyncIOScheduler()
 
 _FACTS_PATH = os.path.join(os.path.dirname(__file__), "data", "tunisia_energy_facts_2024_2025.json")
 
+# Load once at import time — used by _compute_region_output and prediction loop
+with open(_FACTS_PATH, "r", encoding="utf-8") as _f:
+    _NATIONAL_FACTS: dict = json.load(_f)
+
 
 def _load_national_facts() -> dict:
-    with open(_FACTS_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """Return the cached national facts. File is read once at startup."""
+    return _NATIONAL_FACTS
 
 
 async def scheduled_ingest() -> None:
@@ -467,11 +486,13 @@ def simulate_alert(req: AlertSimulateRequest):
             scenario_label=req.scenario_label,
             prevention_actions=actions,
             is_test=True,
+            cascade_regions=req.cascade_regions,
         )
-        # Retrieve the stored record to get the DB-generated triggered_at timestamp
-        feed = get_alerts_feed(limit=1)
-        if feed:
-            triggered_at = feed[0]["triggered_at"]
+        # Fetch by id — avoids race condition that get_alerts_feed(limit=1) would have
+        # under concurrent requests (it could return a different alert's timestamp).
+        stored = get_alert_by_id(alert_id)
+        if stored:
+            triggered_at = stored["triggered_at"]
     except Exception as exc:
         print(f"[alerts] failed to persist simulated alert: {exc}")
 
@@ -493,6 +514,74 @@ def get_alerts(limit: int = 10):
         raise HTTPException(status_code=422, detail="limit must be between 1 and 50")
     rows = get_alerts_feed(limit=limit)
     return [AlertSimulateResponse(**row) for row in rows]
+
+
+# ── Report generation endpoints ───────────────────────────────────────────────
+
+@app.post("/report/generate", response_model=ReportResponse, tags=["Report"])
+async def generate_report(req: ReportRequest):
+    """
+    Generate an AI-powered incident diagnosis report for a triggered crisis.
+    Calls NVIDIA NIM; falls back to mock report if the key is absent.
+    """
+    nim_result = await generate_report_from_nim(
+        region=req.region,
+        risk_level=req.risk_level,
+        scenario_label=req.scenario_label,
+        source=req.source,
+        magnitude_mw=req.magnitude_mw,
+        cascade_regions=[c.model_dump() for c in req.cascade_regions],
+        prevention_actions=req.prevention_actions,
+    )
+    generated_at = datetime.datetime.utcnow().isoformat()
+    return ReportResponse(
+        region=req.region,
+        risk_level=req.risk_level,
+        scenario_label=req.scenario_label,
+        source=req.source,
+        magnitude_mw=req.magnitude_mw,
+        cascade_regions=req.cascade_regions,
+        prevention_actions=req.prevention_actions,
+        root_cause=nim_result.get("root_cause", ""),
+        technical_fix=nim_result.get("technical_fix", ""),
+        impact_summary=nim_result.get("impact_summary", ""),
+        recommended_actions=nim_result.get("recommended_actions", []),
+        generated_at=generated_at,
+    )
+
+
+@app.post("/report/send", response_model=ReportSendResponse, tags=["Report"])
+def send_report(req: ReportSendRequest):
+    """
+    Simulate dispatching an incident report email to engineers/technicians.
+    Logs the send to stdout. Does not deliver real email (simulation mode).
+    """
+    sent_at = datetime.datetime.utcnow().isoformat()
+    print(
+        f"[report] SIMULATED SEND — scenario='{req.report.scenario_label}' "
+        f"region={req.report.region} risk={req.report.risk_level} "
+        f"recipients={req.recipients} sent_at={sent_at}"
+    )
+    try:
+        insert_report_send(
+            scenario_label=req.report.scenario_label,
+            region=req.report.region,
+            risk_level=req.report.risk_level,
+            recipients=req.recipients,
+            sent_at=sent_at,
+            alert_id=req.alert_id,
+        )
+    except Exception as exc:
+        print(f"[report] failed to persist send log: {exc}")
+    return ReportSendResponse(sent=True, recipients=req.recipients, sent_at=sent_at)
+
+
+@app.get("/analytics/crisis", response_model=CrisisAnalyticsResponse, tags=["Analytics"])
+def get_crisis_analytics_endpoint(days: int = 7):
+    """Return aggregate crisis analytics for the given time window."""
+    if days < 1 or days > 365:
+        raise HTTPException(status_code=422, detail="days must be between 1 and 365")
+    return CrisisAnalyticsResponse(**get_crisis_analytics(days))
 
 
 # ── Blackout prediction endpoint ──────────────────────────────────────────────
@@ -571,12 +660,16 @@ async def predict_blackout(req: BlackoutRequest):
             renewable_mw = max(0.1, wind_power_mw(wind, cfg["rotor_area"], cfg["efficiency"]))
         elif source == "Solar":
             renewable_mw = max(0.1, solar_power_mw(irr, cfg["panel_area"], cfg["efficiency"]))
+        elif source == "Mixed":
+            # 40% renewable wind offset + 60% fossil backbone (mirrors _compute_region_output)
+            wind_offset = wind_power_mw(wind, cfg["rotor_area"], cfg["efficiency"])
+            renewable_mw = max(0.1, 0.40 * wind_offset)
         else:  # Hydro — weather-independent, runs at rated capacity
             renewable_mw = installed_capacity
 
         # Tunisia's grid is predominantly fossil-backed; include fossil baseline
-        # so risk doesn't assume a renewables-only supply model.
-        fossil_baseline_mw = installed_capacity * fossil_share
+        # using avg_demand as the reference (consistent with _compute_region_output).
+        fossil_baseline_mw = avg_demand * fossil_share
         available_mw = max(0.1, renewable_mw + fossil_baseline_mw)
 
         # Stress = demand vs effective available supply (fossil baseline + renewable)
@@ -653,7 +746,7 @@ Bizerte offshore wind 120 MW, Sfax battery 150 MWh
 ▸ Energy independence: {energy_independence_q1_2025_pct:.1f}% in Q1 2025
 ▸ Energy trade deficit: {trade_deficit_tnd_billion_2025:.2f} billion TND by end 2025
 ▸ Total generation: {total_generation_gwh_2024:,.0f} GWh (2024), {total_generation_gwh_2025:,.0f} GWh (2025)
-▸ Nawara gas field: production down {nawara_output_change_pct_2025:.0f}% in early 2025
+▸ Nawara gas field: production down {nawara_output_change_pct_2025_abs:.0f}% in early 2025
 ▸ Algeria gas imports: up {algeria_gas_imports_change_pct_2025:.0f}% in 2025; electricity imports cover {electricity_import_coverage_summer_2025_pct:.0f}% of August peak demand
 
 RESPONSE FORMAT: Structure your answers with ALL-CAPS section headers where useful, \

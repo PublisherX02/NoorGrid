@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import ParticleBackground from '../components/Landing/ParticleBackground'
-import { STEG, GOVERNORATES, RISK_COLORS } from '../constants/grid'
+import { GOVERNORATES } from '../constants/grid'
 
 // ─── Feature Cards ─────────────────────────────────────────────────────────
 const FEATURES = [
@@ -11,10 +12,9 @@ const FEATURES = [
       </svg>
     ),
     color: '#00ff88',
-    title: 'Digital Twin',
-    desc:
-      "Real-time virtual replica of Tunisia's 24-governorate renewable grid. IoT sensor fusion across wind farms, solar plants, and hydroelectric dams. Automated drone dispatch on anomaly detection.",
-    tag: 'Real-time',
+    title: 'landing.feature1Title',
+    desc: 'landing.feature1Desc',
+    tag: 'landing.feature1Tag',
   },
   {
     icon: (
@@ -24,10 +24,9 @@ const FEATURES = [
       </svg>
     ),
     color: '#ff3333',
-    title: 'Blackout Prediction',
-    desc:
-      '72-hour forecast engine using live temperature data, peak-hour demand curves, and STEG capacity constants. The system that would have warned operators 72 hours before August 14, 2024.',
-    tag: '72H Forecast',
+    title: 'landing.feature2Title',
+    desc: 'landing.feature2Desc',
+    tag: 'landing.feature2Tag',
   },
   {
     icon: (
@@ -37,20 +36,19 @@ const FEATURES = [
       </svg>
     ),
     color: '#06b6d4',
-    title: 'National Carbon Index',
-    desc:
-      "Tunisia's first regionalized carbon score — calculated per governorate from real STEG billing data, live weather, and renewable production. A number that has never existed before.",
-    tag: 'First-ever',
+    title: 'landing.feature3Title',
+    desc: 'landing.feature3Desc',
+    tag: 'landing.feature3Tag',
   },
 ]
 
 // ─── Stats ────────────────────────────────────────────────────────────────
 const STATS = [
-  { value: '5,944', unit: 'MW', label: 'National Grid Capacity' },
-  { value: '4,888', unit: 'MW', label: 'Record Peak — Aug 14 2024' },
-  { value: '22%',   unit: '',   label: 'Grid Losses Tracked' },
-  { value: '14%',   unit: '',   label: 'Algeria Dependency Flagged' },
-  { value: '93.7%', unit: '',   label: 'Fossil Fuel Dependency' },
+  { value: '5 944', unit: 'MW', label: 'landing.stat1' },
+  { value: '4 888', unit: 'MW', label: 'landing.stat2' },
+  { value: '22%',   unit: '',   label: 'landing.stat3' },
+  { value: '14%',   unit: '',   label: 'landing.stat4' },
+  { value: '93,7%', unit: '',   label: 'landing.stat5' },
 ]
 
 // ─── Tech Stack ───────────────────────────────────────────────────────────
@@ -63,6 +61,7 @@ const TECH = [
 ]
 
 export default function Landing() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const critical = GOVERNORATES.filter((g) => g.mock_risk === 'CRITICAL').length
   const high     = GOVERNORATES.filter((g) => g.mock_risk === 'HIGH').length
@@ -123,7 +122,7 @@ export default function Landing() {
             }}
           >
             <span className="live-dot" style={{ background: '#ff3333', boxShadow: '0 0 6px #ff3333' }} />
-            LIVE — {critical} CRITICAL · {high} HIGH RISK REGIONS
+            {t('landing.liveStatus', { critical, high })}
           </div>
 
           {/* Main headline */}
@@ -137,17 +136,17 @@ export default function Landing() {
               color: '#f0f4f8',
             }}
           >
-            Tunisia's Missing{' '}
+            {t('landing.heroLine1')}{' '}
             <span
               style={{
                 color: '#00ff88',
                 textShadow: '0 0 40px rgba(0,255,136,0.4)',
               }}
             >
-              Energy Intelligence
+              {t('landing.heroLine2')}
             </span>
             <br />
-            Infrastructure.
+            {t('landing.heroLine3')}
           </h1>
 
           {/* Sub-headline */}
@@ -160,8 +159,7 @@ export default function Landing() {
               margin: '0 auto 2.5rem',
             }}
           >
-            Real-time digital twin &nbsp;·&nbsp; Blackout prediction &nbsp;·&nbsp;
-            National carbon index &nbsp;·&nbsp; AI-powered investment strategy
+            {t('landing.heroSub')}
           </p>
 
           {/* CTA Buttons */}
@@ -170,13 +168,13 @@ export default function Landing() {
               onClick={() => navigate('/about')}
               className="btn btn-primary btn-lg"
             >
-              Request Demo
+              {t('landing.requestDemo')}
             </button>
             <button
               onClick={() => navigate('/dashboard')}
               className="btn btn-outline btn-lg"
             >
-              View Dashboard →
+              {t('landing.viewDashboard')}
             </button>
           </div>
 
@@ -191,7 +189,7 @@ export default function Landing() {
               opacity: 0.4,
             }}
           >
-            <span style={{ fontSize: '0.65rem', letterSpacing: '0.12em', color: '#8899aa' }}>SCROLL</span>
+            <span style={{ fontSize: '0.65rem', letterSpacing: '0.12em', color: '#8899aa' }}>{t('landing.scroll')}</span>
             <div
               style={{
                 width: '1px',
@@ -247,10 +245,10 @@ export default function Landing() {
                   fontWeight: 500,
                 }}
               >
-                {s.label}
-              </div>
-            </div>
-          ))}
+                 {t(s.label)}
+               </div>
+             </div>
+           ))}
         </div>
       </section>
 
@@ -267,7 +265,7 @@ export default function Landing() {
               marginBottom: '0.75rem',
             }}
           >
-            Three Pillars
+            {t('landing.threePillars')}
           </p>
           <h2
             style={{
@@ -277,7 +275,7 @@ export default function Landing() {
               color: '#f0f4f8',
             }}
           >
-            The intelligence layer that has never existed.
+            {t('landing.pillarsTitle')}
           </h2>
         </div>
 
@@ -342,9 +340,9 @@ export default function Landing() {
                   color: f.color,
                   alignSelf: 'flex-start',
                 }}
-              >
-                {f.tag}
-              </span>
+                 >
+                 {t(f.tag)}
+               </span>
 
               <h3
                 style={{
@@ -354,11 +352,11 @@ export default function Landing() {
                   letterSpacing: '-0.01em',
                 }}
               >
-                {f.title}
-              </h3>
-              <p style={{ fontSize: '0.88rem', color: '#8899aa', lineHeight: 1.65 }}>{f.desc}</p>
-            </div>
-          ))}
+                  {t(f.title)}
+                </h3>
+                <p style={{ fontSize: '0.88rem', color: '#8899aa', lineHeight: 1.65 }}>{t(f.desc)}</p>
+              </div>
+            ))}
         </div>
       </section>
 
@@ -395,8 +393,7 @@ export default function Landing() {
               fontStyle: 'italic',
             }}
           >
-            There is no digital follow-up system for these grids.
-            And there is no prevention mindset.
+            {t('landing.quote')}
           </blockquote>
           <div
             style={{
@@ -416,9 +413,9 @@ export default function Landing() {
               }}
             />
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0' }}>
-              Senior Official, STEG Renewable Energy Division
+              {t('landing.quoteAuthor')}
             </span>
-            <span style={{ fontSize: '0.75rem', color: '#8899aa' }}>April 2026</span>
+            <span style={{ fontSize: '0.75rem', color: '#8899aa' }}>{t('landing.quoteDate')}</span>
           </div>
         </div>
       </section>
@@ -436,7 +433,7 @@ export default function Landing() {
               marginBottom: '1.5rem',
             }}
           >
-            Powered by
+            {t('landing.poweredBy')}
           </p>
           <div
             style={{
@@ -496,17 +493,17 @@ export default function Landing() {
             letterSpacing: '-0.02em',
           }}
         >
-          The next blackout is preventable.
+          {t('landing.footerTitle')}
         </h2>
         <p style={{ color: '#8899aa', marginBottom: '2rem', fontSize: '0.95rem' }}>
-          NoorGrid turns Tunisia's energy blind spot into its greatest competitive advantage.
+          {t('landing.footerSub')}
         </p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={() => navigate('/dashboard')} className="btn btn-primary btn-lg">
-            Enter Ops Room →
+            {t('landing.enterOpsRoom')}
           </button>
           <button onClick={() => navigate('/about')} className="btn btn-outline btn-lg">
-            Learn More
+            {t('landing.learnMore')}
           </button>
         </div>
       </section>
@@ -534,7 +531,7 @@ export default function Landing() {
           ⚡ NoorGrid
         </span>
         <span style={{ fontSize: '0.75rem', color: '#4a5568' }}>
-          Tunisia's Renewable Energy Intelligence Platform · {new Date().getFullYear()}
+          {t('landing.footerPlatform', { year: new Date().getFullYear() })}
         </span>
         <a
           href="https://github.com/PublisherX02/NoorGrid"
@@ -542,7 +539,7 @@ export default function Landing() {
           rel="noopener noreferrer"
           style={{ fontSize: '0.75rem', color: '#8899aa', textDecoration: 'none' }}
         >
-          GitHub →
+          {t('landing.github')}
         </a>
       </footer>
     </div>

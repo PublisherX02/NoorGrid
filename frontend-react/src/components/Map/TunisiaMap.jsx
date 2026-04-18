@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { GOVERNORATES, RISK_COLORS, SOURCE_ICON } from '../../constants/grid'
 import { useTranslation } from 'react-i18next'
+import DroneLayer from './DroneLayer'
 
 // Merge weatherMap (keyed by region name) into governorate list
 function mergeWeather(govs, weatherMap = {}) {
@@ -89,11 +90,12 @@ function buildPopup(gov, riskLabel) {
     </div>`
 }
 
-export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, liveRiskMap = {}, activeAlert = null, style = {} }) {
+export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, liveRiskMap = {}, activeAlert = null, cascadeAlerts = [], droneState = null, style = {} }) {
   const { t } = useTranslation()
   const containerRef = useRef(null)
   const mapRef       = useRef(null)
   const markersRef   = useRef([])
+  const [mapReady, setMapReady] = useState(false)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -119,10 +121,12 @@ export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, 
     map.zoomControl.setPosition('bottomright')
 
     mapRef.current = map
+    setMapReady(true)
 
     return () => {
       map.remove()
       mapRef.current = null
+      setMapReady(false)
     }
   }, [])
 
@@ -136,12 +140,15 @@ export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, 
     markersRef.current = []
 
     const govs = mergeWeather(GOVERNORATES, weatherMap)
+    const cascadeMap = Object.fromEntries(cascadeAlerts.map(c => [c.name, c.risk_level]))
 
     govs.forEach((gov) => {
-      // Prefer weatherMap risk, then liveRiskMap, then mock
-      const risk = (activeAlert?.region === gov.name)
-        ? activeAlert.risk_level
-        : (gov.live_risk || liveRiskMap[gov.name] || gov.mock_risk)
+      // Prefer activeAlert > cascadeAlerts > weatherMap risk > liveRiskMap > mock
+      const overrideRisk =
+        activeAlert?.region === gov.name ? activeAlert.risk_level :
+        cascadeMap[gov.name]             ? cascadeMap[gov.name] :
+        null
+      const risk = overrideRisk || gov.live_risk || liveRiskMap[gov.name] || gov.mock_risk
       const riskLabel = t(`risk.${risk}`) || risk
       const icon   = createIcon(risk)
       const marker = L.marker([gov.lat, gov.lon], { icon })
@@ -156,7 +163,7 @@ export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, 
       marker.addTo(map)
       markersRef.current.push(marker)
     })
-  }, [weatherMap, onSelectGov, liveRiskMap, activeAlert, t])
+  }, [weatherMap, onSelectGov, liveRiskMap, activeAlert, cascadeAlerts, t])
 
   // Pan to selected governorate
   useEffect(() => {
@@ -166,13 +173,21 @@ export default function TunisiaMap({ weatherMap = {}, selectedGov, onSelectGov, 
   }, [selectedGov])
 
   return (
-    <div
-      ref={containerRef}
-      style={{
-        width: '100%',
-        height: '100%',
-        ...style,
-      }}
-    />
+    <>
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          ...style,
+        }}
+      />
+      <DroneLayer
+        map={mapReady ? mapRef.current : null}
+        activeAlert={activeAlert}
+        cascadeAlerts={cascadeAlerts}
+        onDronesReturned={droneState?.onDronesReturned}
+      />
+    </>
   )
 }
