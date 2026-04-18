@@ -135,14 +135,14 @@ export default function Simulation() {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#00ff88', marginBottom: '6px' }}>
-              Simulation Console
+              Console de simulation
             </div>
             <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f0f4f8', letterSpacing: '-0.02em' }}>
-              National Grid Simulation
+              Simulation du réseau national
             </h1>
             <p style={{ fontSize: '0.85rem', color: '#8899aa', marginTop: '6px' }}>
-              Adjust parameters to model grid stress scenarios in real time
-              {isMock && ' · Simulated mode'}
+              Ajustez les paramètres pour modéliser les scénarios de stress réseau en temps réel
+              {isMock && ' · Mode simulé'}
             </p>
           </div>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -160,12 +160,12 @@ export default function Simulation() {
                   animation: 'livePulse 1.5s infinite',
                 }}
               >
-                ⚠ REPLAYING AUG 14 2024
+                ⚠ REPLAY 14 AOÛT 2024
               </div>
             )}
-            <button onClick={reset} className="btn btn-secondary btn-sm">Reset</button>
+            <button onClick={reset} className="btn btn-secondary btn-sm">Réinitialiser</button>
             <button onClick={replayAug14} className="btn btn-alert btn-sm">
-              ⚠ Replay Aug 14 2024
+              ⚠ Rejouer 14 août 2024
             </button>
           </div>
         </div>
@@ -198,11 +198,11 @@ export default function Simulation() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa' }}>
-                Parameters
+                Paramètres
               </div>
 
               <SliderControl
-                label="Demand Delta"
+                label="Variation de la demande"
                 value={params.demand_delta_pct}
                 min={-20} max={50} step={1} unit="%"
                 color="#ff9500"
@@ -210,21 +210,21 @@ export default function Simulation() {
                 format={(v) => `${v > 0 ? '+' : ''}${v}%`}
               />
               <SliderControl
-                label="Temperature"
+                label="Température"
                 value={params.temperature_c}
                 min={15} max={55} step={0.5} unit="°C"
                 color={params.temperature_c > 38 ? '#ff3333' : params.temperature_c > 30 ? '#ff9500' : '#00ff88'}
                 onChange={(v) => updateParam('temperature_c', v)}
               />
               <SliderControl
-                label="Renewable Output"
+                label="Production renouvelable"
                 value={params.renewable_output_mw}
                 min={0} max={800} step={10} unit=" MW"
                 color="#06b6d4"
                 onChange={(v) => updateParam('renewable_output_mw', v)}
               />
               <SliderControl
-                label="Reserve Capacity"
+                label="Capacité de réserve"
                 value={params.reserve_capacity_mw}
                 min={0} max={1000} step={50} unit=" MW"
                 color="#ffd700"
@@ -233,7 +233,7 @@ export default function Simulation() {
 
               {/* Peak Hour Toggle */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <label style={{ fontSize: '0.72rem', color: '#8899aa', fontWeight: 500 }}>Peak Hour Factor</label>
+                <label style={{ fontSize: '0.72rem', color: '#8899aa', fontWeight: 500 }}>Facteur heure de pointe</label>
                 <button
                   onClick={() => updateParam('include_peak_hour_factor', !params.include_peak_hour_factor)}
                   style={{
@@ -274,7 +274,7 @@ export default function Simulation() {
                 }}
               >
                 <div style={{ fontSize: '0.6rem', color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px' }}>
-                  Current Risk Level
+                  Niveau de risque actuel
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                   <RiskBadge level={result.risk_level} size="lg" />
@@ -331,41 +331,41 @@ export default function Simulation() {
             {result && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                 <ResultMetric
-                  label="Total Demand"
+                  label="Demande totale"
                   value={result.total_demand_mw}
                   unit="MW"
                   color={result.total_demand_mw > STEG.EFFECTIVE_CAPACITY_MW ? '#ff3333' : '#e2e8f0'}
                 />
                 <ResultMetric
-                  label="Effective Capacity"
+                  label="Capacité effective"
                   value={result.effective_capacity_mw}
                   unit="MW"
                   color="#00ff88"
                 />
                 <ResultMetric
-                  label="Headroom"
+                  label="Marge"
                   value={`${result.headroom_pct > 0 ? '+' : ''}${result.headroom_pct.toFixed(1)}%`}
                   color={result.headroom_pct < 0 ? '#ff3333' : result.headroom_pct < 10 ? '#ff9500' : '#00ff88'}
-                  sub={result.deficit_mw > 0 ? `Deficit: ${result.deficit_mw.toFixed(0)} MW` : 'Surplus capacity'}
+                  sub={result.deficit_mw > 0 ? `Déficit : ${result.deficit_mw.toFixed(0)} MW` : 'Capacité excédentaire'}
                 />
                 <ResultMetric
-                  label="Import Required"
+                  label="Import nécessaire"
                   value={result.import_required_mw}
                   unit="MW"
                   color={result.import_required_mw > 0 ? '#ff9500' : '#00ff88'}
-                  sub={result.import_reliance_pct > 0 ? `${result.import_reliance_pct.toFixed(1)}% of demand` : 'Self-sufficient'}
+                  sub={result.import_reliance_pct > 0 ? `${result.import_reliance_pct.toFixed(1)}% de la demande` : 'Autosuffisant'}
                 />
                 <ResultMetric
-                  label="Renewable Share"
+                  label="Part renouvelable"
                   value={`${result.renewable_share_pct.toFixed(1)}%`}
                   color="#06b6d4"
-                  sub={`${result.renewable_output_mw.toFixed(0)} MW output`}
+                  sub={`${result.renewable_output_mw.toFixed(0)} MW produits`}
                 />
                 <ResultMetric
-                  label="Temperature"
+                  label="Température"
                   value={`${params.temperature_c}°C`}
                   color={params.temperature_c > 40 ? '#ff3333' : params.temperature_c > 30 ? '#ff9500' : '#e2e8f0'}
-                  sub={`Cooling surge: ×${result.drivers?.cooling_surge_factor?.toFixed(2) || '—'}`}
+                  sub={`Surtension refroidissement : ×${result.drivers?.cooling_surge_factor?.toFixed(2) || '—'}`}
                 />
               </div>
             )}
@@ -374,7 +374,7 @@ export default function Simulation() {
             <div className="card" style={{ padding: '1.25rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f0f4f8' }}>
-                  24H Demand vs Capacity Profile
+                  Profil 24H Demande vs Capacité
                 </div>
                 {loading && <div className="spinner" />}
               </div>
@@ -407,7 +407,7 @@ export default function Simulation() {
                     y={STEG.EFFECTIVE_CAPACITY_MW}
                     stroke="rgba(255,51,51,0.5)"
                     strokeDasharray="6 3"
-                    label={{ value: 'Capacity limit', position: 'right', fontSize: 9, fill: '#ff3333' }}
+                    label={{ value: 'Limite capacité', position: 'right', fontSize: 9, fill: '#ff3333' }}
                   />
                   <Area type="monotone" dataKey="capacity"   stroke="rgba(255,51,51,0.3)"  fill="none" strokeDasharray="5 3" strokeWidth={1} name="Capacity MW" dot={false} />
                   <Area type="monotone" dataKey="demand"     stroke={riskColor}             fill={`url(#demandGrad)`} strokeWidth={2} name="Demand MW"   dot={false} />
@@ -416,9 +416,9 @@ export default function Simulation() {
               </ResponsiveContainer>
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '8px' }}>
                 {[
-                  { color: riskColor, label: 'Demand' },
-                  { color: '#ff3333', label: 'Capacity', dash: true },
-                  { color: '#06b6d4', label: 'Renewable' },
+                  { color: riskColor, label: 'Demande' },
+                  { color: '#ff3333', label: 'Capacité', dash: true },
+                  { color: '#06b6d4', label: 'Renouvelable' },
                 ].map(({ color, label, dash }) => (
                   <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <div style={{ width: '16px', height: '2px', background: color, borderRadius: '1px', borderTop: dash ? '1px dashed' : 'none' }} />
@@ -432,16 +432,16 @@ export default function Simulation() {
             {result?.drivers && (
               <div className="card" style={{ padding: '1.25rem' }}>
                 <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa', marginBottom: '12px' }}>
-                  Demand Model Drivers
+                  Facteurs du modèle de demande
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                   {[
-                    { k: 'Seasonal Base', v: `${result.drivers.seasonal_base_demand_mw?.toFixed(0)} MW` },
-                    { k: 'Cooling Surge', v: `×${(1 + result.drivers.cooling_surge_factor || 1).toFixed(3)}` },
-                    { k: 'Peak Factor', v: `×${result.drivers.peak_hour_factor}` },
-                    { k: 'Demand Δ', v: `${result.drivers.demand_delta_pct > 0 ? '+' : ''}${result.drivers.demand_delta_pct}%` },
-                    { k: 'Reserve', v: `${result.drivers.reserve_capacity_mw} MW` },
-                    { k: 'Temperature', v: `${result.drivers.temperature_c}°C` },
+                    { k: 'Base saisonnière', v: `${result.drivers.seasonal_base_demand_mw?.toFixed(0)} MW` },
+                    { k: 'Surtension clim.', v: `×${(1 + result.drivers.cooling_surge_factor || 1).toFixed(3)}` },
+                    { k: 'Facteur pointe', v: `×${result.drivers.peak_hour_factor}` },
+                    { k: 'Variation Δ', v: `${result.drivers.demand_delta_pct > 0 ? '+' : ''}${result.drivers.demand_delta_pct}%` },
+                    { k: 'Réserve', v: `${result.drivers.reserve_capacity_mw} MW` },
+                    { k: 'Température', v: `${result.drivers.temperature_c}°C` },
                   ].map(({ k, v }) => (
                     <div key={k} style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: '5px' }}>
                       <div style={{ fontSize: '0.58rem', color: '#8899aa', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{k}</div>

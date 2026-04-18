@@ -5,7 +5,8 @@
     "analytics": "Analytics",
     "simulation": "Simulation",
     "about": "About",
-    "liveOpsRoom": "Live Ops Room"
+    "liveOpsRoom": "Live Ops Room",
+    "crisisIntel": "Crisis Intel"
   },
   "status": {
     "live": "LIVE",
@@ -26,7 +27,35 @@
     "nationalCarbon": "National Carbon Index",
     "totalOutput": "Total Output",
     "criticalRegions": "Critical Regions",
-    "highRiskRegions": "High Risk"
+    "highRiskRegions": "High Risk",
+    "regions": "regions",
+    "governorates": "Governorates",
+    "operationsCenter": "Operations Center — Tunisian National Grid",
+    "loadingGridData": "Loading grid data…",
+    "capacity": "Capacity",
+    "recordPeak": "Record peak",
+    "gridLosses": "Grid losses",
+    "algeriaBuffer": "Algeria buffer",
+    "renewableShare": "Renewable share",
+    "gridState": "Grid State",
+    "demandVsProduction": "Demand vs Production",
+    "production": "Production",
+    "blackoutPrediction": "Blackout Prediction",
+    "time": "Time",
+    "temperature": "Temperature",
+    "noHighRiskWindow": "No high-risk window",
+    "gridNormal": "Grid operating normally",
+    "target": "Target",
+    "trend": "Trend",
+    "stationDetails": "Station Details",
+    "energy": "Energy",
+    "liveSource": "Live",
+    "liveOutput": "Live output",
+    "installedCapacity": "Installed cap.",
+    "avgDemand": "Avg demand",
+    "peakDemand": "Peak demand",
+    "outputVsAvgDemand": "Output vs avg demand",
+    "capacityUtilization": "Capacity utilization"
   },
   "crisis": {
     "simulateButton": "SIMULATE CRISIS",
@@ -36,5 +65,44 @@
     "alertFeedTitle": "ALERT FEED",
     "acknowledge": "ACKNOWLEDGE",
     "custom": "CUSTOM"
+  },
+  "forecast": {
+    "title": "BLACKOUT FORECAST",
+    "probability": "probability",
+    "confidence": "Confidence",
+    "risk": "Risk",
+    "demand": "Demand",
+    "temp": "Temp",
+    "capacityMw": "Capacity MW",
+    "demandMw": "Demand MW",
+    "renewableMw": "Renewable MW",
+    "simulated": "Simulated",
+    "blackoutProbability": "Blackout probability",
+    "confidenceBand": "±12% confidence band",
+    "dangerThreshold": "50% danger threshold",
+    "peakHour": "Peak Hour",
+    "demandAvailable": "Demand / Available",
+    "stress": "Stress",
+    "recommendedAction": "Recommended Action",
+    "noData": "No forecast data"
+  },
+  "chatbot": {
+    "welcome": "NoorGrid RAG · STEG knowledge base online.\n\nI can answer questions using STEG operating specs, grid capacity data, maintenance records, the August 14 crisis postmortem, and Tunisia's renewable investment pipeline.\n\nAsk me anything about the national grid, blackout risk, renewable resources, or energy policy.",
+    "title": "NoorGrid RAG Advisor",
+    "subtitle": "STEG knowledge base · Retrieval-augmented generation",
+    "querying": "Querying STEG knowledge base…",
+    "analyzing": "ANALYZING",
+    "badge": "RAG · STEG DOCS",
+    "placeholder": "Ask a question about the STEG grid, renewables, or the August 14 crisis…",
+    "footerHint": "Enter to send · Shift+Enter for new line · STEG domain queries only",
+    "widgetTitle": "STEG RAG ADVISOR",
+    "widgetTooltip": "STEG RAG Advisor",
+    "suggested": {
+      "cause": "What caused the August 14, 2024 crisis?",
+      "targets": "What are Tunisia's renewable energy targets?",
+      "riskCalc": "How is blackout risk calculated?",
+      "interconnector": "What is the Algeria interconnector capacity?",
+      "maintenance": "What maintenance program is planned?"
+    }
   }
 }

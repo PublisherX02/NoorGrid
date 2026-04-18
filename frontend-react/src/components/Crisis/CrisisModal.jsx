@@ -229,7 +229,7 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
             {isCustom ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }} onClick={(e) => e.stopPropagation()}>
                 <input
-                  placeholder="Scenario label…"
+                  placeholder="Libellé du scénario…"
                   value={customLabel}
                   onChange={(e) => setCustomLabel(e.target.value)}
                   style={{
@@ -264,7 +264,7 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
               </div>
             ) : (
               <div style={{ fontSize: '0.65rem', color: '#4a5568', lineHeight: 1.5 }}>
-                Pick any region + risk level.<br />No cascade.
+                Choisir une région + niveau de risque.<br />Sans cascade.
               </div>
             )}
           </div>
@@ -288,6 +288,7 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
             <span style={{ fontSize: '0.6rem', fontWeight: 700, color: '#4a5568', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
               Cascade
             </span>
+
             {scenario.cascade_regions.map((c) => (
               <span
                 key={c.name}
@@ -330,7 +331,7 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
               transition: 'all 0.15s',
             }}
           >
-            ARM SCENARIO
+            ARMER LE SCÉNARIO
           </button>
         ) : (
           <button
@@ -348,7 +349,7 @@ export default function CrisisModal({ onClose, onTrigger, loading, error }) {
               animation: loading ? 'none' : 'livePulse 0.8s ease-in-out infinite',
             }}
           >
-            {loading ? (t('crisis.triggering') || 'TRIGGERING…') : '⚡ CONFIRM — TRIGGER CRISIS'}
+            {loading ? (t('crisis.triggering') || 'DÉCLENCHEMENT…') : '⚡ CONFIRMER — DÉCLENCHER LA CRISE'}
           </button>
         )}
       </div>

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #060c18; color: #e2e8f0; font-family: 'Inter', sans-serif; font-size: 13px; }
+
+  .topbar {
+    height: 40px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px; border-bottom: 1px solid rgba(0,255,136,0.1);
+    background: rgba(10,15,26,0.95);
+  }
+  .topbar-title { font-family: monospace; font-size: 12px; font-weight: 700; color: #00ff88; letter-spacing: 0.1em; }
+  .nav-links { display: flex; gap: 6px; }
+  .nav-link { padding: 2px 10px; border: 1px solid rgba(0,255,136,0.12); border-radius: 4px; font-size: 10px; color: #8899aa; }
+  .nav-link.active { color: #00ff88; border-color: rgba(0,255,136,0.4); }
+
+  .page { display: flex; flex-direction: column; height: calc(100vh - 40px); }
+
+  .page-header {
+    padding: 12px 20px 10px;
+    border-bottom: 1px solid rgba(0,255,136,0.08);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .page-title { font-family: monospace; font-size: 11px; font-weight: 700; color: #00ff88; letter-spacing: 0.14em; opacity: 0.8; }
+  .date-filter { display: flex; gap: 6px; }
+  .filter-btn { padding: 2px 8px; border-radius: 3px; font-size: 10px; font-family: monospace; font-weight: 700; border: 1px solid rgba(0,255,136,0.25); color: #8899aa; cursor: pointer; }
+  .filter-btn.active { border-color: rgba(0,255,136,0.6); color: #00ff88; background: rgba(0,255,136,0.08); }
+
+  /* ── Metric cards ── */
+  .metrics-row {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
+    padding: 10px 20px;
+  }
+  .metric-card {
+    background: #0d1526; border: 1px solid rgba(0,255,136,0.1);
+    border-radius: 6px; padding: 10px 12px;
+  }
+  .metric-label { font-size: 9px; color: #4a5568; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+  .metric-value { font-family: monospace; font-size: 20px; font-weight: 700; }
+  .metric-sub { font-size: 9px; color: #8899aa; margin-top: 2px; }
+  .green { color: #00ff88; } .red { color: #ff3333; } .amber { color: #ff9500; } .cyan { color: #06b6d4; } .white { color: #e2e8f0; }
+
+  /* ── Body ── */
+  .body { display: grid; grid-template-columns: 1fr 340px; gap: 10px; padding: 0 20px 16px; flex: 1; min-height: 0; }
+
+  /* ── Timeline ── */
+  .timeline-panel { display: flex; flex-direction: column; min-height: 0; }
+  .panel-label { font-size: 9px; font-weight: 700; color: #8899aa; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 8px; }
+
+  .timeline { overflow-y: auto; display: flex; flex-direction: column; gap: 5px; flex: 1; }
+  .incident-row {
+    background: #0d1526; border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 5px; padding: 9px 12px;
+    display: grid; grid-template-columns: 80px 1fr auto auto; align-items: center; gap: 10px;
+  }
+  .incident-row.critical { border-left: 3px solid #ff3333; }
+  .incident-row.high { border-left: 3px solid #ff9500; }
+  .incident-time { font-family: monospace; font-size: 9px; color: #4a5568; }
+  .incident-info { }
+  .incident-scenario { font-size: 11px; font-weight: 600; color: #e2e8f0; margin-bottom: 2px; }
+  .incident-region { font-size: 10px; color: #8899aa; }
+  .cascade-chips { display: flex; gap: 3px; flex-wrap: wrap; }
+  .chip { font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 600; }
+  .chip-amber { color: #ff9500; background: rgba(255,149,0,0.1); border: 1px solid rgba(255,149,0,0.3); }
+  .chip-red { color: #ff3333; background: rgba(255,51,51,0.1); border: 1px solid rgba(255,51,51,0.3); }
+  .report-badge { font-family: monospace; font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 3px; }
+  .sent { color: #00ff88; background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); }
+  .unsent { color: #4a5568; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+
+  /* ── Right column ── */
+  .right-col { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
+
+  .chart-card { background: #0d1526; border: 1px solid rgba(0,255,136,0.1); border-radius: 6px; padding: 12px; }
+
+  /* Risk donut (fake SVG) */
+  .donut-row { display: flex; align-items: center; gap: 14px; }
+  .donut-legend { display: flex; flex-direction: column; gap: 5px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Bar chart (fake) */
+  .bar-chart { display: flex; flex-direction: column; gap: 5px; margin-top: 8px; }
+  .bar-row { display: flex; align-items: center; gap: 6px; }
+  .bar-name { font-size: 10px; color: #8899aa; width: 72px; text-align: right; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 10px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 2px; }
+  .bar-val { font-family: monospace; font-size: 9px; color: #8899aa; width: 22px; }
+
+  /* Trend sparkline (fake) */
+  .spark-row { display: flex; align-items: flex-end; gap: 4px; height: 36px; margin-top: 8px; }
+  .spark-bar { flex: 1; border-radius: 2px 2px 0 0; min-width: 6px; }
+  .spark-label { display: flex; justify-content: space-between; margin-top: 3px; }
+  .spark-label span { font-size: 9px; color: #4a5568; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="topbar-title">⚡ NoorGrid</span>
+  <div class="nav-links">
+    <span class="nav-link">Dashboard</span>
+    <span class="nav-link">Analytics</span>
+    <span class="nav-link active">Crisis Intelligence</span>
+    <span class="nav-link">Simulation</span>
+  </div>
+</div>
+
+<div class="page">
+  <div class="page-header">
+    <span class="page-title">CRISIS INTELLIGENCE — STEG Incident Record</span>
+    <div class="date-filter">
+      <span class="filter-btn active">7D</span>
+      <span class="filter-btn">30D</span>
+      <span class="filter-btn">90D</span>
+      <span class="filter-btn">ALL</span>
+    </div>
+  </div>
+
+  <!-- Metric cards -->
+  <div class="metrics-row">
+    <div class="metric-card">
+      <div class="metric-label">Total Incidents</div>
+      <div class="metric-value white">14</div>
+      <div class="metric-sub">last 7 days</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Critical Events</div>
+      <div class="metric-value red">6</div>
+      <div class="metric-sub">43% of incidents</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Most Exposed</div>
+      <div class="metric-value amber" style="font-size:14px;margin-top:3px;">Gabès</div>
+      <div class="metric-sub">5 incidents as primary</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Cascade Regions Hit</div>
+      <div class="metric-value cyan">28</div>
+      <div class="metric-sub">across all events</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Reports Sent</div>
+      <div class="metric-value green">9 / 14</div>
+      <div class="metric-sub">64% dispatch rate</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- Incident Timeline -->
+    <div class="timeline-panel">
+      <div class="panel-label">Incident Log</div>
+      <div class="timeline">
+
+        <div class="incident-row critical">
+          <div class="incident-time">Today<br/>14:32:11</div>
+          <div class="incident-info">
+            <div class="incident-scenario">Nawara Field Failure</div>
+            <div class="incident-region">Gabès · CRITICAL · Solar · 620 MW</div>
+          </div>
+          <div class="cascade-chips">
+            <span class="chip chip-amber">Médenine</span>
+            <span class="chip chip-amber">Tataouine</span>
+          </div>
+          <span class="report-badge sent">REPORT SENT</span>
+        </div>
+
+        <div class="incident-row high">
+          <div class="incident-time">Today<br/>11:08:44</div>
+          <div class="incident-info">
+            <div class="incident-scenario">Algerian Pipeline Disruption</div>
+            <div class="incident-region">Bizerte · HIGH · Wind · 380 MW</div>
+          </div>
+          <div class="cascade-chips">
+            <span class="chip chip-amber">Béja</span>
+            <span class="chip chip-amber">Jendouba</span>
+          </div>
+          <span class="report-badge sent">REPORT SENT</span>
+        </div>
+
+        <div class="incident-row critical">
+          <div class="incident-time">Yesterday<br/>18:55:02</div>
+          <div class="incident-info">
+            <div class="incident-scenario">Summer Peak Demand Surge</div>
+            <div class="incident-region">Tunis · CRITICAL · Mixed · 820 MW</div>
+          </div>
+          <div class="cascade-chips">
+            <span class="chip chip-red">Ariana</span>
+            <span class="chip chip-red">Ben Arous</span>
+            <span class="chip chip-amber">Manouba</span>
+          </div>
+          <span class="report-badge unsent">NO REPORT</span>
+        </div>
+
+        <div class="incident-row high">
+          <div class="incident-time">Yesterday<br/>09:12:30</div>
+          <div class="incident-info">
+            <div class="incident-scenario">Cap Bon Wind Farm Outage</div>
+            <div class="incident-region">Nabeul · HIGH · Wind · 210 MW</div>
+          </div>
+          <div class="cascade-chips">
+            <span class="chip chip-amber">Zaghouan</span>
+            <span class="chip chip-amber">Sousse</span>
+          </div>
+          <span class="report-badge sent">REPORT SENT</span>
+        </div>
+
+        <div class="incident-row critical">
+          <div class="incident-time">Apr 16<br/>22:41:07</div>
+          <div class="incident-info">
+            <div class="incident-scenario">Nawara Field Failure</div>
+            <div class="incident-region">Gabès · CRITICAL · Solar · 620 MW</div>
+          </div>
+          <div class="cascade-chips">
+            <span class="chip chip-amber">Médenine</span>
+            <span class="chip chip-amber">Tataouine</span>
+          </div>
+          <span class="report-badge sent">REPORT SENT</span>
+        </div>
+
+        <div class="incident-row high">
+          <div class="incident-time">Apr 16<br/>14:20:18</div>
+          <div class="incident-info">
+            <div class="incident-scenario">Custom — Sfax HIGH</div>
+            <div class="incident-region">Sfax · HIGH · Mixed</div>
+          </div>
+          <div class="cascade-chips"></div>
+          <span class="report-badge unsent">NO REPORT</span>
+        </div>
+
+        <div class="incident-row critical">
+          <div class="incident-time">Apr 15<br/>16:03:55</div>
+          <div class="incident-info">
+            <div class="incident-scenario">Summer Peak Demand Surge</div>
+            <div class="incident-region">Tunis · CRITICAL · Mixed · 820 MW</div>
+          </div>
+          <div class="cascade-chips">
+            <span class="chip chip-red">Ariana</span>
+            <span class="chip chip-red">Ben Arous</span>
+          </div>
+          <span class="report-badge sent">REPORT SENT</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Right column -->
+    <div class="right-col">
+
+      <!-- Risk distribution -->
+      <div class="chart-card">
+        <div class="panel-label">Risk Distribution</div>
+        <div class="donut-row" style="margin-top:10px;">
+          <svg width="72" height="72" viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="14" fill="none" stroke="#1a2540" stroke-width="7"/>
+            <circle cx="18" cy="18" r="14" fill="none" stroke="#ff3333" stroke-width="7"
+              stroke-dasharray="37.7 50" stroke-dashoffset="0" transform="rotate(-90 18 18)"/>
+            <circle cx="18" cy="18" r="14" fill="none" stroke="#ff9500" stroke-width="7"
+              stroke-dasharray="37.7 50" stroke-dashoffset="-37.7" transform="rotate(-90 18 18)"/>
+            <text x="18" y="21" text-anchor="middle" font-size="7" font-weight="700" fill="#e2e8f0" font-family="monospace">14</text>
+          </svg>
+          <div class="donut-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#ff3333"></div><span style="color:#8899aa;">CRITICAL</span><span style="color:#ff3333;font-family:monospace;margin-left:auto;padding-left:12px;">6</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ff9500"></div><span style="color:#8899aa;">HIGH</span><span style="color:#ff9500;font-family:monospace;margin-left:auto;padding-left:12px;">8</span></div>
+            <div class="legend-item"><div class="legend-dot" style="background:#ffd700"></div><span style="color:#8899aa;">ELEVATED</span><span style="color:#ffd700;font-family:monospace;margin-left:auto;padding-left:12px;">0</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Regional exposure -->
+      <div class="chart-card">
+        <div class="panel-label">Regional Exposure (primary + cascade hits)</div>
+        <div class="bar-chart">
+          <div class="bar-row">
+            <span class="bar-name">Gabès</span>
+            <div class="bar-track"><div class="bar-fill" style="width:100%;background:#ff3333;"></div></div>
+            <span class="bar-val">13</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-name">Médenine</span>
+            <div class="bar-track"><div class="bar-fill" style="width:62%;background:#ff9500;"></div></div>
+            <span class="bar-val">8</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-name">Tunis</span>
+            <div class="bar-track"><div class="bar-fill" style="width:54%;background:#ff9500;"></div></div>
+            <span class="bar-val">7</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-name">Tataouine</span>
+            <div class="bar-track"><div class="bar-fill" style="width:46%;background:#ff9500;"></div></div>
+            <span class="bar-val">6</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-name">Ariana</span>
+            <div class="bar-track"><div class="bar-fill" style="width:38%;background:#ffd700;"></div></div>
+            <span class="bar-val">5</span>
+          </div>
+          <div class="bar-row">
+            <span class="bar-name">Bizerte</span>
+            <div class="bar-track"><div class="bar-fill" style="width:31%;background:#ffd700;"></div></div>
+            <span class="bar-val">4</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Daily trend -->
+      <div class="chart-card">
+        <div class="panel-label">Incidents Per Day (last 7 days)</div>
+        <div class="spark-row">
+          <div class="spark-bar" style="height:30%;background:#ff9500aa;"></div>
+          <div class="spark-bar" style="height:60%;background:#ff9500aa;"></div>
+          <div class="spark-bar" style="height:45%;background:#ff9500aa;"></div>
+          <div class="spark-bar" style="height:80%;background:#ff3333aa;"></div>
+          <div class="spark-bar" style="height:20%;background:#ff9500aa;"></div>
+          <div class="spark-bar" style="height:100%;background:#ff3333;"></div>
+          <div class="spark-bar" style="height:55%;background:#ff9500aa;"></div>
+        </div>
+        <div class="spark-label">
+          <span>Apr 11</span><span>Apr 17</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -10,13 +10,16 @@ i18n
       en: { translation: en },
       fr: { translation: fr },
     },
-    lng: localStorage.getItem('noorgrid_lang') || 'en',
+    lng: localStorage.getItem('noorgrid_lang') || 'fr',
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
   })
 
 i18n.on('languageChanged', (lang) => {
   localStorage.setItem('noorgrid_lang', lang)
+  document.documentElement.lang = lang
 })
+
+document.documentElement.lang = i18n.language || 'fr'
 
 export default i18n

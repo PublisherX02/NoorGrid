@@ -70,11 +70,10 @@ def test_report_send_returns_sent_true(client):
     assert isinstance(data["sent_at"], str) and len(data["sent_at"]) > 0
 
 
-def test_report_send_empty_recipients_still_succeeds(client):
+def test_report_send_empty_recipients_rejected(client):
     report = client.post("/report/generate", json=VALID_REPORT_PAYLOAD).json()
     resp = client.post("/report/send", json={"recipients": [], "report": report})
-    assert resp.status_code == 200
-    assert resp.json()["sent"] is True
+    assert resp.status_code == 422
 
 
 def test_report_generate_nim_parse_with_code_fence(monkeypatch):

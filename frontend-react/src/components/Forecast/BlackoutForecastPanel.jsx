@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { predictBlackout } from '../../services/api'
 import { RISK_COLORS, RISK_ORDER } from '../../constants/grid'
 import {
@@ -9,6 +10,7 @@ import {
 const HOUR_OPTIONS = [24, 48, 72]
 
 function ForecastTooltip({ active, payload, label }) {
+  const { t } = useTranslation()
   if (!active || !payload?.length) return null
   const d = payload[0]?.payload
   if (!d) return null
@@ -29,27 +31,27 @@ function ForecastTooltip({ active, payload, label }) {
         {label}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <span style={{ color: '#8899aa' }}>Probability</span>
+        <span style={{ color: '#8899aa' }}>{t('forecast.probability')}</span>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, color: riskColor }}>
           {d.prob?.toFixed(1)}%
         </span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <span style={{ color: '#8899aa' }}>Confidence</span>
+        <span style={{ color: '#8899aa' }}>{t('forecast.confidence')}</span>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#8899aa', fontSize: '0.65rem' }}>
           {d.ci_low?.toFixed(1)}% – {d.ci_high?.toFixed(1)}%
         </span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <span style={{ color: '#8899aa' }}>Risk</span>
+        <span style={{ color: '#8899aa' }}>{t('forecast.risk')}</span>
         <span style={{ fontWeight: 700, color: riskColor }}>{d.risk}</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-        <span style={{ color: '#8899aa' }}>Demand</span>
+        <span style={{ color: '#8899aa' }}>{t('forecast.demand')}</span>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#e2e8f0' }}>{d.demand?.toFixed(0)} MW</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-        <span style={{ color: '#8899aa' }}>Temp</span>
+        <span style={{ color: '#8899aa' }}>{t('forecast.temp')}</span>
         <span style={{ fontFamily: "'JetBrains Mono', monospace", color: '#ffd700' }}>{d.temp?.toFixed(1)}°C</span>
       </div>
     </div>
@@ -57,6 +59,7 @@ function ForecastTooltip({ active, payload, label }) {
 }
 
 export default function BlackoutForecastPanel({ selectedGov, liveRisk }) {
+  const { t } = useTranslation()
   const [forecastData, setForecastData] = useState([])
   const [loading, setLoading] = useState(false)
   const [isMock, setIsMock] = useState(false)
@@ -116,12 +119,12 @@ export default function BlackoutForecastPanel({ selectedGov, liveRisk }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem', flexWrap: 'wrap', gap: '8px' }}>
         <div>
           <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa' }}>
-            Blackout Forecast
+            {t('forecast.title')}
           </div>
           <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f0f4f8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {selectedGov?.name} — {hours}h Probability
+            {selectedGov?.name} — {hours}h {t('forecast.probability')}
             {isMock && (
-              <span style={{ fontSize: '0.65rem', color: '#ff9500', fontWeight: 600 }}>[Simulated]</span>
+              <span style={{ fontSize: '0.65rem', color: '#ff9500', fontWeight: 600 }}>[{t('forecast.simulated')}]</span>
             )}
           </div>
         </div>
@@ -204,7 +207,7 @@ export default function BlackoutForecastPanel({ selectedGov, liveRisk }) {
                 stroke={`${accentColor}30`}
                 strokeWidth={1}
                 dot={false}
-                name="±12% Confidence"
+                name={t('forecast.confidenceBand')}
                 isAnimationActive={false}
               />
 
@@ -215,7 +218,7 @@ export default function BlackoutForecastPanel({ selectedGov, liveRisk }) {
                 stroke={accentColor}
                 strokeWidth={2.5}
                 dot={false}
-                name="Blackout Probability %"
+                name={t('forecast.blackoutProbability')}
                 activeDot={{ r: 4, fill: accentColor, strokeWidth: 0 }}
               />
             </ComposedChart>
@@ -223,19 +226,19 @@ export default function BlackoutForecastPanel({ selectedGov, liveRisk }) {
 
           {/* Legend */}
           <div style={{ display: 'flex', gap: '16px', marginTop: '6px', fontSize: '0.62rem', color: '#8899aa' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '16px', height: '2px', background: accentColor }} />
-              Blackout probability
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <div style={{ width: '16px', height: '2px', background: accentColor }} />
+                {t('forecast.blackoutProbability')}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <div style={{ width: '16px', height: '8px', background: `${accentColor}30`, borderRadius: '2px' }} />
+                {t('forecast.confidenceBand')}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <div style={{ width: '16px', height: '1px', background: 'rgba(255,51,51,0.5)', borderTop: '1px dashed rgba(255,51,51,0.5)' }} />
+                {t('forecast.dangerThreshold')}
+              </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '16px', height: '8px', background: `${accentColor}30`, borderRadius: '2px' }} />
-              ±12% confidence band
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '16px', height: '1px', background: 'rgba(255,51,51,0.5)', borderTop: '1px dashed rgba(255,51,51,0.5)' }} />
-              50% danger threshold
-            </div>
-          </div>
 
           {/* Peak risk summary */}
           {peakHour && (
@@ -254,31 +257,31 @@ export default function BlackoutForecastPanel({ selectedGov, liveRisk }) {
             >
               <div>
                 <div style={{ fontSize: '0.58rem', color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>
-                  Peak Hour
+                  {t('forecast.peakHour')}
                 </div>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '1rem', fontWeight: 700, color: accentColor }}>
                   {peakHour.time_label}
                 </div>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.72rem', color: accentColor, opacity: 0.8 }}>
-                  {peakHour.blackout_probability.toFixed(1)}% risk
+                  {peakHour.blackout_probability.toFixed(1)}% {t('forecast.risk')}
                 </div>
               </div>
 
               <div>
                 <div style={{ fontSize: '0.58rem', color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>
-                  Demand / Available
+                  {t('forecast.demandAvailable')}
                 </div>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.78rem', color: '#e2e8f0' }}>
                   {peakHour.estimated_demand_mw?.toFixed(0)} MW / {peakHour.available_mw?.toFixed(0)} MW
                 </div>
                 <div style={{ fontSize: '0.65rem', color: '#8899aa', marginTop: '2px' }}>
-                  Stress: ×{peakHour.stress_ratio?.toFixed(2)}
+                  {t('forecast.stress')}: ×{peakHour.stress_ratio?.toFixed(2)}
                 </div>
               </div>
 
               <div style={{ flex: 1, minWidth: '180px' }}>
                 <div style={{ fontSize: '0.58rem', color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '3px' }}>
-                  Recommended Action
+                  {t('forecast.recommendedAction')}
                 </div>
                 <div style={{ fontSize: '0.73rem', color: '#e2e8f0', lineHeight: 1.5 }}>
                   {peakHour.prevention_action}
@@ -291,7 +294,7 @@ export default function BlackoutForecastPanel({ selectedGov, liveRisk }) {
         <div style={{ height: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           {loading
             ? <div className="spinner" />
-            : <span style={{ color: '#4a5568', fontSize: '0.8rem' }}>No forecast data</span>
+            : <span style={{ color: '#4a5568', fontSize: '0.8rem' }}>{t('forecast.noData')}</span>
           }
         </div>
       )}

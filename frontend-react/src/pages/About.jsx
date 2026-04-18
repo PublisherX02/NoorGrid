@@ -4,20 +4,20 @@ import { STEG } from '../constants/grid'
 const TEAM = [
   {
     name: 'PublisherX02',
-    role: 'Founder & Lead Engineer',
-    desc: 'Built NoorGrid from the ground up — FastAPI backend, digital twin model, blackout prediction engine, and full-stack infrastructure.',
-    tag: 'Engineering',
+    role: 'Fondateur & Ingénieur principal',
+    desc: 'A construit NoorGrid de zéro — backend FastAPI, modèle de jumeau numérique, moteur de prédiction de pannes et infrastructure full-stack.',
+    tag: 'Ingénierie',
     color: '#00ff88',
   },
 ]
 
 const PROBLEM_STATS = [
-  { value: '4,888 MW', label: 'Record demand peak', date: 'Aug 14, 2024 at 15:41', color: '#ff3333' },
-  { value: '4,636 MW', label: 'Effective grid capacity', date: '22% grid losses', color: '#ff9500' },
-  { value: '252 MW',   label: 'Covered by Algeria', date: 'Via Transmed interconnector', color: '#ffd700' },
-  { value: '93.7%',   label: 'Fossil fuel dependency', date: '5-6% renewable share in 2024', color: '#8899aa' },
-  { value: '22%',     label: 'Grid losses', date: 'Energy wasted in transmission', color: '#ff9500' },
-  { value: '41%',     label: 'Energy independence 2024', date: 'Down from 48% in 2023', color: '#ff3333' },
+  { value: '4 888 MW', label: 'Pic de demande record', date: '14 août 2024 à 15h41', color: '#ff3333' },
+  { value: '4 636 MW', label: 'Capacité effective du réseau', date: '22% de pertes réseau', color: '#ff9500' },
+  { value: '252 MW',   label: "Couvert par l'Algérie", date: "Via l'interconnecteur Transmed", color: '#ffd700' },
+  { value: '93,7%',   label: 'Dépendance aux fossiles', date: "5-6% d'énergies renouvelables en 2024", color: '#8899aa' },
+  { value: '22%',     label: 'Pertes réseau', date: 'Énergie perdue en transmission', color: '#ff9500' },
+  { value: '41%',     label: 'Indépendance énergétique 2024', date: 'En baisse par rapport à 48% en 2023', color: '#ff3333' },
 ]
 
 export default function About() {
@@ -62,15 +62,15 @@ export default function About() {
               marginBottom: '1rem',
             }}
           >
-            Tunisia's Missing Energy
+            L'infrastructure manquante d'intelligence
             <br />
             <span style={{ color: '#00ff88', textShadow: '0 0 30px rgba(0,255,136,0.3)' }}>
-              Intelligence Infrastructure
+              énergétique de la Tunisie
             </span>
           </h1>
           <p style={{ fontSize: '1rem', color: '#8899aa', maxWidth: '600px', margin: '0 auto', lineHeight: 1.6 }}>
-            NoorGrid is not a dashboard. It is not a monitoring tool.
-            It is the intelligence layer that has never existed.
+            NoorGrid n'est pas un tableau de bord. Ce n'est pas un outil de surveillance.
+            C'est la couche d'intelligence qui n'a jamais existé.
           </p>
         </div>
 
@@ -79,23 +79,23 @@ export default function About() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
             <div style={{ width: '3px', height: '24px', background: '#ff3333', borderRadius: '2px' }} />
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f0f4f8', letterSpacing: '-0.01em' }}>
-              The Problem
+              Le Problème
             </h2>
           </div>
 
           <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem', borderColor: 'rgba(255,51,51,0.15)' }}>
             <p style={{ fontSize: '0.9rem', color: '#8899aa', lineHeight: 1.75, marginBottom: '1rem' }}>
-              On <strong style={{ color: '#ff3333' }}>August 14, 2024 at 15:41</strong>, Tunisia's national grid hit a record{' '}
-              <strong style={{ color: '#ff3333' }}>4,888 MW of demand</strong> against an effective capacity of{' '}
-              <strong style={{ color: '#ff9500' }}>4,636 MW</strong>. The grid was over capacity.
-              Algeria covered the <strong style={{ color: '#ffd700' }}>252 MW gap</strong> through the interconnector.
-              Without them, Tunisia faces a cascading blackout.
+              Le <strong style={{ color: '#ff3333' }}>14 août 2024 à 15h41</strong>, le réseau national tunisien a atteint un record de{' '}
+              <strong style={{ color: '#ff3333' }}>4 888 MW de demande</strong> contre une capacité effective de{' '}
+              <strong style={{ color: '#ff9500' }}>4 636 MW</strong>. Le réseau était en surcapacité.
+              L'Algérie a comblé l'<strong style={{ color: '#ffd700' }}>écart de 252 MW</strong> via l'interconnecteur.
+              Sans elle, la Tunisie fait face à une panne en cascade.
             </p>
             <p style={{ fontSize: '0.9rem', color: '#8899aa', lineHeight: 1.75 }}>
-              This is not a hypothetical. This happens every summer.
-              Tunisia has wind farms, solar plants, and hydroelectric dams scattered across 24 governorates.
-              Each installation is monitored in isolation. There is no centralized real-time view.
-              There is no prediction. There is no prevention.
+              Ce n'est pas une hypothèse. Cela se produit chaque été.
+              La Tunisie possède des parcs éoliens, des centrales solaires et des barrages hydroélectriques répartis dans 24 gouvernorats.
+              Chaque installation est surveillée de manière isolée. Il n'existe aucune vue centralisée en temps réel.
+              Pas de prédiction. Pas de prévention.
             </p>
           </div>
 
@@ -176,8 +176,8 @@ export default function About() {
               letterSpacing: '-0.01em',
             }}
           >
-            There is no digital follow-up system for these grids.
-            And there is no prevention mindset.
+            Il n'existe aucun système numérique de suivi pour ces réseaux.
+            Et il n'y a aucune culture de la prévention.
           </blockquote>
           <div style={{ paddingLeft: '1rem' }}>
             <div
@@ -190,9 +190,9 @@ export default function About() {
               }}
             />
             <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#e2e8f0' }}>
-              Senior Official, STEG Renewable Energy Division
+              Haut responsable, Division Énergies Renouvelables STEG
             </div>
-            <div style={{ fontSize: '0.78rem', color: '#8899aa', marginTop: '3px' }}>April 2026</div>
+            <div style={{ fontSize: '0.78rem', color: '#8899aa', marginTop: '3px' }}>Avril 2026</div>
           </div>
         </section>
 
@@ -201,7 +201,7 @@ export default function About() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
             <div style={{ width: '3px', height: '24px', background: '#00ff88', borderRadius: '2px' }} />
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f0f4f8', letterSpacing: '-0.01em' }}>
-              The Solution
+              La Solution
             </h2>
           </div>
 
@@ -209,20 +209,20 @@ export default function About() {
             {[
               {
                 num: '01',
-                title: 'Digital Twin',
-                desc: "Real-time virtual replica of Tunisia's grid. IoT sensor fusion. Time-aware physics model. Automated drone dispatch on anomaly detection.",
+                title: 'Jumeau numérique',
+                desc: "Réplique virtuelle en temps réel du réseau tunisien. Fusion de capteurs IoT. Modèle physique sensible au temps. Déploiement automatisé de drones sur détection d'anomalie.",
                 color: '#00ff88',
               },
               {
                 num: '02',
-                title: 'Blackout Prediction',
-                desc: '72-hour forecast using OpenMeteo weather data, peak-hour demand curves, and STEG capacity constants. Prevention before failure.',
+                title: 'Prédiction de panne',
+                desc: "Prévision 72h utilisant les données météo OpenMeteo, les courbes de demande en heure de pointe et les constantes de capacité STEG. La prévention avant la défaillance.",
                 color: '#ff3333',
               },
               {
                 num: '03',
-                title: 'National Carbon Index',
-                desc: "Tunisia's first regionalized carbon score per governorate. Built from real billing data and live renewable production. A number that has never existed.",
+                title: 'Indice carbone national',
+                desc: "Premier score carbone régionalisé de Tunisie par gouvernorat. Construit à partir de données de facturation réelles et de la production renouvelable en direct. Un chiffre qui n'a jamais existé.",
                 color: '#06b6d4',
               },
             ].map((s) => (
@@ -254,7 +254,7 @@ export default function About() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
             <div style={{ width: '3px', height: '24px', background: '#06b6d4', borderRadius: '2px' }} />
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f0f4f8', letterSpacing: '-0.01em' }}>
-              Team
+              Équipe
             </h2>
           </div>
 
@@ -312,7 +312,7 @@ export default function About() {
             rel="noopener noreferrer"
             className="btn btn-outline"
           >
-            GitHub Repository →
+            Dépôt GitHub →
           </a>
           <a
             href="http://localhost:8000/docs"
@@ -320,7 +320,7 @@ export default function About() {
             rel="noopener noreferrer"
             className="btn btn-secondary"
           >
-            API Documentation →
+            Documentation API →
           </a>
         </section>
 
@@ -329,7 +329,7 @@ export default function About() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '1.5rem' }}>
             <div style={{ width: '3px', height: '24px', background: '#ffd700', borderRadius: '2px' }} />
             <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f0f4f8', letterSpacing: '-0.01em' }}>
-              Request Demo
+              Demander une démo
             </h2>
           </div>
 
@@ -345,10 +345,10 @@ export default function About() {
             >
               <div style={{ fontSize: '2rem', marginBottom: '12px' }}>✓</div>
               <div style={{ fontSize: '1rem', fontWeight: 700, color: '#00ff88', marginBottom: '6px' }}>
-                Message sent
+                Message envoyé
               </div>
               <div style={{ fontSize: '0.83rem', color: '#8899aa' }}>
-                We'll be in touch to arrange a demo with your team.
+                Nous vous contacterons pour organiser une démonstration avec votre équipe.
               </div>
             </div>
           ) : (
@@ -359,8 +359,8 @@ export default function About() {
             >
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 {[
-                  { key: 'name', label: 'Full Name', placeholder: 'Your name' },
-                  { key: 'email', label: 'Work Email', placeholder: 'name@steg.com.tn', type: 'email' },
+                  { key: 'name', label: 'Nom complet', placeholder: 'Votre nom' },
+                  { key: 'email', label: 'Email professionnel', placeholder: 'nom@steg.com.tn', type: 'email' },
                 ].map(({ key, label, placeholder, type }) => (
                   <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <label style={{ fontSize: '0.7rem', fontWeight: 600, color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
@@ -396,7 +396,7 @@ export default function About() {
                 <textarea
                   required
                   rows={4}
-                  placeholder="Tell us about your organization and use case…"
+                  placeholder="Décrivez votre organisation et votre cas d'usage…"
                   value={formState.message}
                   onChange={(e) => setFormState((p) => ({ ...p, message: e.target.value }))}
                   style={{
@@ -417,7 +417,7 @@ export default function About() {
                 />
               </div>
               <button type="submit" className="btn btn-primary" style={{ alignSelf: 'flex-start' }}>
-                Send Request
+                Envoyer la demande
               </button>
             </form>
           )}

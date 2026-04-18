@@ -1,0 +1,54 @@
+<h2>NoorGrid — Upgrade Areas</h2>
+<p class="subtitle">Select the areas that interest you most (pick any)</p>
+
+<div class="options" data-multiselect>
+
+  <div class="option" data-choice="realtime" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Real-time Operations</h3>
+      <p>WebSocket live push for alerts &amp; grid state, multi-crisis support (run two scenarios simultaneously), browser notifications when a crisis fires</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="reports" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Report History &amp; Export</h3>
+      <p>Persistent report log, searchable archive of past crisis diagnoses, PDF export of DiagnosisReport, real SMTP email delivery behind an env flag</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="analytics" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Analytics &amp; Trends</h3>
+      <p>Historical grid health charts, per-region risk heatmap over time, cascade frequency tracker, crisis duration &amp; response metrics dashboard</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="ai" onclick="toggleSelect(this)">
+    <div class="letter">D</div>
+    <div class="content">
+      <h3>AI Upgrades</h3>
+      <p>Proactive anomaly detection (alert before crisis hits), smarter blackout prediction with ML model, chatbot memory &amp; conversation history, French report template via NIM</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="simulation" onclick="toggleSelect(this)">
+    <div class="letter">E</div>
+    <div class="content">
+      <h3>Simulation Realism</h3>
+      <p>Custom cascade region builder in CrisisModal, crisis replay mode (rewatch past events with drone animation), scenario scheduling (trigger at a set time), crisis severity escalation over time</p>
+    </div>
+  </div>
+
+  <div class="option" data-choice="production" onclick="toggleSelect(this)">
+    <div class="letter">F</div>
+    <div class="content">
+      <h3>Production Readiness</h3>
+      <p>API authentication (Bearer token), rate limiting, CORS locked to origin, PostgreSQL migration, Docker Compose setup, health &amp; metrics endpoint</p>
+    </div>
+  </div>
+
+</div>

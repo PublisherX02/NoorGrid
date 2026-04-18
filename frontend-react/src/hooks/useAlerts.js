@@ -17,11 +17,11 @@ export function useAlerts() {
     return () => clearInterval(interval)
   }, [fetchFeed])
 
-  const triggerSimulation = useCallback(async (region, risk_level, scenario_label) => {
+  const triggerSimulation = useCallback(async (region, risk_level, scenario_label, cascade_regions = []) => {
     setLoading(true)
     setError(null)
     try {
-      const alert = await simulateAlert(region, risk_level, scenario_label)
+      const alert = await simulateAlert(region, risk_level, scenario_label, cascade_regions)
       setAlerts((prev) => [alert, ...prev].slice(0, 10))
       return alert
     } catch (err) {

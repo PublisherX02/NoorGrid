@@ -16,6 +16,8 @@ import {
 import { useAlerts } from '../hooks/useAlerts'
 import CrisisModal from '../components/Crisis/CrisisModal'
 import AlertFeed from '../components/Crisis/AlertFeed'
+import DiagnosisReportModal from '../components/Crisis/DiagnosisReportModal'
+import { useCrisisReport } from '../hooks/useCrisisReport'
 import { useTranslation } from 'react-i18next'
 import i18n from '../i18n'
 
@@ -27,11 +29,12 @@ function TunisiaClock() {
     const t = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
-  const tunis = new Intl.DateTimeFormat('en-GB', {
+  const locale = i18n.language === 'fr' ? 'fr-FR' : 'en-GB'
+  const tunis = new Intl.DateTimeFormat(locale, {
     timeZone: 'Africa/Tunis',
     hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
   }).format(time)
-  const date = new Intl.DateTimeFormat('en-GB', {
+  const date = new Intl.DateTimeFormat(locale, {
     timeZone: 'Africa/Tunis',
     weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
   }).format(time)
@@ -147,6 +150,7 @@ function StatCell({ label, value, color }) {
 }
 
 function GovernorateStats({ gov, risk, outputMw }) {
+  const { t } = useTranslation()
   const riskColor = RISK_COLORS[risk] || '#00ff88'
   const srcColor  = SOURCE_COLOR[gov.source] || '#00ff88'
   const srcIcon   = SOURCE_ICON[gov.source] || '⚡'
@@ -162,7 +166,7 @@ function GovernorateStats({ gov, risk, outputMw }) {
   return (
     <div>
       <div className="section-label" style={{ marginBottom: '6px' }}>
-        {gov.name} — Station Detail
+        {gov.name} — {t('dashboard.stationDetails')}
       </div>
       <div
         className="card-panel"
@@ -200,12 +204,12 @@ function GovernorateStats({ gov, risk, outputMw }) {
             </div>
             <div>
               <div style={{ fontSize: '0.7rem', fontWeight: 700, color: srcColor }}>
-                {gov.source} Energy
+                {gov.source} — {t('dashboard.energy')}
               </div>
               <div style={{ fontSize: '0.58rem', color: '#8899aa', marginTop: '1px' }}>
                 {gov.region}
                 {gov.hasBackend && (
-                  <span style={{ color: '#00ff88', marginLeft: '4px' }}>· Live</span>
+                  <span style={{ color: '#00ff88', marginLeft: '4px' }}>· {t('dashboard.liveSource')}</span>
                 )}
               </div>
             </div>
@@ -216,22 +220,22 @@ function GovernorateStats({ gov, risk, outputMw }) {
         {/* 4-cell stats grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
           <StatCell
-            label="Live Output"
+            label={t('dashboard.liveOutput')}
             value={`${liveOutput} MW`}
             color={riskColor}
           />
           <StatCell
-            label="Installed Cap."
+            label={t('dashboard.installedCapacity')}
             value={`${gov.installed_capacity_mw ?? '—'} MW`}
             color="#e2e8f0"
           />
           <StatCell
-            label="Avg Demand"
+            label={t('dashboard.avgDemand')}
             value={`${gov.avg_demand_mw ?? '—'} MW`}
             color="#8899aa"
           />
           <StatCell
-            label="Peak Demand"
+            label={t('dashboard.peakDemand')}
             value={`${gov.peak_demand_mw ?? '—'} MW`}
             color="#ff9500"
           />
@@ -248,7 +252,7 @@ function GovernorateStats({ gov, risk, outputMw }) {
                 marginBottom: '3px',
               }}
             >
-              <span style={{ fontSize: '0.58rem', color: '#8899aa' }}>Output vs Avg Demand</span>
+              <span style={{ fontSize: '0.58rem', color: '#8899aa' }}>{t('dashboard.outputVsAvgDemand')}</span>
               <span
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
@@ -292,7 +296,7 @@ function GovernorateStats({ gov, risk, outputMw }) {
                 marginBottom: '3px',
               }}
             >
-              <span style={{ fontSize: '0.58rem', color: '#8899aa' }}>Capacity Utilization</span>
+              <span style={{ fontSize: '0.58rem', color: '#8899aa' }}>{t('dashboard.capacityUtilization')}</span>
               <span
                 style={{
                   fontFamily: "'JetBrains Mono', monospace",
@@ -351,6 +355,15 @@ export default function Dashboard() {
   const [activeAlert, setActiveAlert]     = useState(null)
   const [cascadeAlerts, setCascadeAlerts] = useState([])
   const [showCrisisModal, setShowCrisisModal] = useState(false)
+  const {
+    reportStatus,
+    report,
+    openReport,
+    setOpenReport,
+    onDronesReturned,
+    retryReport,
+    defaultRecipients,
+  } = useCrisisReport({ activeAlert, cascadeAlerts })
 
   const handleAlertTriggered = (alert, cascadeRegions = []) => {
     setActiveAlert(alert)
@@ -542,6 +555,7 @@ export default function Dashboard() {
             {[
               { label: t('nav.analytics'), path: '/analytics' },
               { label: t('nav.simulation'), path: '/simulation' },
+              { label: t('nav.crisisIntel'), path: '/crisis-intelligence' },
               { label: t('nav.about'), path: '/about' },
             ].map(({ label, path }) => (
               <button
@@ -590,11 +604,11 @@ export default function Dashboard() {
 
           {/* Grid Overview */}
           <div>
-            <div className="section-label">Grid Overview</div>
+            <div className="section-label">{t('dashboard.gridOverview')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               <div className="card-panel" style={{ padding: '8px 10px' }}>
                 <div style={{ fontSize: '0.58rem', color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Total Output
+                  {t('dashboard.totalOutput')}
                 </div>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '1.15rem', fontWeight: 700, color: '#00ff88', marginTop: '2px' }}>
                   {totalMW} <span style={{ fontSize: '0.65rem', fontWeight: 400 }}>MW</span>
@@ -602,16 +616,16 @@ export default function Dashboard() {
               </div>
               <div className="card-panel" style={{ padding: '8px 10px' }}>
                 <div style={{ fontSize: '0.58rem', color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Active Anomalies
+                  {t('dashboard.activeAnomalies')}
                 </div>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '1.15rem', fontWeight: 700, color: anomalies > 0 ? '#ff3333' : '#00ff88', marginTop: '2px' }}>
                   {anomalies}
-                  <span style={{ fontSize: '0.6rem', color: '#8899aa', marginLeft: '4px' }}>regions</span>
+                  <span style={{ fontSize: '0.6rem', color: '#8899aa', marginLeft: '4px' }}>{t('dashboard.regions')}</span>
                 </div>
               </div>
               <div className="card-panel" style={{ padding: '8px 10px' }}>
                 <div style={{ fontSize: '0.58rem', color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Carbon Index
+                  {t('dashboard.carbonIndex')}
                 </div>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '1.15rem', fontWeight: 700, color: '#06b6d4', marginTop: '2px' }}>
                   {carbonIndex} <span style={{ fontSize: '0.55rem', fontWeight: 400 }}>kg/cap</span>
@@ -622,12 +636,12 @@ export default function Dashboard() {
 
           {/* Governorate Selector */}
           <div style={{ flex: 1 }}>
-            <div className="section-label">Governorates</div>
+            <div className="section-label">{t('dashboard.governorates')}</div>
 
             {criticalGovs.length > 0 && (
               <div style={{ marginBottom: '6px' }}>
                 <div style={{ fontSize: '0.55rem', color: '#ff3333', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '4px' }}>
-                  ● CRITICAL
+                  ● {t('risk.CRITICAL')}
                 </div>
                 {criticalGovs.map((g) => (
                   <button
@@ -645,7 +659,7 @@ export default function Dashboard() {
             {highGovs.length > 0 && (
               <div style={{ marginBottom: '6px' }}>
                 <div style={{ fontSize: '0.55rem', color: '#ff9500', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '4px' }}>
-                  ● HIGH
+                  ● {t('risk.HIGH')}
                 </div>
                 {highGovs.map((g) => (
                   <button
@@ -662,7 +676,7 @@ export default function Dashboard() {
 
             <div>
               <div style={{ fontSize: '0.55rem', color: '#8899aa', fontWeight: 700, letterSpacing: '0.1em', marginBottom: '4px' }}>
-                ● NOMINAL / ELEVATED
+                ● {t('risk.NOMINAL')} / {t('risk.ELEVATED')}
               </div>
               {otherGovs.map((g) => (
                 <button
@@ -710,14 +724,14 @@ export default function Dashboard() {
                 opacity: 0.7,
               }}
             >
-              Operations Center — Tunisia National Grid
+              {t('dashboard.operationsCenter')}
             </span>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
               {[
-                { color: '#ff3333', label: 'Critical' },
-                { color: '#ff9500', label: 'High' },
-                { color: '#ffd700', label: 'Elevated' },
-                { color: '#00ff88', label: 'Nominal' },
+                { color: '#ff3333', label: t('risk.CRITICAL') },
+                { color: '#ff9500', label: t('risk.HIGH') },
+                { color: '#ffd700', label: t('risk.ELEVATED') },
+                { color: '#00ff88', label: t('risk.NOMINAL') },
               ].map(({ color, label }) => (
                 <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: color, boxShadow: `0 0 6px ${color}` }} />
@@ -732,7 +746,7 @@ export default function Dashboard() {
             {wLoading ? (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: '12px' }}>
                 <div className="spinner" style={{ width: '32px', height: '32px' }} />
-                <span style={{ fontSize: '0.75rem', color: '#8899aa' }}>Loading grid data…</span>
+                <span style={{ fontSize: '0.75rem', color: '#8899aa' }}>{t('dashboard.loadingGridData')}</span>
               </div>
             ) : (
               <TunisiaMap
@@ -742,6 +756,7 @@ export default function Dashboard() {
                 liveRiskMap={liveRiskMap}
                 activeAlert={activeAlert}
                 cascadeAlerts={cascadeAlerts}
+                droneState={{ onDronesReturned }}
                 style={{ height: '100%', width: '100%' }}
               />
             )}
@@ -763,11 +778,11 @@ export default function Dashboard() {
             }}
           >
             {[
-              { label: 'Capacity', value: `${STEG.EFFECTIVE_CAPACITY_MW.toLocaleString()} MW`, color: '#00ff88' },
-              { label: 'Record Peak', value: `${STEG.RECORD_PEAK_MW.toLocaleString()} MW`, color: '#ff3333' },
-              { label: 'Grid Losses', value: `${STEG.GRID_LOSSES_PCT}%`, color: '#ff9500' },
-              { label: 'Algeria Buffer', value: `${STEG.ALGERIA_DEFICIT_MW} MW`, color: '#ffd700' },
-              { label: 'Renewable Share', value: `${STEG.RENEWABLE_PCT}%`, color: '#06b6d4' },
+              { label: t('dashboard.capacity'), value: `${STEG.EFFECTIVE_CAPACITY_MW.toLocaleString()} MW`, color: '#00ff88' },
+              { label: t('dashboard.recordPeak'), value: `${STEG.RECORD_PEAK_MW.toLocaleString()} MW`, color: '#ff3333' },
+              { label: t('dashboard.gridLosses'), value: `${STEG.GRID_LOSSES_PCT}%`, color: '#ff9500' },
+              { label: t('dashboard.algeriaBuffer'), value: `${STEG.ALGERIA_DEFICIT_MW} MW`, color: '#ffd700' },
+              { label: t('dashboard.renewableShare'), value: `${STEG.RENEWABLE_PCT}%`, color: '#06b6d4' },
             ].map(({ label, value, color }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <span style={{ fontSize: '0.58rem', color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{label}</span>
@@ -792,7 +807,7 @@ export default function Dashboard() {
           }}
         >
           {/* Header */}
-          <div className="section-label" style={{ marginBottom: 0 }}>Grid Status</div>
+          <div className="section-label" style={{ marginBottom: 0 }}>{t('dashboard.gridState')}</div>
 
           {/* Gov Cards grid — highest-risk governorates, using live risk */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
@@ -807,17 +822,17 @@ export default function Dashboard() {
 
           {/* Consumption vs Renewable Chart */}
           <div>
-            <div className="section-label">Demand vs Output (MW)</div>
+            <div className="section-label">{t('dashboard.demandVsProduction')} (MW)</div>
             <div className="card-panel" style={{ padding: '8px 6px 4px' }}>
               <ConsumptionChart govs={GOVERNORATES} />
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '4px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <div style={{ width: '8px', height: '4px', background: 'rgba(255,255,255,0.1)', borderRadius: '1px' }} />
-                  <span style={{ fontSize: '0.58rem', color: '#8899aa' }}>Demand</span>
+                  <span style={{ fontSize: '0.58rem', color: '#8899aa' }}>{t('forecast.demand')}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <div style={{ width: '8px', height: '4px', background: '#00ff88', borderRadius: '1px' }} />
-                  <span style={{ fontSize: '0.58rem', color: '#8899aa' }}>Output</span>
+                  <span style={{ fontSize: '0.58rem', color: '#8899aa' }}>{t('dashboard.production')}</span>
                 </div>
               </div>
             </div>
@@ -835,7 +850,7 @@ export default function Dashboard() {
           {/* Blackout Prediction Peak */}
           <div>
             <div className="section-label">
-              Blackout Prediction — {selectedGov?.name || 'Bizerte'}
+              {t('dashboard.blackoutPrediction')} — {selectedGov?.name || 'Bizerte'}
             </div>
             {bLoading ? (
               <div style={{ padding: '12px', textAlign: 'center' }}>
@@ -851,31 +866,31 @@ export default function Dashboard() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                   <span style={{ fontSize: '0.7rem', fontWeight: 600, color: '#e2e8f0' }}>
-                    Peak Risk Window
+                    {t('forecast.peakHour')}
                   </span>
                   <RiskBadge level={peakWindow.risk_level} size="xs" />
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                   <div>
-                    <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>Time</div>
+                      <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>{t('dashboard.time')}</div>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', fontWeight: 700, color: '#e2e8f0' }}>
                       {peakWindow.time_label}
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>Probability</div>
+                      <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>{t('forecast.probability')}</div>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.85rem', fontWeight: 700, color: RISK_COLORS[peakWindow.risk_level] }}>
                       {peakWindow.blackout_probability}%
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>Temperature</div>
+                      <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>{t('dashboard.temperature')}</div>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', color: '#e2e8f0' }}>
                       {peakWindow.temperature}°C
                     </div>
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>Stress Ratio</div>
+                      <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>{t('forecast.stress')}</div>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.75rem', color: RISK_COLORS[peakWindow.risk_level] }}>
                       {peakWindow.stress_ratio}×
                     </div>
@@ -899,26 +914,26 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="card-panel" style={{ padding: '12px', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: '#00ff88' }}>✓ No high-risk window</div>
-                <div style={{ fontSize: '0.65rem', color: '#8899aa', marginTop: '4px' }}>Grid operating normally</div>
+                <div style={{ fontSize: '0.75rem', color: '#00ff88' }}>✓ {t('dashboard.noHighRiskWindow')}</div>
+                <div style={{ fontSize: '0.65rem', color: '#8899aa', marginTop: '4px' }}>{t('dashboard.gridNormal')}</div>
               </div>
             )}
           </div>
 
           {/* Carbon Index Gauge */}
           <div>
-            <div className="section-label">National Carbon Index</div>
+            <div className="section-label">{t('dashboard.nationalCarbon')}</div>
             <div className="card-panel" style={{ padding: '8px' }}>
               <GaugeChart
                 value={NATIONAL_CARBON_INDEX.value}
                 max={NATIONAL_CARBON_INDEX.max}
-                label="Carbon Index"
+                label={t('dashboard.carbonIndex')}
                 unit="kg CO₂/cap/day"
                 color="#06b6d4"
               />
               <div style={{ textAlign: 'center', marginTop: '4px' }}>
                 <span style={{ fontSize: '0.6rem', color: '#8899aa' }}>
-                  Target: {NATIONAL_CARBON_INDEX.target} · Trend: {NATIONAL_CARBON_INDEX.trend > 0 ? '+' : ''}{NATIONAL_CARBON_INDEX.trend}
+                  {t('dashboard.target')}: {NATIONAL_CARBON_INDEX.target} · {t('dashboard.trend')}: {NATIONAL_CARBON_INDEX.trend > 0 ? '+' : ''}{NATIONAL_CARBON_INDEX.trend}
                 </span>
               </div>
             </div>
@@ -927,8 +942,8 @@ export default function Dashboard() {
           {/* Quick nav */}
           <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '8px', borderTop: '1px solid rgba(0,255,136,0.08)' }}>
             {[
-              { label: '→ Analytics', path: '/analytics' },
-              { label: '→ Simulation', path: '/simulation' },
+              { label: `→ ${t('nav.analytics')}`, path: '/analytics' },
+              { label: `→ ${t('nav.simulation')}`, path: '/simulation' },
             ].map(({ label, path }) => (
               <button
                 key={path}
@@ -963,7 +978,7 @@ export default function Dashboard() {
         <CrisisModal
           onClose={() => setShowCrisisModal(false)}
           onTrigger={async (region, risk_level, scenario_label, cascadeRegions) => {
-            const alert = await triggerSimulation(region, risk_level, scenario_label)
+            const alert = await triggerSimulation(region, risk_level, scenario_label, cascadeRegions)
             handleAlertTriggered(alert, cascadeRegions)
           }}
           loading={alertLoading}
@@ -976,8 +991,20 @@ export default function Dashboard() {
         activeAlert={activeAlert}
         cascadeAlerts={cascadeAlerts}
         historicalAlerts={activeAlert ? alerts.filter((a) => a.id !== activeAlert?.id) : []}
+        reportStatus={reportStatus}
+        onOpenReport={() => setOpenReport(true)}
+        onRetryReport={retryReport}
         onAcknowledge={handleAcknowledge}
       />
+
+      {openReport && (
+        <DiagnosisReportModal
+          report={report}
+          alertId={activeAlert?.id ?? null}
+          onClose={() => setOpenReport(false)}
+          defaultRecipients={defaultRecipients}
+        />
+      )}
     </div>
   )
 }

@@ -22,9 +22,9 @@ function useElapsed(isoStr) {
     if (!isoStr) return
     const update = () => {
       const diff = Math.floor((Date.now() - new Date(isoStr).getTime()) / 1000)
-      if (diff < 60)        setElapsed(`${diff}s ago`)
-      else if (diff < 3600) setElapsed(`${Math.floor(diff / 60)}m ago`)
-      else                  setElapsed(`${Math.floor(diff / 3600)}h ago`)
+      if (diff < 60)        setElapsed(`il y a ${diff}s`)
+      else if (diff < 3600) setElapsed(`il y a ${Math.floor(diff / 60)}min`)
+      else                  setElapsed(`il y a ${Math.floor(diff / 3600)}h`)
     }
     update()
     const id = setInterval(update, 1000)
@@ -33,7 +33,7 @@ function useElapsed(isoStr) {
   return elapsed
 }
 
-function ActiveAlertCard({ alert, cascadeAlerts = [], onAcknowledge }) {
+function ActiveAlertCard({ alert, cascadeAlerts = [], reportStatus = 'idle', onOpenReport, onRetryReport, onAcknowledge }) {
   const { t } = useTranslation()
   const color   = RISK_COLORS[alert.risk_level] || '#ff3333'
   const elapsed = useElapsed(alert.triggered_at)
@@ -78,7 +78,7 @@ function ActiveAlertCard({ alert, cascadeAlerts = [], onAcknowledge }) {
       {cascadeAlerts.length > 0 && (
         <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginBottom: '8px' }}>
           <span style={{ fontSize: '0.58rem', color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.08em', alignSelf: 'center' }}>
-            Cascade:
+            Cascade :
           </span>
           {cascadeAlerts.map((c) => {
             const cc = RISK_COLORS[c.risk_level] || '#8899aa'
@@ -113,6 +113,63 @@ function ActiveAlertCard({ alert, cascadeAlerts = [], onAcknowledge }) {
           </div>
         ))}
       </div>
+
+      {reportStatus === 'generating' && (
+        <div style={{ marginBottom: '8px', padding: '6px 8px', borderRadius: '4px', border: '1px solid rgba(255,149,0,0.45)', color: '#ff9500', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', animation: 'livePulse 1.2s ease-in-out infinite' }}>
+          ⟳ ANALYSE EN COURS…
+        </div>
+      )}
+      {reportStatus === 'ready' && (
+        <button
+          onClick={onOpenReport}
+          style={{
+            width: '100%',
+            marginBottom: '8px',
+            padding: '6px',
+            background: 'rgba(0,255,136,0.12)',
+            border: '1px solid rgba(0,255,136,0.48)',
+            borderRadius: '4px',
+            color: '#00ff88',
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: '0.65rem',
+            fontWeight: 700,
+            letterSpacing: '0.08em',
+            cursor: 'pointer',
+            animation: 'livePulse 1.4s ease-in-out 1',
+          }}
+        >
+          VOIR LE RAPPORT ▶
+        </button>
+      )}
+      {reportStatus === 'error' && (
+        <>
+          <div style={{ marginBottom: '6px', padding: '6px 8px', borderRadius: '4px', border: '1px solid rgba(255,51,51,0.45)', color: '#ff3333', fontFamily: "'JetBrains Mono', monospace", fontSize: '0.62rem', fontWeight: 700, letterSpacing: '0.08em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>⚠ RAPPORT ÉCHOUÉ</span>
+            <button onClick={onRetryReport} style={{ background: 'none', border: 'none', color: '#ff9500', cursor: 'pointer', fontSize: '0.62rem', fontWeight: 700 }}>
+              réessayer
+            </button>
+          </div>
+          <button
+            onClick={onOpenReport}
+            style={{
+              width: '100%',
+              marginBottom: '8px',
+              padding: '6px',
+              background: 'rgba(255,51,51,0.08)',
+              border: '1px solid rgba(255,51,51,0.3)',
+              borderRadius: '4px',
+              color: '#ff9500',
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '0.65rem',
+              fontWeight: 700,
+              letterSpacing: '0.08em',
+              cursor: 'pointer',
+            }}
+          >
+            VOIR LE RAPPORT BROUILLON ▶
+          </button>
+        </>
+      )}
 
       {/* Acknowledge */}
       <button
@@ -162,7 +219,15 @@ function HistoricalAlertRow({ alert }) {
   )
 }
 
-export default function AlertFeed({ activeAlert, cascadeAlerts = [], historicalAlerts = [], onAcknowledge }) {
+export default function AlertFeed({
+  activeAlert,
+  cascadeAlerts = [],
+  historicalAlerts = [],
+  reportStatus = 'idle',
+  onOpenReport,
+  onRetryReport,
+  onAcknowledge,
+}) {
   const { t } = useTranslation()
   if (!activeAlert && historicalAlerts.length === 0) return null
 
@@ -190,6 +255,9 @@ export default function AlertFeed({ activeAlert, cascadeAlerts = [], historicalA
         <ActiveAlertCard
           alert={activeAlert}
           cascadeAlerts={cascadeAlerts}
+          reportStatus={reportStatus}
+          onOpenReport={onOpenReport}
+          onRetryReport={onRetryReport}
           onAcknowledge={onAcknowledge}
         />
       )}
@@ -197,7 +265,7 @@ export default function AlertFeed({ activeAlert, cascadeAlerts = [], historicalA
       {historicalAlerts.length > 0 && (
         <>
           <div style={{ fontSize: '0.58rem', color: '#4a5568', letterSpacing: '0.08em', marginBottom: '6px' }}>
-            PREVIOUS
+            PRÉCÉDENTS
           </div>
           {historicalAlerts.slice(0, 5).map((a) => (
             <HistoricalAlertRow key={a.id} alert={a} />

@@ -29,12 +29,48 @@
     "highRiskRegions": "Risque élevé"
   },
   "crisis": {
-    "simulateButton": "SIMULER CRISE",
-    "modalTitle": "SCÉNARIO DE CRISE — SÉLECTIONNER",
+    "simulateButton": "SIMULER UNE CRISE",
+    "modalTitle": "SCÉNARIO DE CRISE — SÉLECTIONNER UN ÉVÉNEMENT",
     "triggerButton": "DÉCLENCHER",
     "triggering": "DÉCLENCHEMENT...",
-    "alertFeedTitle": "ALERTES",
+    "alertFeedTitle": "FLUX D'ALERTES",
     "acknowledge": "ACQUITTER",
     "custom": "PERSONNALISÉ"
+  },
+  "forecast": {
+    "title": "PRÉVISION DE PANNE",
+    "probability": "probabilité",
+    "confidence": "Confiance",
+    "risk": "Risque",
+    "demand": "Demande",
+    "temp": "Temp",
+    "simulated": "Simulé",
+    "blackoutProbability": "Probabilité de panne",
+    "confidenceBand": "Bande de confiance ±12%",
+    "dangerThreshold": "Seuil de danger 50%",
+    "peakHour": "Heure de pointe",
+    "demandAvailable": "Demande / Disponible",
+    "stress": "Stress",
+    "recommendedAction": "Action recommandée",
+    "noData": "Aucune donnée de prévision"
+  },
+  "chatbot": {
+    "welcome": "NoorGrid RAG · Base de connaissances STEG en ligne.\n\nJe peux répondre avec les spécifications opérationnelles STEG, les données de capacité du réseau, les relevés de maintenance, le post-mortem de la crise du 14 août et le pipeline d'investissements renouvelables de la Tunisie.\n\nPosez-moi toute question sur le réseau national, le risque de panne, les ressources renouvelables ou la politique énergétique.",
+    "title": "NoorGrid RAG Conseiller",
+    "subtitle": "Base STEG · Génération augmentée par récupération",
+    "querying": "Interrogation de la base STEG…",
+    "analyzing": "ANALYSE",
+    "badge": "RAG · DOCS STEG",
+    "placeholder": "Posez une question sur le réseau STEG, les renouvelables ou la crise du 14 août…",
+    "footerHint": "Entrée pour envoyer · Maj+Entrée pour nouvelle ligne · Requêtes domaine STEG uniquement",
+    "widgetTitle": "CONSEILLER RAG STEG",
+    "widgetTooltip": "Conseiller RAG STEG",
+    "suggested": {
+      "cause": "Qu'est-ce qui a causé la crise du 14 août 2024 ?",
+      "targets": "Objectifs en énergies renouvelables de la Tunisie ?",
+      "riskCalc": "Comment le risque de panne est-il calculé ?",
+      "interconnector": "Capacité de l'interconnecteur algérien ?",
+      "maintenance": "Programme de maintenance prévu ?"
+    }
   }
 }

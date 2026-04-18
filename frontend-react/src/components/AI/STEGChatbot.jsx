@@ -1,26 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { sendMessageToRAG } from '../../services/api'
 import { RISK_COLORS } from '../../constants/grid'
-
-// ─── Constants ────────────────────────────────────────────────────────────────
-const WELCOME = {
-  id: 0,
-  role: 'assistant',
-  content: `NoorGrid RAG · STEG Knowledge Base online.
-
-I have access to STEG operational specifications, grid capacity data, maintenance records, the August 14 crisis post-mortem, and Tunisia's renewable investment pipeline.
-
-Ask me anything about the national grid, blackout risk, renewable resources, or energy policy.`,
-  timestamp: new Date(),
-}
-
-const SUGGESTED = [
-  'What caused the Aug 14, 2024 crisis?',
-  "Tunisia's renewable energy targets?",
-  'How is blackout risk calculated?',
-  'Algeria interconnector capacity?',
-  'Planned maintenance schedule?',
-]
 
 // ─── Streaming hook ───────────────────────────────────────────────────────────
 // Streams `target` character-by-character when `active` is true.
@@ -59,13 +40,13 @@ function useStreamText(target, active) {
 }
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
-function MessageBubble({ msg, isStreaming, streamedText }) {
+function MessageBubble({ msg, isStreaming, streamedText, locale }) {
   const isUser    = msg.role === 'user'
   const content   = isStreaming ? streamedText : msg.content
   const showCursor = isStreaming && !isUser
 
   const ts = msg.timestamp
-    ? new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(msg.timestamp))
+    ? new Intl.DateTimeFormat(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }).format(new Date(msg.timestamp))
     : ''
 
   if (isUser) {
@@ -194,7 +175,7 @@ function MessageBubble({ msg, isStreaming, streamedText }) {
 }
 
 // ─── Typing indicator ─────────────────────────────────────────────────────────
-function TypingIndicator() {
+function TypingIndicator({ t }) {
   return (
     <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'flex-start' }}>
       <div
@@ -229,7 +210,7 @@ function TypingIndicator() {
           />
         ))}
         <span style={{ fontSize: '0.62rem', color: '#4a5568', marginLeft: '4px', fontFamily: "'JetBrains Mono', monospace" }}>
-          Querying STEG knowledge base…
+          {t('chatbot.querying')}
         </span>
       </div>
     </div>
@@ -238,13 +219,37 @@ function TypingIndicator() {
 
 // ─── Core chat component ──────────────────────────────────────────────────────
 export default function STEGChatbot({ context = {}, style = {}, height = 480 }) {
-  const [messages, setMessages]       = useState([WELCOME])
+  const { t, i18n } = useTranslation()
+  const uiLocale = i18n.language === 'fr' ? 'fr-FR' : 'en-GB'
+  const welcomeMessage = useMemo(() => ({
+    id: 0,
+    role: 'assistant',
+    content: t('chatbot.welcome'),
+    timestamp: new Date(),
+  }), [t, i18n.language])
+  const suggestedQuestions = useMemo(() => ([
+    t('chatbot.suggested.cause'),
+    t('chatbot.suggested.targets'),
+    t('chatbot.suggested.riskCalc'),
+    t('chatbot.suggested.interconnector'),
+    t('chatbot.suggested.maintenance'),
+  ]), [t, i18n.language])
+
+  const [messages, setMessages]       = useState([welcomeMessage])
   const [input, setInput]             = useState('')
   const [isLoading, setIsLoading]     = useState(false)
   const [streamingId, setStreamingId] = useState(null)
   const [streamTarget, setStreamTarget] = useState('')
   const scrollRef = useRef(null)
   const inputRef  = useRef(null)
+
+  useEffect(() => {
+    setMessages([welcomeMessage])
+    setInput('')
+    setIsLoading(false)
+    setStreamingId(null)
+    setStreamTarget('')
+  }, [welcomeMessage])
 
   // Stream the latest AI message
   const { text: streamedText, done: streamDone } = useStreamText(streamTarget, streamingId !== null)
@@ -350,10 +355,10 @@ export default function STEGChatbot({ context = {}, style = {}, height = 480 }) 
           </div>
           <div>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', fontWeight: 700, color: '#00ff88', letterSpacing: '0.06em' }}>
-              NoorGrid RAG Advisor
+              {t('chatbot.title')}
             </div>
             <div style={{ fontSize: '0.58rem', color: '#8899aa', marginTop: '1px' }}>
-              STEG Knowledge Base · Retrieval-Augmented Generation
+              {t('chatbot.subtitle')}
             </div>
           </div>
         </div>
@@ -361,7 +366,7 @@ export default function STEGChatbot({ context = {}, style = {}, height = 480 }) 
           {isLoading && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <div className="live-dot" style={{ background: '#00ff88', boxShadow: '0 0 6px #00ff88' }} />
-              <span style={{ fontSize: '0.58rem', color: '#00ff88', letterSpacing: '0.08em' }}>QUERYING</span>
+              <span style={{ fontSize: '0.58rem', color: '#00ff88', letterSpacing: '0.08em' }}>{t('chatbot.analyzing')}</span>
             </div>
           )}
           <div
@@ -372,7 +377,7 @@ export default function STEGChatbot({ context = {}, style = {}, height = 480 }) 
               borderRadius: '3px', padding: '2px 6px', letterSpacing: '0.05em',
             }}
           >
-            RAG · STEG DOCS
+            {t('chatbot.badge')}
           </div>
         </div>
       </div>
@@ -388,14 +393,15 @@ export default function STEGChatbot({ context = {}, style = {}, height = 480 }) 
         }}
       >
         {messages.map((msg) => (
-          <MessageBubble
-            key={msg.id}
-            msg={msg}
-            isStreaming={msg.id === streamingId}
-            streamedText={streamedText}
-          />
+            <MessageBubble
+              key={msg.id}
+              msg={msg}
+              isStreaming={msg.id === streamingId}
+              streamedText={streamedText}
+              locale={uiLocale}
+            />
         ))}
-        {isLoading && <TypingIndicator />}
+        {isLoading && <TypingIndicator t={t} />}
       </div>
 
       {/* ── Suggested questions ── */}
@@ -410,7 +416,7 @@ export default function STEGChatbot({ context = {}, style = {}, height = 480 }) 
             flexShrink: 0,
           }}
         >
-          {SUGGESTED.map((q) => (
+          {suggestedQuestions.map((q) => (
             <button
               key={q}
               onClick={() => send(q)}
@@ -452,7 +458,7 @@ export default function STEGChatbot({ context = {}, style = {}, height = 480 }) 
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about STEG grid, renewables, Aug 14 crisis…"
+          placeholder={t('chatbot.placeholder')}
           rows={1}
           style={{
             flex: 1,
@@ -507,7 +513,7 @@ export default function STEGChatbot({ context = {}, style = {}, height = 480 }) 
           flexShrink: 0,
         }}
       >
-        Enter to send · Shift+Enter for newline · STEG domain queries only
+        {t('chatbot.footerHint')}
       </div>
     </div>
   )
@@ -515,6 +521,7 @@ export default function STEGChatbot({ context = {}, style = {}, height = 480 }) 
 
 // ─── Floating Chat Widget (for Dashboard) ────────────────────────────────────
 export function ChatWidget({ context = {} }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
 
   return (
@@ -547,7 +554,7 @@ export function ChatWidget({ context = {} }) {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#00ff88', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em' }}>
-                ◈ STEG RAG ADVISOR
+                ◈ {t('chatbot.widgetTitle')}
               </span>
             </div>
             <button
@@ -572,7 +579,7 @@ export function ChatWidget({ context = {} }) {
       {/* Toggle button */}
       <button
         onClick={() => setOpen((v) => !v)}
-        title="STEG RAG Advisor"
+        title={t('chatbot.widgetTooltip')}
         style={{
           position: 'fixed',
           bottom: '20px',

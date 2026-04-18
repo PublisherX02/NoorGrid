@@ -11,10 +11,10 @@ const FEATURES = [
       </svg>
     ),
     color: '#00ff88',
-    title: 'Digital Twin',
+    title: 'Jumeau numérique',
     desc:
-      "Real-time virtual replica of Tunisia's 24-governorate renewable grid. IoT sensor fusion across wind farms, solar plants, and hydroelectric dams. Automated drone dispatch on anomaly detection.",
-    tag: 'Real-time',
+      "Réplique virtuelle en temps réel du réseau renouvelable des 24 gouvernorats de Tunisie. Fusion de capteurs IoT sur parcs éoliens, centrales solaires et barrages hydroélectriques. Déploiement automatisé de drones sur détection d'anomalie.",
+    tag: 'Temps réel',
   },
   {
     icon: (
@@ -24,10 +24,10 @@ const FEATURES = [
       </svg>
     ),
     color: '#ff3333',
-    title: 'Blackout Prediction',
+    title: 'Prédiction de panne',
     desc:
-      '72-hour forecast engine using live temperature data, peak-hour demand curves, and STEG capacity constants. The system that would have warned operators 72 hours before August 14, 2024.',
-    tag: '72H Forecast',
+      "Moteur de prévision 72h utilisant les données de température en direct, les courbes de demande en heure de pointe et les constantes de capacité STEG. Le système qui aurait alerté les opérateurs 72h avant le 14 août 2024.",
+    tag: 'Prévision 72H',
   },
   {
     icon: (
@@ -37,20 +37,20 @@ const FEATURES = [
       </svg>
     ),
     color: '#06b6d4',
-    title: 'National Carbon Index',
+    title: 'Indice carbone national',
     desc:
-      "Tunisia's first regionalized carbon score — calculated per governorate from real STEG billing data, live weather, and renewable production. A number that has never existed before.",
-    tag: 'First-ever',
+      "Premier score carbone régionalisé de Tunisie — calculé par gouvernorat à partir des données de facturation STEG réelles, de la météo en direct et de la production renouvelable. Un chiffre qui n'a jamais existé.",
+    tag: 'Premier au monde',
   },
 ]
 
 // ─── Stats ────────────────────────────────────────────────────────────────
 const STATS = [
-  { value: '5,944', unit: 'MW', label: 'National Grid Capacity' },
-  { value: '4,888', unit: 'MW', label: 'Record Peak — Aug 14 2024' },
-  { value: '22%',   unit: '',   label: 'Grid Losses Tracked' },
-  { value: '14%',   unit: '',   label: 'Algeria Dependency Flagged' },
-  { value: '93.7%', unit: '',   label: 'Fossil Fuel Dependency' },
+  { value: '5 944', unit: 'MW', label: 'Capacité nationale du réseau' },
+  { value: '4 888', unit: 'MW', label: 'Pic record — 14 août 2024' },
+  { value: '22%',   unit: '',   label: 'Pertes réseau suivies' },
+  { value: '14%',   unit: '',   label: 'Dépendance Algérie signalée' },
+  { value: '93,7%', unit: '',   label: 'Dépendance aux combustibles fossiles' },
 ]
 
 // ─── Tech Stack ───────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ export default function Landing() {
             }}
           >
             <span className="live-dot" style={{ background: '#ff3333', boxShadow: '0 0 6px #ff3333' }} />
-            LIVE — {critical} CRITICAL · {high} HIGH RISK REGIONS
+            EN DIRECT — {critical} CRITIQUE · {high} RÉGIONS À RISQUE ÉLEVÉ
           </div>
 
           {/* Main headline */}
@@ -137,17 +137,17 @@ export default function Landing() {
               color: '#f0f4f8',
             }}
           >
-            Tunisia's Missing{' '}
+            L'infrastructure manquante{' '}
             <span
               style={{
                 color: '#00ff88',
                 textShadow: '0 0 40px rgba(0,255,136,0.4)',
               }}
             >
-              Energy Intelligence
+              d'intelligence énergétique
             </span>
             <br />
-            Infrastructure.
+            de la Tunisie.
           </h1>
 
           {/* Sub-headline */}
@@ -160,8 +160,8 @@ export default function Landing() {
               margin: '0 auto 2.5rem',
             }}
           >
-            Real-time digital twin &nbsp;·&nbsp; Blackout prediction &nbsp;·&nbsp;
-            National carbon index &nbsp;·&nbsp; AI-powered investment strategy
+            Jumeau numérique temps réel &nbsp;·&nbsp; Prédiction de panne &nbsp;·&nbsp;
+            Indice carbone national &nbsp;·&nbsp; Stratégie d'investissement IA
           </p>
 
           {/* CTA Buttons */}
@@ -170,13 +170,13 @@ export default function Landing() {
               onClick={() => navigate('/about')}
               className="btn btn-primary btn-lg"
             >
-              Request Demo
+              Demander une démo
             </button>
             <button
               onClick={() => navigate('/dashboard')}
               className="btn btn-outline btn-lg"
             >
-              View Dashboard →
+              Voir le tableau de bord →
             </button>
           </div>
 
@@ -267,7 +267,7 @@ export default function Landing() {
               marginBottom: '0.75rem',
             }}
           >
-            Three Pillars
+            Trois piliers
           </p>
           <h2
             style={{
@@ -277,7 +277,7 @@ export default function Landing() {
               color: '#f0f4f8',
             }}
           >
-            The intelligence layer that has never existed.
+            La couche d'intelligence qui n'a jamais existé.
           </h2>
         </div>
 
@@ -395,8 +395,8 @@ export default function Landing() {
               fontStyle: 'italic',
             }}
           >
-            There is no digital follow-up system for these grids.
-            And there is no prevention mindset.
+            Il n'existe aucun système numérique de suivi pour ces réseaux.
+            Et il n'y a aucune culture de la prévention.
           </blockquote>
           <div
             style={{
@@ -416,9 +416,9 @@ export default function Landing() {
               }}
             />
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0' }}>
-              Senior Official, STEG Renewable Energy Division
+              Haut responsable, Division Énergies Renouvelables STEG
             </span>
-            <span style={{ fontSize: '0.75rem', color: '#8899aa' }}>April 2026</span>
+            <span style={{ fontSize: '0.75rem', color: '#8899aa' }}>Avril 2026</span>
           </div>
         </div>
       </section>
@@ -436,7 +436,7 @@ export default function Landing() {
               marginBottom: '1.5rem',
             }}
           >
-            Powered by
+            Propulsé par
           </p>
           <div
             style={{
@@ -496,17 +496,17 @@ export default function Landing() {
             letterSpacing: '-0.02em',
           }}
         >
-          The next blackout is preventable.
+          La prochaine panne est évitable.
         </h2>
         <p style={{ color: '#8899aa', marginBottom: '2rem', fontSize: '0.95rem' }}>
-          NoorGrid turns Tunisia's energy blind spot into its greatest competitive advantage.
+          NoorGrid transforme l'angle mort énergétique de la Tunisie en avantage concurrentiel majeur.
         </p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={() => navigate('/dashboard')} className="btn btn-primary btn-lg">
-            Enter Ops Room →
+            Entrer dans la salle d'opérations →
           </button>
           <button onClick={() => navigate('/about')} className="btn btn-outline btn-lg">
-            Learn More
+            En savoir plus
           </button>
         </div>
       </section>
@@ -534,7 +534,7 @@ export default function Landing() {
           ⚡ NoorGrid
         </span>
         <span style={{ fontSize: '0.75rem', color: '#4a5568' }}>
-          Tunisia's Renewable Energy Intelligence Platform · {new Date().getFullYear()}
+          Plateforme d'intelligence énergétique renouvelable — Tunisie · {new Date().getFullYear()}
         </span>
         <a
           href="https://github.com/PublisherX02/NoorGrid"

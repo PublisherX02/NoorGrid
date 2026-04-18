@@ -12,6 +12,7 @@ import httpx
 
 _NIM_URL = "https://integrate.api.nvidia.com/v1/chat/completions"
 _NIM_MODEL = "meta/llama-3.1-70b-instruct"
+_FACTS_PATH = os.path.join(os.path.dirname(__file__), "data", "tunisia_energy_facts_2024_2025.json")
 
 _MOCK_REPORT = {
     "root_cause": (
@@ -38,6 +39,12 @@ _MOCK_REPORT = {
         "Deploy field technicians to primary substation for manual override readiness",
     ],
 }
+
+try:
+    with open(_FACTS_PATH, "r", encoding="utf-8") as _f:
+        _NATIONAL_FACTS = json.load(_f)
+except Exception:
+    _NATIONAL_FACTS = {}
 
 
 async def generate_report_from_nim(
@@ -90,6 +97,13 @@ Respond with ONLY valid JSON (no markdown fences, no explanation) using exactly 
   "recommended_actions": ["action 1", "action 2", "action 3", "action 4"]
 }}"""
 
+    facts_line = (
+        f"Installed capacity: {_NATIONAL_FACTS.get('installed_capacity_mw', 'n/a')}–"
+        f"{_NATIONAL_FACTS.get('installed_capacity_upper_mw', 'n/a')} MW; "
+        f"STEG capacity share: {_NATIONAL_FACTS.get('steg_capacity_share_pct', 'n/a')}%; "
+        f"Grid carbon intensity: {_NATIONAL_FACTS.get('grid_carbon_intensity_gco2_per_kwh', 'n/a')} gCO2/kWh."
+    )
+
     payload = {
         "model": _NIM_MODEL,
         "messages": [
@@ -97,6 +111,7 @@ Respond with ONLY valid JSON (no markdown fences, no explanation) using exactly 
                 "role": "system",
                 "content": (
                     "You are a STEG grid operations AI assistant. "
+                    f"Context: {facts_line} "
                     "Always respond with valid JSON only. No markdown. No preamble."
                 ),
             },

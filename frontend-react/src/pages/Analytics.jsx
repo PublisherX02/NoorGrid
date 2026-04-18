@@ -66,9 +66,9 @@ const ChartTooltip = ({ active, payload, label }) => {
 
 // ─── Risk Breakdown ──────────────────────────────────────────────────────────
 const RISK_COMPONENTS = [
-  { key: 'deviation',   label: 'Output Deviation',    color: '#ff3333', pct: 0 },
-  { key: 'rate_change', label: 'Rate of Change',       color: '#ff9500', pct: 0 },
-  { key: 'correlation', label: 'Regional Correlation', color: '#06b6d4', pct: 0 },
+  { key: 'deviation',   label: 'Écart de production',     color: '#ff3333', pct: 0 },
+  { key: 'rate_change', label: 'Vitesse de variation',     color: '#ff9500', pct: 0 },
+  { key: 'correlation', label: 'Corrélation régionale',    color: '#06b6d4', pct: 0 },
 ]
 
 function getRiskComponents(riskLevel) {
@@ -219,21 +219,21 @@ export default function Analytics() {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.15em', textTransform: 'uppercase', color: '#00ff88', marginBottom: '6px' }}>
-              Analytics
+              Analytique
             </div>
             <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f0f4f8', letterSpacing: '-0.02em' }}>
-              Grid Performance & Risk Analysis
+              Performance du réseau & Analyse des risques
             </h1>
             <p style={{ fontSize: '0.85rem', color: '#8899aa', marginTop: '6px' }}>
-              48-hour trend analysis · Composite risk scoring · Historical data export
+              Analyse sur 48h · Score de risque composite · Export de données historiques
               {(isMock || weatherMock) && (
                 <span style={{ marginLeft: '8px', color: '#ff9500', fontSize: '0.75rem', fontWeight: 600 }}>
-                  [Simulated data]
+                  [Données simulées]
                 </span>
               )}
             </p>
           </div>
-          <button onClick={exportCSV} className="btn btn-outline btn-sm">↓ Export CSV</button>
+          <button onClick={exportCSV} className="btn btn-outline btn-sm">↓ Exporter CSV</button>
         </div>
 
         {/* ── National Overview ───────────────────────────────────────────── */}
@@ -241,20 +241,20 @@ export default function Analytics() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
             <div>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa' }}>
-                National Grid Snapshot
+                Aperçu national du réseau
               </div>
               <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#f0f4f8', marginTop: '2px' }}>
-                All 24 Governorates — Output vs Avg Demand
+                24 gouvernorats — Production vs Demande moy.
               </div>
             </div>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', fontSize: '0.68rem', color: '#8899aa' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <div style={{ width: '10px', height: '10px', background: '#00ff88', borderRadius: '2px' }} />
-                Output MW
+                Production MW
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <div style={{ width: '10px', height: '10px', background: 'rgba(255,255,255,0.15)', borderRadius: '2px' }} />
-                Avg Demand MW
+                Demande moy. MW
               </div>
             </div>
           </div>
@@ -313,7 +313,7 @@ export default function Analytics() {
                   transition: 'all 0.15s',
                 }}
               >
-                {r || 'All Regions'}
+                {r || 'Toutes régions'}
               </button>
             ))}
           </div>
@@ -340,7 +340,7 @@ export default function Analytics() {
                     transition: 'all 0.15s',
                   }}
                 >
-                  {r || 'All Risk'}
+                  {r || 'Tous niveaux'}
                 </button>
               )
             })}
@@ -363,7 +363,7 @@ export default function Analytics() {
               color: '#e2e8f0',
             }}
           >
-            <span style={{ color: '#8899aa' }}>Viewing:</span>
+            <span style={{ color: '#8899aa' }}>Affichage :</span>
             <span style={{ fontWeight: 700, color: RISK_COLORS[selectedLiveRisk] || '#00ff88' }}>
               {selectedGov.name}
             </span>
@@ -499,10 +499,10 @@ export default function Analytics() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
               <div>
                 <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa' }}>
-                  48H Trend
+                  Tendance 48H
                 </div>
                 <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f0f4f8', marginTop: '2px' }}>
-                  {selectedGov?.name} — Energy Output
+                  {selectedGov?.name} — Production d'énergie
                 </div>
               </div>
               {loading && <div className="spinner" />}
@@ -547,10 +547,10 @@ export default function Analytics() {
           <div className="card" style={{ padding: '1.25rem' }}>
             <div style={{ marginBottom: '1rem' }}>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa' }}>
-                Risk Analysis
+                Analyse des risques
               </div>
               <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f0f4f8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Composite Risk Score
+                Score de risque composite
                 <RiskBadge level={selectedLiveRisk} size="sm" />
               </div>
             </div>
@@ -590,7 +590,7 @@ export default function Analytics() {
               }}
             >
               <div style={{ fontSize: '0.6rem', color: '#8899aa', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '4px' }}>
-                Composite Score
+                Score composite
               </div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                 <span
@@ -638,20 +638,21 @@ export default function Analytics() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
             <div>
               <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa' }}>
-                Historical Records
+                Historique des données
               </div>
               <div style={{ fontSize: '1rem', fontWeight: 700, color: '#f0f4f8', marginTop: '2px' }}>
-                {selectedGov?.name} — Last 48 Hours
+                {selectedGov?.name} — 48 dernières heures
               </div>
             </div>
             <button onClick={exportCSV} className="btn btn-secondary btn-sm">↓ CSV</button>
+
           </div>
 
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid rgba(0,255,136,0.1)' }}>
-                  {['Timestamp', 'Wind Speed', 'Solar Irradiance', 'Region'].map((h) => (
+                  {['Horodatage', 'Vitesse du vent', 'Irradiance solaire', 'Région'].map((h) => (
                     <th
                       key={h}
                       style={{
@@ -693,10 +694,10 @@ export default function Analytics() {
                   <tr>
                     <td colSpan={4} style={{ padding: '24px', textAlign: 'center', color: '#8899aa', fontSize: '0.8rem' }}>
                       {loading
-                        ? 'Loading historical data…'
+                        ? 'Chargement des données historiques…'
                         : selectedGov?.hasBackend
-                        ? 'No records found'
-                        : 'Synthetic data — no raw records for this governorate'}
+                        ? 'Aucun enregistrement trouvé'
+                        : 'Données synthétiques — aucun enregistrement pour ce gouvernorat'}
                     </td>
                   </tr>
                 )}

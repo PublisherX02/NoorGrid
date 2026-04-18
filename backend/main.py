@@ -23,7 +23,16 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw
-from db import get_alerts_feed, get_region_history, init_db, insert_alert, insert_weather_entries
+from db import (
+    get_alert_by_id,
+    get_alerts_feed,
+    get_crisis_analytics,
+    get_region_history,
+    init_db,
+    insert_alert,
+    insert_report_send,
+    insert_weather_entries,
+)
 from grid import GridInputs, simulate_national_grid
 from models import (
     AlertSimulateRequest,
@@ -32,6 +41,7 @@ from models import (
     BlackoutResponse,
     CarbonRequest,
     CarbonResponse,
+    CrisisAnalyticsResponse,
     GridSimulationRequest,
     GridSimulationResponse,
     HistoryRecordRequest,
@@ -476,11 +486,13 @@ def simulate_alert(req: AlertSimulateRequest):
             scenario_label=req.scenario_label,
             prevention_actions=actions,
             is_test=True,
+            cascade_regions=req.cascade_regions,
         )
-        # Retrieve the stored record to get the DB-generated triggered_at timestamp
-        feed = get_alerts_feed(limit=1)
-        if feed:
-            triggered_at = feed[0]["triggered_at"]
+        # Fetch by id — avoids race condition that get_alerts_feed(limit=1) would have
+        # under concurrent requests (it could return a different alert's timestamp).
+        stored = get_alert_by_id(alert_id)
+        if stored:
+            triggered_at = stored["triggered_at"]
     except Exception as exc:
         print(f"[alerts] failed to persist simulated alert: {exc}")
 
@@ -550,7 +562,26 @@ def send_report(req: ReportSendRequest):
         f"region={req.report.region} risk={req.report.risk_level} "
         f"recipients={req.recipients} sent_at={sent_at}"
     )
+    try:
+        insert_report_send(
+            scenario_label=req.report.scenario_label,
+            region=req.report.region,
+            risk_level=req.report.risk_level,
+            recipients=req.recipients,
+            sent_at=sent_at,
+            alert_id=req.alert_id,
+        )
+    except Exception as exc:
+        print(f"[report] failed to persist send log: {exc}")
     return ReportSendResponse(sent=True, recipients=req.recipients, sent_at=sent_at)
+
+
+@app.get("/analytics/crisis", response_model=CrisisAnalyticsResponse, tags=["Analytics"])
+def get_crisis_analytics_endpoint(days: int = 7):
+    """Return aggregate crisis analytics for the given time window."""
+    if days < 1 or days > 365:
+        raise HTTPException(status_code=422, detail="days must be between 1 and 365")
+    return CrisisAnalyticsResponse(**get_crisis_analytics(days))
 
 
 # ── Blackout prediction endpoint ──────────────────────────────────────────────

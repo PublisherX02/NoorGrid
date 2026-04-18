@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
+    allowedHosts: true,
     proxy: {
       // Proxy all backend API paths to FastAPI on port 8000.
       // This makes the React dev server act as a single entry point —

@@ -252,9 +252,11 @@ export const sendMessageToRAG = async (message, context = {}) => {
   }
 }
 
-export const simulateAlert = async (region, risk_level, scenario_label) => {
+export const simulateAlert = async (region, risk_level, scenario_label, cascade_regions = []) => {
   try {
-    const resp = await client.post('/alerts/simulate', { region, risk_level, scenario_label })
+    // Backend expects list[str]; normalize objects like {name, risk_level} to plain names
+    const names = cascade_regions.map((c) => (typeof c === 'string' ? c : c.name))
+    const resp = await client.post('/alerts/simulate', { region, risk_level, scenario_label, cascade_regions: names })
     return resp.data
   } catch (err) {
     throw new Error(err.response?.data?.detail || 'Simulation request failed')
@@ -267,5 +269,99 @@ export const getAlertsFeed = async (limit = 10) => {
     return resp.data
   } catch (_) {
     return []
+  }
+}
+
+export const generateReport = async (payload) => {
+  try {
+    const resp = await client.post('/report/generate', payload)
+    return resp.data
+  } catch (err) {
+    throw new Error(err.response?.data?.detail || 'Report generation failed')
+  }
+}
+
+export const sendReport = async (recipients, report, alertId = null) => {
+  try {
+    const resp = await client.post('/report/send', { recipients, report, alert_id: alertId ?? null })
+    return resp.data
+  } catch (err) {
+    throw new Error(err.response?.data?.detail || 'Report send failed')
+  }
+}
+
+function _mockCrisisAnalytics(days) {
+  const now = new Date()
+  const incidents = [
+    {
+      id: 1,
+      region: 'Tunis',
+      risk_level: 'CRITICAL',
+      scenario_label: 'Grid Overload — Demo',
+      cascade_regions: ['Ariana', 'Ben Arous'],
+      triggered_at: new Date(now - 2 * 3600_000).toISOString(),
+      report_sent: true,
+      recipients_count: 3,
+    },
+    {
+      id: 2,
+      region: 'Sfax',
+      risk_level: 'HIGH',
+      scenario_label: 'Solar Dropout — Demo',
+      cascade_regions: ['Mahdia'],
+      triggered_at: new Date(now - 5 * 3600_000).toISOString(),
+      report_sent: false,
+      recipients_count: 0,
+    },
+    {
+      id: 3,
+      region: 'Bizerte',
+      risk_level: 'ELEVATED',
+      scenario_label: 'Wind Variance — Demo',
+      cascade_regions: [],
+      triggered_at: new Date(now - 26 * 3600_000).toISOString(),
+      report_sent: false,
+      recipients_count: 0,
+    },
+  ]
+  const bucketDays = Math.min(days, 7)
+  return {
+    window_days: days,
+    total_incidents: incidents.length,
+    critical_count: 1,
+    high_count: 1,
+    most_affected_region: 'Tunis',
+    report_dispatch_count: 1,
+    cascade_hits_total: 3,
+    incidents,
+    region_frequency: [
+      { region: 'Tunis', primary_count: 1, cascade_count: 0, total: 1 },
+      { region: 'Ariana', primary_count: 0, cascade_count: 1, total: 1 },
+      { region: 'Ben Arous', primary_count: 0, cascade_count: 1, total: 1 },
+      { region: 'Sfax', primary_count: 1, cascade_count: 0, total: 1 },
+      { region: 'Mahdia', primary_count: 0, cascade_count: 1, total: 1 },
+      { region: 'Bizerte', primary_count: 1, cascade_count: 0, total: 1 },
+    ],
+    daily_counts: Array.from({ length: bucketDays }, (_, i) => {
+      const d = new Date(now)
+      d.setDate(d.getDate() - (bucketDays - 1 - i))
+      return {
+        date: d.toISOString().slice(0, 10),
+        count: i === bucketDays - 1 ? 2 : Math.floor(Math.random() * 2),
+      }
+    }),
+  }
+}
+
+export const getCrisisAnalytics = async (days = 7) => {
+  try {
+    const res = await client.get('/analytics/crisis', { params: { days } })
+    // Fall back to demo data when the DB has no incidents yet
+    if (!res.data || res.data.total_incidents === 0) {
+      return { data: _mockCrisisAnalytics(days), mock: true }
+    }
+    return { data: res.data, mock: false }
+  } catch {
+    return { data: _mockCrisisAnalytics(days), mock: true }
   }
 }
