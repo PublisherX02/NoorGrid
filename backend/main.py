@@ -2,9 +2,10 @@
 NoorGrid FastAPI backend — renewable energy production API.
 """
 
+import datetime
+import json
 import os
 import sys
-import json
 
 # Ensure backend/ is on sys.path so sibling modules resolve regardless of
 # which directory uvicorn is launched from.
@@ -12,18 +13,15 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 # Load .env from the repo root (one directory above backend/).
 # Must happen before any os.getenv() call.
-from dotenv import load_dotenv
+from dotenv import load_dotenv  # noqa: E402
+
 _env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(dotenv_path=_env_path, override=False)
 
-import datetime
-import httpx
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-
-from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw
-from db import (
+import httpx  # noqa: E402
+from apscheduler.schedulers.asyncio import AsyncIOScheduler  # noqa: E402
+from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw  # noqa: E402
+from db import (  # noqa: E402
     get_alert_by_id,
     get_alerts_feed,
     get_crisis_analytics,
@@ -33,8 +31,10 @@ from db import (
     insert_report_send,
     insert_weather_entries,
 )
-from grid import GridInputs, simulate_national_grid
-from models import (
+from fastapi import FastAPI, HTTPException  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from grid import GridInputs, simulate_national_grid  # noqa: E402
+from models import (  # noqa: E402
     AlertSimulateRequest,
     AlertSimulateResponse,
     BlackoutRequest,
@@ -63,8 +63,8 @@ from models import (
     WeatherResponse,
     WindRequest,
 )
-from report import generate_report_from_nim
-from weather import fetch_all_weather
+from report import generate_report_from_nim  # noqa: E402
+from weather import fetch_all_weather  # noqa: E402
 
 app = FastAPI(
     title="NoorGrid API",
