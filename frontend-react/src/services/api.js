@@ -179,6 +179,15 @@ export const predictBlackout = async (region, forecast_hours = 24) => {
   }
 }
 
+export const getHydroForecast = async (months = 12) => {
+  try {
+    const res = await client.get('/hydro/forecast', { params: { months } })
+    return { data: res.data, mock: false, error: false }
+  } catch {
+    return { data: null, mock: true, error: true }
+  }
+}
+
 export const simulateGrid = async (params) => {
   try {
     const res = await client.post('/grid/simulate', params)

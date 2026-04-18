@@ -48,6 +48,7 @@ from models import (  # noqa: E402
     HistoryRecordRequest,
     HistoryRecordResponse,
     HourlyPrediction,
+    HydroForecastResponse,
     HydroRequest,
     NationalStatsResponse,
     PowerResponse,
@@ -210,6 +211,40 @@ def simulate_grid(req: GridSimulationRequest):
         )
     )
     return GridSimulationResponse(**result)
+
+
+@app.get("/hydro/forecast", response_model=HydroForecastResponse, tags=["Prediction"])
+def hydro_forecast(months: int = 12):
+    if months < 1 or months > 24:
+        raise HTTPException(status_code=422, detail="months must be between 1 and 24")
+
+    try:
+        from hydro_forecast import build_forecast, get_drought_warning
+
+        forecast = build_forecast(months=months)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Insufficient historical data for forecasting. Minimum 13 months required.",
+        ) from exc
+
+    drought_warning = get_drought_warning(forecast.get("predictions", []))
+    confidence = forecast.get("confidence", "LOW")
+    if confidence == "LOW":
+        message = "Cold-start seasonal fallback forecast applied for Sidi Salem Dam."
+    else:
+        message = "SARIMAX forecast generated for Sidi Salem Dam."
+
+    return HydroForecastResponse(
+        model_rmse=float(forecast.get("model_rmse", 0.0)),
+        model_mae=float(forecast.get("model_mae", 0.0)),
+        confidence=confidence,
+        data_points_used=int(forecast.get("data_points_used", 0)),
+        forecast_months=int(forecast.get("forecast_months", months)),
+        drought_warning=drought_warning,
+        predictions=forecast.get("predictions", []),
+        message=message,
+    )
 
 
 # ── Region config for blackout prediction ────────────────────────────────────
@@ -399,7 +434,10 @@ async def get_weather():
             detail=f"Failed to fetch weather data: {exc}",
         ) from exc
 
-    insert_weather_entries(entries)
+    try:
+        insert_weather_entries(entries)
+    except Exception as exc:
+        print(f"[weather] failed to persist weather snapshot: {exc}")
     return WeatherResponse(data=entries)
 
 
@@ -417,7 +455,10 @@ async def get_weather_all():
             detail=f"Failed to fetch weather data: {exc}",
         ) from exc
 
-    insert_weather_entries(raw)
+    try:
+        insert_weather_entries(raw)
+    except Exception as exc:
+        print(f"[weather] failed to persist weather snapshot: {exc}")
 
     lookup = {entry["region"]: entry for entry in raw}
     results: list[WeatherAllEntry] = []

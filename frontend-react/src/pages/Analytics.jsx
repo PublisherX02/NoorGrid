@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
-import { getHistory } from '../services/api'
+import { getHistory, getHydroForecast } from '../services/api'
 import { GOVERNORATES, RISK_COLORS, RISK_ORDER } from '../constants/grid'
 import { useWeather } from '../hooks/useWeather'
 import RiskBadge from '../components/UI/RiskBadge'
 import BlackoutForecastPanel from '../components/Forecast/BlackoutForecastPanel'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, CartesianGrid, Cell,
+  ResponsiveContainer, CartesianGrid, Cell, LineChart, Line, ReferenceLine,
 } from 'recharts'
 
 const ALL_GOVS = GOVERNORATES
@@ -100,6 +100,9 @@ export default function Analytics() {
   const [loading, setLoading]             = useState(true)
   const [isMock, setIsMock]               = useState(false)
   const [tableData, setTableData]         = useState([])
+  const [hydroForecast, setHydroForecast] = useState(null)
+  const [hydroLoading, setHydroLoading]   = useState(true)
+  const [hydroError, setHydroError]       = useState(false)
   const [openRegions, setOpenRegions]     = useState(() => new Set(MACRO_REGIONS))
   const [regionFilter, setRegionFilter]   = useState('')
   const [riskFilter, setRiskFilter]       = useState('')
@@ -172,6 +175,23 @@ export default function Analytics() {
     loadHistory(selectedGov)
   }, [selectedGov, loadHistory])
 
+  useEffect(() => {
+    let active = true
+    setHydroLoading(true)
+    getHydroForecast(12)
+      .then((res) => {
+        if (!active) return
+        setHydroForecast(res.data)
+        setHydroError(Boolean(res.error || !res.data))
+      })
+      .finally(() => {
+        if (active) setHydroLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [])
+
   // Unified 6-column CSV — same schema for both backend and synthetic data
   const exportCSV = () => {
     const rows = [
@@ -188,6 +208,50 @@ export default function Analytics() {
 
   const selectedLiveRisk = weatherMap[selectedGov?.name]?.risk_level || selectedGov?.mock_risk
   const components = getRiskComponents(selectedLiveRisk, riskComponentLabels)
+  const hydroRows = useMemo(() => {
+    const preds = hydroForecast?.predictions || []
+    return preds.map((p) => {
+      const predicted = Number(p.predicted_mw || 0)
+      const lower = Number(p.confidence_lower || 0)
+      const upper = Number(p.confidence_upper || 0)
+      return {
+        month: p.month,
+        predicted_mw: predicted,
+        confidence_lower: lower,
+        confidence_upper: upper,
+        confidence_band: Math.max(0, upper - lower),
+        drought_series: p.risk === 'DROUGHT_RISK' ? predicted : null,
+        normal_series: p.risk === 'DROUGHT_RISK' ? null : predicted,
+        risk: p.risk,
+        season: p.season,
+      }
+    })
+  }, [hydroForecast])
+  const firstDroughtIndex = useMemo(
+    () => hydroRows.findIndex((row) => row.risk === 'DROUGHT_RISK'),
+    [hydroRows]
+  )
+  const droughtFirstMonth = firstDroughtIndex >= 0 ? hydroRows[firstDroughtIndex]?.month : null
+  const droughtLeadMonths = firstDroughtIndex >= 0 ? firstDroughtIndex : null
+  const droughtStatus = useMemo(() => {
+    if (firstDroughtIndex < 0) return 'CLEAR'
+    if (firstDroughtIndex === 0) return 'DANGER'
+    if (firstDroughtIndex <= 2) return 'WATCH'
+    return 'SUMMARY'
+  }, [firstDroughtIndex])
+  const hydroChartData = useMemo(() => (
+    hydroRows.map((row, idx) => {
+      let displayRisk = row.risk
+      if (firstDroughtIndex >= 0) {
+        if (idx >= Math.max(0, firstDroughtIndex - 2) && idx < firstDroughtIndex) {
+          displayRisk = 'RISK_WATCH'
+        } else if (idx >= firstDroughtIndex && row.risk === 'DROUGHT_RISK') {
+          displayRisk = 'LOW_OUTPUT'
+        }
+      }
+      return { ...row, displayRisk }
+    })
+  ), [hydroRows, firstDroughtIndex])
 
   // Govs visible in the current filter state
   const visibleGovs = ALL_GOVS.filter((g) => {
@@ -637,6 +701,207 @@ export default function Analytics() {
               </ResponsiveContainer>
             </div>
           </div>
+        </div>
+
+        {/* ── Sidi Salem SARIMAX Forecast ─────────────────────────────────── */}
+        <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa' }}>
+            ▸ SIDI SALEM DAM — SARIMAX 12-MONTH PRODUCTION FORECAST
+          </div>
+          {hydroLoading ? (
+            <div style={{ height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="spinner" />
+            </div>
+          ) : hydroError || !hydroForecast?.predictions?.length ? (
+            <div
+              style={{
+                marginTop: '12px',
+                background: 'rgba(255,51,51,0.08)',
+                border: '1px solid rgba(255,51,51,0.35)',
+                borderRadius: '6px',
+                padding: '12px',
+                color: '#ff7b72',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+              }}
+            >
+              SARIMAX MODEL UNAVAILABLE — install statsmodels and ensure backend is running
+            </div>
+          ) : (
+            <>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '8px', marginTop: '12px' }}>
+                <div className="card-panel" style={{ padding: '8px 10px', borderColor: 'rgba(6,182,212,0.35)' }}>
+                  <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>Model RMSE</div>
+                  <div style={{ color: '#06b6d4', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                    {Number(hydroForecast.model_rmse || 0).toFixed(3)}
+                  </div>
+                </div>
+                <div className="card-panel" style={{ padding: '8px 10px', borderColor: 'rgba(136,153,170,0.25)' }}>
+                  <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>Data Points Used</div>
+                  <div style={{ color: '#8899aa', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                    {hydroForecast.data_points_used}
+                  </div>
+                </div>
+                <div
+                  className="card-panel"
+                  style={{
+                    padding: '8px 10px',
+                    borderColor:
+                      hydroForecast.confidence === 'HIGH'
+                        ? 'rgba(0,255,136,0.35)'
+                        : hydroForecast.confidence === 'MEDIUM'
+                        ? 'rgba(255,176,32,0.45)'
+                        : 'rgba(255,51,51,0.35)',
+                  }}
+                >
+                  <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>Confidence Level</div>
+                  <div
+                    style={{
+                      color:
+                        hydroForecast.confidence === 'HIGH'
+                          ? '#00ff88'
+                          : hydroForecast.confidence === 'MEDIUM'
+                          ? '#ffb020'
+                          : '#ff3333',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {hydroForecast.confidence}
+                  </div>
+                </div>
+                <div
+                  className="card-panel"
+                  style={{
+                    padding: '8px 10px',
+                    borderColor:
+                      droughtStatus === 'DANGER'
+                        ? 'rgba(255,51,51,0.45)'
+                        : droughtStatus === 'WATCH'
+                          ? 'rgba(255,176,32,0.45)'
+                          : droughtStatus === 'SUMMARY'
+                            ? 'rgba(6,182,212,0.35)'
+                            : 'rgba(0,255,136,0.35)',
+                  }}
+                >
+                  <div style={{ fontSize: '0.58rem', color: '#8899aa' }}>Drought Warning</div>
+                  <div
+                    style={{
+                      color:
+                        droughtStatus === 'DANGER'
+                          ? '#ff3333'
+                          : droughtStatus === 'WATCH'
+                            ? '#ffb020'
+                            : droughtStatus === 'SUMMARY'
+                              ? '#06b6d4'
+                              : '#00ff88',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontWeight: 700,
+                      animation: droughtStatus === 'DANGER' ? 'livePulse 1.2s ease-in-out infinite' : 'none',
+                    }}
+                  >
+                    {droughtStatus}
+                  </div>
+                </div>
+              </div>
+
+              {droughtStatus === 'DANGER' && (
+                <div
+                  style={{
+                    marginTop: '10px',
+                    background: '#1a0000',
+                    border: '1px solid #ff3333',
+                    borderRadius: '6px',
+                    padding: '10px 12px',
+                    color: '#ff7b72',
+                    fontSize: '0.78rem',
+                    lineHeight: 1.6,
+                  }}
+                >
+                  ⚠ DROUGHT RISK DETECTED — Sidi Salem Dam forecast shows sustained low production.
+                  <br />
+                  Activate gas backup capacity. Alert SONEDE water authority.
+                </div>
+              )}
+              {droughtStatus === 'WATCH' && (
+                <div
+                  style={{
+                    marginTop: '10px',
+                    background: 'rgba(255,176,32,0.12)',
+                    border: '1px solid rgba(255,176,32,0.55)',
+                    borderRadius: '6px',
+                    padding: '10px 12px',
+                    color: '#ffd38a',
+                    fontSize: '0.78rem',
+                    lineHeight: 1.6,
+                  }}
+                >
+                  ⚠ Drought watch window active — projected low-production period starts around {droughtFirstMonth}.
+                  <br />
+                  Keep reserve planning active for the next {droughtLeadMonths} month(s).
+                </div>
+              )}
+              {droughtStatus === 'SUMMARY' && (
+                <div
+                  style={{
+                    marginTop: '10px',
+                    background: 'rgba(6,182,212,0.10)',
+                    border: '1px solid rgba(6,182,212,0.45)',
+                    borderRadius: '6px',
+                    padding: '10px 12px',
+                    color: '#8bd9ee',
+                    fontSize: '0.78rem',
+                    lineHeight: 1.6,
+                  }}
+                >
+                  Forecast summary: possible low-production period expected around {droughtFirstMonth}.
+                  <br />
+                  This is informational for now; risk mode starts only in the 2 months before the projected dip.
+                </div>
+              )}
+
+              <div style={{ marginTop: '10px' }}>
+                <ResponsiveContainer width="100%" height={220}>
+                  <LineChart data={hydroChartData} margin={{ top: 8, right: 8, bottom: 8, left: -20 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
+                    <XAxis dataKey="month" tick={{ fontSize: 9, fill: '#8899aa', fontFamily: "'JetBrains Mono', monospace" }} axisLine={false} tickLine={false} />
+                    <YAxis domain={[0, 35]} tick={{ fontSize: 9, fill: '#8899aa' }} axisLine={false} tickLine={false} />
+                    <Tooltip content={<ChartTooltip />} />
+                    <ReferenceLine y={16.5} stroke="#ff3333" strokeDasharray="4 4" />
+                    <ReferenceLine y={33} stroke="#00ff88" strokeDasharray="4 4" />
+                    <Area type="monotone" dataKey="confidence_lower" stackId="band" stroke="transparent" fill="transparent" />
+                    <Area type="monotone" dataKey="confidence_band" stackId="band" stroke="transparent" fill="rgba(6,182,212,0.15)" />
+                    <Line type="monotone" dataKey="normal_series" stroke="#06b6d4" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+                    <Line type="monotone" dataKey="drought_series" stroke="#ff3333" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div style={{ overflowX: 'auto', marginTop: '4px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.72rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(0,255,136,0.1)' }}>
+                      {['Month', 'Predicted MW', 'Risk', 'Season'].map((h) => (
+                        <th key={h} style={{ padding: '6px 8px', textAlign: h === 'Predicted MW' ? 'right' : 'left', fontSize: '0.58rem', color: '#8899aa', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hydroChartData.map((row) => (
+                      <tr key={row.month} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: row.displayRisk === 'RISK_WATCH' ? 'rgba(255,176,32,0.08)' : row.displayRisk === 'LOW_OUTPUT' ? 'rgba(255,51,51,0.08)' : 'transparent' }}>
+                        <td style={{ padding: '6px 8px', color: '#8899aa', fontFamily: "'JetBrains Mono', monospace" }}>{row.month}</td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', color: '#06b6d4', fontFamily: "'JetBrains Mono', monospace" }}>{row.predicted_mw.toFixed(2)}</td>
+                        <td style={{ padding: '6px 8px', color: row.displayRisk === 'RISK_WATCH' ? '#ffb020' : row.displayRisk === 'LOW_OUTPUT' ? '#ff3333' : '#8899aa', fontWeight: 700 }}>{row.displayRisk}</td>
+                        <td style={{ padding: '6px 8px', color: '#8899aa' }}>{row.season}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
         </div>
 
         {/* ── Blackout Forecast ───────────────────────────────────────────── */}

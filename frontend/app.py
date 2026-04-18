@@ -593,6 +593,20 @@ def get_history_series(region: str, days: int = 1) -> list[dict]:
         return []
 
 
+@st.cache_data(ttl=1800)
+def get_hydro_forecast(months: int = 12) -> dict | None:
+    try:
+        resp = httpx.get(
+            f"{BACKEND_URL}/hydro/forecast",
+            params={"months": months},
+            timeout=20,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        return None
+
+
 def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:
     return max(low, min(high, value))
 
@@ -752,6 +766,7 @@ def _live_clock():
 # ── Load data ─────────────────────────────────────────────────────────────────
 current_scenario = st.session_state.get("scenario_key", "NOMINAL (Live Data)")
 gov_data = build_gov_data(current_scenario)
+hydro_forecast = get_hydro_forecast(12)
 gov_lookup = {g["name"]: g for g in gov_data}
 anomalous = [g for g in gov_data if g["anomaly"]]
 total_mw = sum(g["output_mw"] for g in gov_data)
@@ -1229,6 +1244,21 @@ for col, g in zip(cols, gov_data):
         if g["source"] == "Wind" and g.get("wind_speed_ms") is not None:
             html += f'<div class="gov-row">Wind &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span>{g["wind_speed_ms"]:.2f} m/s</span></div>'
 
+        if g["name"] == "Béja" and hydro_forecast and hydro_forecast.get("predictions"):
+            _beja_preds = hydro_forecast["predictions"]
+            _avg_12m = sum(float(p.get("predicted_mw", 0.0)) for p in _beja_preds) / max(len(_beja_preds), 1)
+            _next_drought = next(
+                (p.get("month", "") for p in _beja_preds if p.get("risk") == "DROUGHT_RISK"),
+                "None detected",
+            )
+            html += (
+                f'<div class="gov-row" style="margin-top:8px;padding-top:6px;'
+                f'border-top:1px solid #0a0f1a;color:#8b949e">'
+                f'📈 12-month avg forecast: <span>{_avg_12m:.2f} MW</span>'
+                f' &nbsp;|&nbsp; Next drought risk: <span>{_next_drought}</span>'
+                f'</div>'
+            )
+
         if g["anomaly"]:
             if g["name"] in st.session_state.drone_dispatched:
                 html += '<div class="drone-alert">🚁 DRONE DISPATCH INITIATED</div>'
@@ -1342,6 +1372,168 @@ if sel:
             st.info("COLLECTING DATA — check back after first weather fetch cycle.")
     except Exception:
         st.warning("TREND UNAVAILABLE — unable to connect to historical data service.")
+
+# ── Sidi Salem SARIMAX Forecast ────────────────────────────────────────────────
+st.markdown(
+    '<div class="section-hdr">▸ SIDI SALEM DAM — SARIMAX 12-MONTH PRODUCTION FORECAST</div>',
+    unsafe_allow_html=True,
+)
+
+if hydro_forecast and hydro_forecast.get("predictions"):
+    _hf_preds = hydro_forecast["predictions"]
+    _hf_rmse = float(hydro_forecast.get("model_rmse", 0.0))
+    _hf_points = int(hydro_forecast.get("data_points_used", 0))
+    _hf_conf = str(hydro_forecast.get("confidence", "LOW")).upper()
+    _hf_drought = bool(hydro_forecast.get("drought_warning", False))
+    _hf_conf_color = {"HIGH": "#00ff88", "MEDIUM": "#ffb020", "LOW": "#ff3333"}.get(_hf_conf, "#ff3333")
+    _hf_drought_color = "#ff3333" if _hf_drought else "#00ff88"
+    _hf_drought_cls = "blink" if _hf_drought else ""
+
+    _hm1, _hm2, _hm3, _hm4 = st.columns(4)
+    with _hm1:
+        st.markdown(
+            f'<div style="background:#0a0f1a;border:1px solid #06b6d438;border-radius:4px;'
+            f'padding:10px 12px">'
+            f'<div style="font-size:0.62em;color:#3d4a5a;letter-spacing:0.1em">MODEL RMSE</div>'
+            f'<div style="font-size:1.25em;color:#06b6d4;font-weight:700">{_hf_rmse:.3f}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    with _hm2:
+        st.markdown(
+            f'<div style="background:#0a0f1a;border:1px solid #5a6a7a38;border-radius:4px;'
+            f'padding:10px 12px">'
+            f'<div style="font-size:0.62em;color:#3d4a5a;letter-spacing:0.1em">DATA POINTS USED</div>'
+            f'<div style="font-size:1.25em;color:#8b949e;font-weight:700">{_hf_points}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    with _hm3:
+        st.markdown(
+            f'<div style="background:#0a0f1a;border:1px solid {_hf_conf_color}55;border-radius:4px;'
+            f'padding:10px 12px">'
+            f'<div style="font-size:0.62em;color:#3d4a5a;letter-spacing:0.1em">CONFIDENCE LEVEL</div>'
+            f'<div style="font-size:1.25em;color:{_hf_conf_color};font-weight:700">{_hf_conf}</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    with _hm4:
+        st.markdown(
+            f'<div style="background:#0a0f1a;border:1px solid {_hf_drought_color}55;border-radius:4px;'
+            f'padding:10px 12px">'
+            f'<div style="font-size:0.62em;color:#3d4a5a;letter-spacing:0.1em">DROUGHT WARNING</div>'
+            f'<div class="{_hf_drought_cls}" style="font-size:1.25em;color:{_hf_drought_color};font-weight:700">'
+            f'{"TRUE" if _hf_drought else "FALSE"}'
+            f'</div></div>',
+            unsafe_allow_html=True,
+        )
+
+    if _hf_drought:
+        st.markdown(
+            '<div style="margin-top:8px;background:#1a0000;border:1px solid #ff3333;'
+            'border-radius:4px;padding:12px 14px;color:#ff7b72;font-size:0.8em;letter-spacing:0.04em">'
+            '⚠ DROUGHT RISK DETECTED — Sidi Salem Dam forecast shows sustained low production.<br/>'
+            'Activate gas backup capacity. Alert SONEDE water authority.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    _hf_months = [p["month"] for p in _hf_preds]
+    _hf_y = [float(p.get("predicted_mw", 0.0)) for p in _hf_preds]
+    _hf_low = [float(p.get("confidence_lower", 0.0)) for p in _hf_preds]
+    _hf_high = [float(p.get("confidence_upper", 0.0)) for p in _hf_preds]
+    _hf_risk = [p.get("risk", "NORMAL") for p in _hf_preds]
+
+    _hfig = go.Figure()
+    _hfig.add_trace(
+        go.Scatter(
+            x=_hf_months,
+            y=_hf_high,
+            mode="lines",
+            line={"color": "rgba(6,182,212,0)"},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+    _hfig.add_trace(
+        go.Scatter(
+            x=_hf_months,
+            y=_hf_low,
+            mode="lines",
+            line={"color": "rgba(6,182,212,0)"},
+            fill="tonexty",
+            fillcolor="rgba(6,182,212,0.15)",
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+
+    _seg_start = 0
+    while _seg_start < len(_hf_months):
+        _seg_risk = _hf_risk[_seg_start]
+        _seg_end = _seg_start + 1
+        while _seg_end < len(_hf_months) and _hf_risk[_seg_end] == _seg_risk:
+            _seg_end += 1
+        _seg_color = "#ff3333" if _seg_risk == "DROUGHT_RISK" else "#06b6d4"
+        _hfig.add_trace(
+            go.Scatter(
+                x=_hf_months[_seg_start:_seg_end],
+                y=_hf_y[_seg_start:_seg_end],
+                mode="lines+markers",
+                line={"color": _seg_color, "width": 2},
+                marker={"size": 5, "color": _seg_color},
+                showlegend=False,
+                hovertemplate="<b>%{x}</b><br>Predicted: %{y:.2f} MW<extra></extra>",
+            )
+        )
+        _seg_start = _seg_end
+
+    _hfig.add_hline(y=16.5, line_dash="dash", line_color="#ff3333", line_width=1)
+    _hfig.add_hline(y=33.0, line_dash="dash", line_color="#00ff88", line_width=1)
+    _hfig.update_layout(
+        title={
+            "text": "SIDI SALEM DAM — SARIMAX FORECAST (BÉJA)",
+            "font": {"color": "#00ff88", "size": 12, "family": "JetBrains Mono, Courier New, monospace"},
+        },
+        xaxis_title="MONTH",
+        yaxis_title="MW",
+        paper_bgcolor="#020408",
+        plot_bgcolor="#040810",
+        font={"family": "JetBrains Mono, Courier New, monospace", "color": "#5a6a7a", "size": 10},
+        xaxis={"gridcolor": "#0a0f1a", "linecolor": "#0a0f1a"},
+        yaxis={"gridcolor": "#0a0f1a", "linecolor": "#0a0f1a", "range": [0, 35]},
+        margin={"t": 36, "b": 28, "l": 56, "r": 12},
+        height=220,
+    )
+    st.plotly_chart(_hfig, use_container_width=True)
+
+    _table_html = (
+        '<div style="overflow-x:auto;margin-top:4px">'
+        '<table style="width:100%;border-collapse:collapse;font-size:0.72em;'
+        'font-family:JetBrains Mono,monospace">'
+        '<thead><tr style="color:#3d4a5a;border-bottom:1px solid #0a0f1a">'
+        '<th style="text-align:left;padding:6px 8px">MONTH</th>'
+        '<th style="text-align:right;padding:6px 8px">PREDICTED MW</th>'
+        '<th style="text-align:center;padding:6px 8px">RISK</th>'
+        '<th style="text-align:center;padding:6px 8px">SEASON</th>'
+        '</tr></thead><tbody>'
+    )
+    for _p in _hf_preds:
+        _is_drought = _p.get("risk") == "DROUGHT_RISK"
+        _row_bg = "#1a0000" if _is_drought else "#0a0f1a"
+        _row_color = "#ff3333" if _is_drought else "#8b949e"
+        _table_html += (
+            f'<tr style="background:{_row_bg};border-bottom:1px solid #0a0f1a">'
+            f'<td style="padding:6px 8px;color:#5a6a7a">{_p.get("month","")}</td>'
+            f'<td style="padding:6px 8px;text-align:right;color:#06b6d4">{float(_p.get("predicted_mw",0.0)):.2f}</td>'
+            f'<td style="padding:6px 8px;text-align:center;color:{_row_color};font-weight:700">{_p.get("risk","NORMAL")}</td>'
+            f'<td style="padding:6px 8px;text-align:center;color:#5a6a7a">{_p.get("season","")}</td>'
+            f'</tr>'
+        )
+    _table_html += "</tbody></table></div>"
+    st.markdown(_table_html, unsafe_allow_html=True)
+else:
+    st.warning("SARIMAX MODEL UNAVAILABLE — install statsmodels and ensure backend is running")
 
 # ── Blackout Prediction Engine ────────────────────────────────────────────────
 st.markdown(

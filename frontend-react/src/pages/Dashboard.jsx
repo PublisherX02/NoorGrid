@@ -6,7 +6,7 @@ import RiskBadge from '../components/UI/RiskBadge'
 import GaugeChart from '../components/UI/GaugeChart'
 import { useWeather } from '../hooks/useWeather'
 import { useBlackout } from '../hooks/useBlackout'
-import { predictBlackout } from '../services/api'
+import { getHydroForecast, predictBlackout } from '../services/api'
 import {
   GOVERNORATES, STEG, RISK_COLORS, RISK_ORDER, SOURCE_ICON, SOURCE_COLOR, NATIONAL_CARBON_INDEX,
 } from '../constants/grid'
@@ -149,7 +149,7 @@ function StatCell({ label, value, color }) {
   )
 }
 
-function GovernorateStats({ gov, risk, outputMw }) {
+function GovernorateStats({ gov, risk, outputMw, hydroIndicator }) {
   const { t } = useTranslation()
   const riskColor = RISK_COLORS[risk] || '#00ff88'
   const srcColor  = SOURCE_COLOR[gov.source] || '#00ff88'
@@ -328,6 +328,23 @@ function GovernorateStats({ gov, risk, outputMw }) {
             </div>
           </div>
         )}
+
+        {gov.name === 'Béja' && hydroIndicator && (
+          <div
+            style={{
+              marginTop: '10px',
+              paddingTop: '8px',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              fontSize: '0.62rem',
+              color: '#8899aa',
+              lineHeight: 1.5,
+            }}
+          >
+            📈 12-month avg forecast: <span style={{ color: '#06b6d4', fontFamily: "'JetBrains Mono', monospace" }}>{hydroIndicator.avgForecastMw.toFixed(2)} MW</span>
+            <span style={{ margin: '0 8px', color: 'rgba(255,255,255,0.15)' }}>|</span>
+            Next drought risk: <span style={{ color: hydroIndicator.nextDroughtMonth ? '#ff3333' : '#00ff88', fontFamily: "'JetBrains Mono', monospace" }}>{hydroIndicator.nextDroughtMonth || 'None detected'}</span>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -348,6 +365,7 @@ export default function Dashboard() {
   const [selectedGov, setSelectedGov] = useState(null)
   // liveRiskMap: { [govName]: risk_level } — populated from blackout predictions
   const [liveRiskMap, setLiveRiskMap] = useState({})
+  const [hydroIndicator, setHydroIndicator] = useState(null)
 
   const { t } = useTranslation()
 
@@ -405,6 +423,20 @@ export default function Dashboard() {
       if (level) setLiveRiskMap((prev) => ({ ...prev, [selectedGov.name]: level }))
     }
   }, [predictions, selectedGov, blackoutRegion])
+
+  useEffect(() => {
+    let active = true
+    getHydroForecast(12).then((res) => {
+      if (!active || !res?.data?.predictions?.length) return
+      const predictionsData = res.data.predictions
+      const avgForecastMw = predictionsData.reduce((sum, item) => sum + Number(item.predicted_mw || 0), 0) / predictionsData.length
+      const nextDroughtMonth = predictionsData.find((item) => item.risk === 'DROUGHT_RISK')?.month || null
+      setHydroIndicator({ avgForecastMw, nextDroughtMonth })
+    })
+    return () => {
+      active = false
+    }
+  }, [])
 
   // Load default blackout prediction on mount
   useEffect(() => {
@@ -844,6 +876,7 @@ export default function Dashboard() {
               gov={selectedGov}
               risk={effectiveRisk(selectedGov)}
               outputMw={effectiveOutput(selectedGov)}
+              hydroIndicator={hydroIndicator}
             />
           )}
 
