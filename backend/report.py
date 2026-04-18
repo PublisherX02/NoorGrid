@@ -137,8 +137,6 @@ Respond with ONLY valid JSON (no markdown fences, no explanation) using exactly 
             if content[:4].lower() == "json":
                 content = content[4:]
         result = json.loads(content.strip())
-        if isinstance(result, dict):
-            return result
-        return _MOCK_REPORT.copy()
+        return dict(result) if isinstance(result, dict) else _MOCK_REPORT.copy()
     except Exception:
         return _MOCK_REPORT.copy()

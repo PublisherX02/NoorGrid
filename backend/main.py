@@ -44,6 +44,7 @@ from models import (  # noqa: E402
     CrisisAnalyticsResponse,
     GridSimulationRequest,
     GridSimulationResponse,
+    HistoryRecord,
     HistoryRecordRequest,
     HistoryRecordResponse,
     HourlyPrediction,
@@ -449,7 +450,8 @@ def get_history(region: str, days: int = 7):
     if days < 1 or days > 365:
         raise HTTPException(status_code=422, detail="days must be between 1 and 365")
 
-    records = get_region_history(region, days)
+    raw = get_region_history(region, days)
+    records = [HistoryRecord(**r) for r in raw]
     return RegionHistoryResponse(region=region, days=days, records=records)
 
 

@@ -91,5 +91,5 @@ async def fetch_all_weather() -> list[dict[str, Any]]:
                 "solar_irradiance_wm2": 0.0,
             })
         else:
-            output.append(result)
+            output.append(result)  # type: ignore[arg-type]
     return output

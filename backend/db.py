@@ -382,7 +382,7 @@ def get_crisis_analytics(days: int) -> dict:
                 "total": primary_count + cascade_count,
             }
         )
-    region_frequency.sort(key=lambda r: (-r["total"], -r["primary_count"], r["region"]))
+    region_frequency.sort(key=lambda r: (-int(r["total"]), -int(r["primary_count"]), r["region"]))
 
     daily_counts = [{"date": date, "count": count} for date, count in sorted(daily_counter.items())]
 
