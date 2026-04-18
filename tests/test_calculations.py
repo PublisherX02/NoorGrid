@@ -2,7 +2,6 @@
 Unit tests for NoorGrid calculation functions.
 """
 
-import pytest
 from calculations import carbon_score, hydro_power_mw, solar_power_mw, wind_power_mw
 
 

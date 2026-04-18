@@ -1,6 +1,6 @@
+import datetime
 import importlib
 import json
-import datetime
 
 import pytest
 

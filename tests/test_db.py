@@ -1,6 +1,8 @@
 """Tests for db.py SQLAlchemy refactor."""
 import importlib
+
 import pytest
+
 
 # Reset engine cache between tests so NOORGRID_DB_PATH is respected
 @pytest.fixture(autouse=True)

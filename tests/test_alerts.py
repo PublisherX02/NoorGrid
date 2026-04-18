@@ -1,5 +1,6 @@
 """Tests for /alerts/simulate and /alerts/feed endpoints."""
 import importlib
+
 import pytest
 from fastapi.testclient import TestClient
 

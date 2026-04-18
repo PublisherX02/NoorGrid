@@ -3,8 +3,8 @@ Pydantic request/response models for the NoorGrid API.
 """
 
 from typing import Literal
-from pydantic import BaseModel, Field
 
+from pydantic import BaseModel, Field
 
 # ── Request models ────────────────────────────────────────────────────────────
 
