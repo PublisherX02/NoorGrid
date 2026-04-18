@@ -131,7 +131,7 @@
     <!-- Start Overlay -->
     <div id="start-overlay" class="absolute inset-0 bg-black z-50 flex flex-col items-center justify-center pointer-events-auto transition-opacity duration-1000">
         <h1 class="text-4xl md:text-6xl text-white cinematic-text tracking-[0.2em] mb-4 glow-text-amber">NOORGRID</h1>
-        <p class="text-gray-400 mono-text tracking-widest text-sm mb-12">IDEATHON THESIS - Mohamed Mouelhi</p>
+        <p class="text-gray-400 mono-text tracking-widest text-sm mb-12">IDEATHON CHRONICLE — Mohamed Mouelhi · April 2026</p>
         
         <button id="btn-start" class="px-8 py-3 border border-amber-400 text-amber-400 tracking-[0.2em] uppercase text-sm hover:bg-amber-400 hover:text-black transition-all mono-text">Begin Research Journey</button>
     </div>
@@ -150,9 +150,10 @@
         const presentationData = [
             {
                 chapter: "Ch. I", subtitle: "The Premise", title: "The National Mandate",
-                body: `<p>We began our ideathon journey by analyzing a simple, yet daunting metric: Tunisia’s national mandate to achieve <strong>35% renewable electricity integration by 2030 and 50% by 2035</strong>.</p>
-                       <p>To reach this, the geography of the nation is being transformed. But as researchers, we had to ask: is generating the power actually the hardest part of the equation?</p>`,
-                camPos: { x: 0 + camOffset, y: 0, z: 12 }, lookAt: { x: 0 + camOffset, y: 0, z: 0 }, 
+                body: `<p>We began our ideathon journey by analyzing a single, daunting metric: Tunisia’s mandate to achieve <strong>35% renewable electricity integration by 2030 and 50% by 2035</strong>.</p>
+                       <p>The infrastructure is being built. The targets are set. The World Bank just committed $430M to modernize the grid.</p>
+                       <p>But as researchers, we had to ask: <em>Is generating the power actually the hardest part of the equation?</em></p>`,
+                camPos: { x: 0 + camOffset, y: 0, z: 12 }, lookAt: { x: 0 + camOffset, y: 0, z: 0 },
                 objId: 'ambition', showLabels: false, interactiveGraph: false
             },
             {
@@ -169,11 +170,11 @@
             },
             {
                 chapter: "Ch. III", subtitle: "The Human Cost", title: "The Night The Grid Went Blind",
-                body: `<p class="text-lg leading-relaxed text-gray-300">August 2023. A heatwave grips North Africa. Temperatures exceed 45°C.</p>
-                       <p class="text-lg leading-relaxed text-gray-300 mt-4">Air conditioning units across Tunisia surge simultaneously. The national grid, designed for steady baseloads, cannot absorb the spike. <strong>847,000 households lose power.</strong> Hospitals switch to emergency generators. Industrial production halts.</p>
-                       <p class="text-lg leading-relaxed text-gray-300 mt-4">The grid had no warning. No intelligence. No prediction. It was completely blind. This is not a hypothetical.</p>
-                       <p class="text-amber-400 text-4xl cinematic-text font-bold mt-8 glow-text-amber tracking-widest">This is Tuesday.</p>`,
-                camPos: { x: -60 + camOffset, y: 2, z: 30 }, lookAt: { x: -60 + camOffset, y: 10, z: -20 }, 
+                body: `<p class="text-lg leading-relaxed text-gray-300">August 14, 2024. 15:41 local time. A record heatwave grips North Africa. Temperatures exceed 45°C.</p>
+                       <p class="text-lg leading-relaxed text-gray-300 mt-4">Air conditioning units across Tunisia surge simultaneously. The national grid — designed for steady baseloads — hits <strong>4,888 MW</strong> of demand against only <strong>4,636 MW</strong> of effective capacity. Algeria covered the 252 MW gap via the Transmed interconnector. Without them: cascading blackout.</p>
+                       <p class="text-lg leading-relaxed text-gray-300 mt-4">The grid had no warning. No intelligence. No prediction. It was completely blind.</p>
+                       <p class="text-amber-400 text-4xl cinematic-text font-bold mt-8 glow-text-amber tracking-widest">This is not a simulation.</p>`,
+                camPos: { x: -60 + camOffset, y: 2, z: 30 }, lookAt: { x: -60 + camOffset, y: 10, z: -20 },
                 objId: 'city_grid', showLabels: false, interactiveGraph: false, triggerBlackout: true
             },
             {
@@ -196,13 +197,15 @@
             },
             {
                 chapter: "Ch. VI", subtitle: "The Idea", title: "The NoorGrid Framework",
-                body: `<p>NoorGrid is not a dashboard. It is not a monitoring tool. It is Tunisia's first <strong>intelligent energy operating system</strong> — built on three pillars that have never existed together in this country before.</p>
-                       <ul class="space-y-4 mt-5 text-sm">
-                           <li class="pl-4 border-l-2 border-cyan-500"><strong class="text-cyan-400">Digital Twin</strong> — A real-time virtual replica of Tunisia's renewable grid. When a turbine degrades, the twin knows before the operator does. When wind drops below cut-in speed, it flags it. When solar irradiance suggests a panel is underperforming, it dispatches a drone.</li>
-                           <li class="pl-4 border-l-2 border-amber-400"><strong class="text-amber-400">Blackout Prediction Engine</strong> — A 72-hour forecast model that calculates grid stress using real temperature forecasts, peak-hour demand curves, and Tunisia's 5,944 MW total capacity. When headroom drops below 5%, it fires a CRITICAL alert — before the blackout happens.</li>
-                           <li class="pl-4 border-l-2 border-emerald-400"><strong class="text-emerald-400">National Carbon Index</strong> — Tunisia's first regionalized carbon score, calculated per governorate from real STEG billing data, live weather, and renewable production. A number that has never existed. NoorGrid creates it as a byproduct.</li>
+                body: `<p>NoorGrid is not a dashboard. It is Tunisia's first <strong>intelligent energy operating system</strong> — built on five interlocking pillars that have never existed together in this country before.</p>
+                       <ul class="space-y-3 mt-5 text-sm">
+                           <li class="pl-4 border-l-2 border-cyan-500"><strong class="text-cyan-400">Digital Twin</strong> — Real-time virtual replica of all 24 governorates. Anomaly detection, live weather integration, hourly demand curves with confidence intervals.</li>
+                           <li class="pl-4 border-l-2 border-amber-400"><strong class="text-amber-400">Blackout Prediction Engine</strong> — 72-hour forecast. When headroom drops below 5% of 4,636 MW effective capacity, CRITICAL alert fires — before the blackout.</li>
+                           <li class="pl-4 border-l-2 border-emerald-400"><strong class="text-emerald-400">National Carbon Index</strong> — Tunisia's first regionalized carbon score per governorate. A number that has never existed. NoorGrid generates it as a byproduct.</li>
+                           <li class="pl-4 border-l-2 border-red-500"><strong class="text-red-400">Crisis Command Center</strong> — Live ops room. Simulate a crisis with one click. ARM → FIRE. Cascade regions light up. AI generates the incident report. It emails itself to STEG.</li>
+                           <li class="pl-4 border-l-2 border-purple-400"><strong class="text-purple-400">STEG RAG Advisor</strong> — An AI advisor trained on Tunisia's energy corpus. Institutional knowledge, on demand, in French or Arabic.</li>
                        </ul>`,
-                camPos: { x: 0 + camOffset, y: 0, z: -90 }, lookAt: { x: 0 + camOffset, y: 0, z: -110 }, 
+                camPos: { x: 0 + camOffset, y: 0, z: -90 }, lookAt: { x: 0 + camOffset, y: 0, z: -110 },
                 objId: 'noorgrid', showLabels: false, interactiveGraph: false
             },
             {
@@ -233,22 +236,26 @@
                                <div class="text-purple-400 font-bold mb-2 tracking-widest">3. INTELLIGENCE CORE — AI Layer</div>
                                <div class="flex flex-wrap gap-2">
                                    <span class="border border-purple-500/30 px-2 py-1 bg-purple-900/30 text-gray-300">Anomaly Detection Engine</span>
-                                   <span class="border border-purple-500/30 px-2 py-1 bg-purple-900/30 text-gray-300">Blackout Prediction (72h)</span>
-                                   <span class="border border-purple-500/30 px-2 py-1 bg-purple-900/30 text-gray-300">Carbon Score Calculator</span>
-                                   <span class="border border-purple-500/30 px-2 py-1 bg-purple-900/30 text-gray-300">NVIDIA NIM / Llama 3.1</span>
+                                   <span class="border border-purple-500/30 px-2 py-1 bg-purple-900/30 text-gray-300">Blackout Prediction (72h + confidence bands)</span>
+                                   <span class="border border-purple-500/30 px-2 py-1 bg-purple-900/30 text-gray-300">Hourly Demand Curves (peak / seasonal)</span>
+                                   <span class="border border-purple-500/30 px-2 py-1 bg-purple-900/30 text-gray-300">Carbon Score Calculator (0.423 kg CO₂/kWh)</span>
+                                   <span class="border border-purple-500/30 px-2 py-1 bg-purple-900/30 text-gray-300">NVIDIA NIM / Llama 3.1 (RAG)</span>
+                                   <span class="border border-purple-500/30 px-2 py-1 bg-purple-900/30 text-gray-300">Crisis Diagnosis AI (root cause + fix)</span>
                                </div>
                            </div>
                            <div class="text-center text-gray-600">↓ Automated Decision</div>
                            <div class="border border-orange-500/50 bg-orange-900/10 p-3 rounded">
                                <div class="text-orange-400 font-bold mb-2 tracking-widest">4. ACTION LAYER</div>
                                <div class="flex flex-wrap gap-2">
+                                   <span class="border border-orange-500/30 px-2 py-1 bg-orange-900/30 text-gray-300">Live Ops Room (ARM → FIRE)</span>
+                                   <span class="border border-orange-500/30 px-2 py-1 bg-orange-900/30 text-gray-300">Crisis Intelligence Dashboard</span>
+                                   <span class="border border-orange-500/30 px-2 py-1 bg-orange-900/30 text-gray-300">Automated Incident Report (email)</span>
+                                   <span class="border border-orange-500/30 px-2 py-1 bg-orange-900/30 text-gray-300">STEG RAG Advisor (FR / AR)</span>
                                    <span class="border border-orange-500/30 px-2 py-1 bg-orange-900/30 text-gray-300">Drone Dispatch System</span>
-                                   <span class="border border-orange-500/30 px-2 py-1 bg-orange-900/30 text-gray-300">STEG Operator Dashboard</span>
                                    <span class="border border-orange-500/30 px-2 py-1 bg-orange-900/30 text-gray-300">Open Data Portal</span>
-                                   <span class="border border-orange-500/30 px-2 py-1 bg-orange-900/30 text-gray-300">AI Investment Advisor</span>
                                </div>
                            </div>
-                           <div class="text-[9px] text-gray-600 mt-1 pl-1">↩ Drone inspection data feeds back to IoT layer — continuous learning loop</div>
+                           <div class="text-[9px] text-gray-600 mt-1 pl-1">↩ Every incident feeds Crisis Intelligence — historical audit builds automatically</div>
                        </div>`,
                 camPos: { x: 80 + camOffset, y: 0, z: -40 }, lookAt: { x: 80 + camOffset, y: 0, z: -80 }, 
                 objId: 'layered_network', showLabels: false, interactiveGraph: false
@@ -286,16 +293,16 @@
                                <span class="text-gray-600 block text-[9px]">ρ_w=1000 · g=9.81 · Q=flow rate (m³/s) · H=head height (m) · η=0.88</span>
                            </div>
                            <div class="bg-gray-900/80 p-2 rounded border border-cyan-900/50">
-                               <span class="text-cyan-400 block mb-1 font-bold">CARBON SCORE [STEG Billing Data]</span>
-                               <span class="text-gray-300">C = (E_consumed − E_renewable) × 0.468 kg CO₂/kWh</span>
-                               <span class="text-gray-600 block text-[9px]">National Index = Σ C_region / 11,800,000 population</span>
+                               <span class="text-cyan-400 block mb-1 font-bold">CARBON SCORE [ONEM 2024 verified]</span>
+                               <span class="text-gray-300">C = (E_consumed − E_renewable) × 0.423 kg CO₂/kWh</span>
+                               <span class="text-gray-600 block text-[9px]">National Index = Σ C_region / 11,800,000 population · 423 gCO₂eq/kWh — verified ONEM 2024</span>
                            </div>
                            <div class="bg-red-900/10 p-2 rounded border border-red-900/50">
-                               <span class="text-red-400 block mb-1 font-bold">BLACKOUT RISK ENGINE [72h Forecast]</span>
-                               <span class="text-gray-300">Demand = Baseline × (1 + (T−25)×0.04) × peak_factor</span>
+                               <span class="text-red-400 block mb-1 font-bold">BLACKOUT RISK ENGINE [72h · hourly demand curves]</span>
+                               <span class="text-gray-300">Demand = Baseline × (1 + (T−25)×0.08) × peak_factor × seasonal_factor</span>
                                <span class="text-gray-300 block">Headroom = (4,636 − Demand) / 4,636 × 100%</span>
-                               <span class="text-gray-600 block text-[9px]">4,636 MW = STEG effective capacity (5,944 MW × 0.78 after 22% losses)</span>
-                               <span class="text-gray-600 block text-[9px]">Headroom &lt;0% → CRITICAL (ref: Aug 14 2024, 4,888 MW demand)</span>
+                               <span class="text-gray-600 block text-[9px]">peak_factor: 1.15 (08-12h / 18-22h) · 0.75 (01-05h) · seasonal: 1.12 summer / 1.08 winter</span>
+                               <span class="text-gray-600 block text-[9px]">Headroom &lt;0% → CRITICAL · ref: Aug 14 2024, 4,888 MW demand vs 4,636 MW capacity</span>
                            </div>
                        </div>`,
                 camPos: { x: -60 + camOffset, y: 0, z: -80 }, lookAt: { x: -60 + camOffset, y: 0, z: -100 }, 
@@ -416,7 +423,133 @@
                 objId: 'grid_sim', showLabels: false, interactiveGraph: false
             },
             {
-                chapter: "Ch. XIII", subtitle: "The Plan", title: "From Pilot to Infrastructure",
+                chapter: "Ch. XIII", subtitle: "Crisis Command", title: "The Ops Room — ARM. FIRE. RESPOND.",
+                body: `<p class="text-sm text-gray-300 mb-4">Every alert in NoorGrid is actionable. The <strong class="text-red-400">Live Operations Room</strong> turns a monitor into a command center.</p>
+                       <div class="space-y-3 mono-text text-[10px]">
+                           <div class="bg-red-900/10 border border-red-500/40 p-3 rounded">
+                               <div class="text-red-400 font-bold tracking-widest mb-2">THE TWO-STEP PROTOCOL</div>
+                               <div class="space-y-2 text-[10px]">
+                                   <div class="flex items-center gap-3"><span class="text-amber-400 font-bold">STEP 1</span><span class="text-gray-300">ARM — Select a crisis scenario. Preview cascade regions. Review AI-suggested prevention actions. Commit to the scenario.</span></div>
+                                   <div class="flex items-center gap-3"><span class="text-red-400 font-bold">STEP 2</span><span class="text-gray-300">FIRE — Confirm. The alert propagates. The map lights up. The countdown starts. The feed goes live.</span></div>
+                               </div>
+                           </div>
+                           <div class="grid grid-cols-2 gap-2">
+                               <div class="bg-gray-900/60 border border-gray-700/40 p-2 rounded">
+                                   <div class="text-cyan-400 font-bold mb-1 text-[9px] tracking-widest">4 BUILT-IN SCENARIOS</div>
+                                   <div class="text-gray-400 text-[9px] space-y-1">
+                                       <div>⚡ Nawara Field Failure — 620 MW · CRITICAL</div>
+                                       <div>⚡ Summer Peak Surge — 820 MW · CRITICAL</div>
+                                       <div>⚡ Algerian Pipeline — 380 MW · HIGH</div>
+                                       <div>⚡ Cap Bon Wind Outage — 210 MW · HIGH</div>
+                                   </div>
+                               </div>
+                               <div class="bg-gray-900/60 border border-gray-700/40 p-2 rounded">
+                                   <div class="text-cyan-400 font-bold mb-1 text-[9px] tracking-widest">CASCADE EFFECT</div>
+                                   <div class="text-gray-400 text-[9px] space-y-1">
+                                       <div>Nawara → Médenine HIGH + Tataouine HIGH</div>
+                                       <div>Tunis → Ariana + Ben Arous + Manouba</div>
+                                       <div>Bizerte → Béja ELEVATED + Jendouba</div>
+                                       <div>Nabeul → Zaghouan + Sousse ELEVATED</div>
+                                   </div>
+                               </div>
+                           </div>
+                           <div class="bg-cyan-900/10 border border-cyan-500/30 p-3 rounded">
+                               <div class="text-cyan-400 font-bold tracking-widest mb-1">WHAT FIRES AUTOMATICALLY</div>
+                               <div class="text-gray-400 text-[9px] space-y-1">
+                                   <div>→ Alert feed opens with elapsed timer (Xs · Xmin · Xh)</div>
+                                   <div>→ Map: affected regions pulse red, cascade regions orange</div>
+                                   <div>→ AI generates root-cause diagnosis + technical fix</div>
+                                   <div>→ Incident report renders as email-ready HTML</div>
+                                   <div>→ One click sends it to any STEG recipient</div>
+                               </div>
+                           </div>
+                           <div class="text-gray-600 text-[9px] border-t border-gray-800 pt-2">CUSTOM mode: operator selects any of 24 governorates + risk level. No cascade. Freeform label.</div>
+                       </div>`,
+                camPos: { x: -60 + camOffset, y: 18, z: 8 }, lookAt: { x: -60 + camOffset, y: 0, z: -10 },
+                objId: 'city_grid', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. XIV", subtitle: "The Historical Audit", title: "Crisis Intelligence",
+                body: `<p class="text-sm text-gray-300 mb-4">Every crisis that fires leaves a trace. <strong class="text-cyan-400">Crisis Intelligence</strong> is the analytics layer that turns individual incidents into institutional knowledge.</p>
+                       <div class="space-y-3 mono-text text-[10px]">
+                           <div class="grid grid-cols-2 gap-2">
+                               <div class="bg-red-900/10 border border-red-500/30 p-2 rounded">
+                                   <div class="text-red-400 font-bold mb-1 text-[9px] tracking-widest">INCIDENT METRICS</div>
+                                   <div class="text-gray-400 text-[9px] space-y-1">
+                                       <div>Total incidents tracked</div>
+                                       <div>CRITICAL count</div>
+                                       <div>Cascade impacts (secondary regions)</div>
+                                       <div>Reports sent to operators</div>
+                                   </div>
+                               </div>
+                               <div class="bg-cyan-900/10 border border-cyan-500/30 p-2 rounded">
+                                   <div class="text-cyan-400 font-bold mb-1 text-[9px] tracking-widest">4 ANALYTICS PANELS</div>
+                                   <div class="text-gray-400 text-[9px] space-y-1">
+                                       <div>📋 Incident log — full history</div>
+                                       <div>🍩 Risk distribution donut</div>
+                                       <div>📊 Regional exposure heatmap</div>
+                                       <div>📈 Daily trend (7-day)</div>
+                                   </div>
+                               </div>
+                           </div>
+                           <div class="bg-gray-900/60 border border-gray-700/40 p-3 rounded">
+                               <div class="text-white font-bold mb-2 text-[10px] tracking-widest">WHAT THIS MEANS OPERATIONALLY</div>
+                               <div class="space-y-2 text-[9px] text-gray-400">
+                                   <div class="flex justify-between items-center"><span>Gabès — 4 CRITICAL incidents in 30 days</span><span class="text-red-400 font-bold">PRIORITY MAINTENANCE</span></div>
+                                   <div class="flex justify-between items-center"><span>Bizerte — 6 HIGH incidents, all wind-related</span><span class="text-amber-400 font-bold">ASSET VULNERABILITY</span></div>
+                                   <div class="flex justify-between items-center"><span>Médenine — always secondary cascade</span><span class="text-yellow-400 font-bold">GRID HARDENING TARGET</span></div>
+                               </div>
+                           </div>
+                           <div class="bg-gray-900/40 border border-gray-800 p-2 rounded">
+                               <div class="text-gray-500 text-[9px]">Each incident log entry shows: timestamp · region · risk level · cascade count · report status (SENT / PENDING). Filter by period. Export ready.</div>
+                           </div>
+                       </div>`,
+                camPos: { x: 80 + camOffset, y: 10, z: -30 }, lookAt: { x: 80 + camOffset, y: 0, z: -80 },
+                objId: 'layered_network', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. XV", subtitle: "The Advisor", title: "STEG RAG — Institutional Memory On Demand",
+                body: `<p class="text-sm text-gray-300 mb-4">An operator can simulate a crisis. But to understand <em>why</em> it happened, they need context. That context is locked in documents, reports, and institutional memory.</p>
+                       <p class="text-sm text-gray-300 mb-4"><strong class="text-cyan-400">NoorGrid RAG Advisor</strong> unlocks it — in French, instantly.</p>
+                       <div class="space-y-3 mono-text text-[10px]">
+                           <div class="bg-gray-900/60 border border-gray-700/40 p-3 rounded">
+                               <div class="text-cyan-400 font-bold tracking-widest mb-2">SAMPLE QUERIES</div>
+                               <div class="space-y-2 text-[9px]">
+                                   <div class="bg-gray-800/60 p-2 rounded"><span class="text-gray-500">Opérateur :</span> <span class="text-white">"Qu'est-ce qui a causé la crise du 14 août 2024 ?"</span></div>
+                                   <div class="bg-cyan-900/20 p-2 rounded"><span class="text-cyan-400">NoorGrid :</span> <span class="text-gray-300">"Le 14 août 2024, la demande nationale a atteint 4 888 MW contre 4 636 MW de capacité effective. Le champ gazier de Nawara produisait −27% sous son niveau nominal..."</span></div>
+                                   <div class="bg-gray-800/60 p-2 rounded"><span class="text-gray-500">Opérateur :</span> <span class="text-white">"Capacité de l'interconnecteur algérien ?"</span></div>
+                                   <div class="bg-cyan-900/20 p-2 rounded"><span class="text-cyan-400">NoorGrid :</span> <span class="text-gray-300">"L'interconnecteur Transmed couvre jusqu'à 11% de la demande de pointe estivale — 252 MW lors de la crise d'août 2024."</span></div>
+                               </div>
+                           </div>
+                           <div class="grid grid-cols-2 gap-2">
+                               <div class="bg-purple-900/10 border border-purple-500/30 p-2 rounded">
+                                   <div class="text-purple-400 font-bold mb-1 text-[9px] tracking-widest">TECH STACK</div>
+                                   <div class="text-gray-400 text-[9px] space-y-1">
+                                       <div>NVIDIA NIM inference</div>
+                                       <div>Llama 3.1 70B (fallback)</div>
+                                       <div>Retrieval-augmented generation</div>
+                                       <div>Corpus: ONEM · STEG · EIA · World Bank</div>
+                                   </div>
+                               </div>
+                               <div class="bg-green-900/10 border border-green-500/30 p-2 rounded">
+                                   <div class="text-green-400 font-bold mb-1 text-[9px] tracking-widest">INTERFACE</div>
+                                   <div class="text-gray-400 text-[9px] space-y-1">
+                                       <div>Full French UI (default)</div>
+                                       <div>Suggested queries pre-loaded</div>
+                                       <div>Streaming response</div>
+                                       <div>Domain-locked: STEG queries only</div>
+                                   </div>
+                               </div>
+                           </div>
+                           <div class="bg-amber-900/10 border border-amber-500/30 p-2 rounded text-[9px] text-amber-200">
+                               First bilingual (FR/EN) energy operations platform in North Africa.
+                           </div>
+                       </div>`,
+                camPos: { x: -40 + camOffset, y: 4, z: 15 }, lookAt: { x: -40 + camOffset, y: 1.5, z: 0 },
+                objId: 'the_call', showLabels: false, interactiveGraph: false
+            },
+            {
+                chapter: "Ch. XVI", subtitle: "The Plan", title: "From Pilot to Infrastructure",
                 body: `<div class="space-y-6 relative border-l-2 border-gray-800 ml-3 pl-6">
                            <div class="relative">
                                <div class="absolute -left-[31px] top-1 w-3 h-3 bg-gray-900 border-2 border-cyan-400 rounded-full"></div>
@@ -441,13 +574,13 @@
                 objId: 'roadmap', showLabels: false, interactiveGraph: false
             },
             {
-                chapter: "Ch. XIV", subtitle: "The Mission", title: "Tunisia Cannot Wait",
+                chapter: "Ch. XVII", subtitle: "The Mission", title: "Tunisia Cannot Wait",
                 body: `<div class="space-y-4 text-sm font-light text-gray-300">
-                           <p>"93.7% of Tunisia's electricity comes from fossil fuels today."</p>
-                           <p>"Grid losses reached 22% in 2024. Energy import dependency grew from 10% in 2010 to nearly 50% today."</p>
-                           <p>"On August 14, 2024 at 15:41, Tunisia's grid hit a record 4,888 MW of demand against 4,636 MW of effective capacity. Algeria covered the gap. One disruption — and the lights go out."</p>
-                           <p>"The World Bank just committed $430 million to fix Tunisia's grid. The renewable targets are set. The infrastructure is being built."</p>
-                           <p>"What doesn't exist yet is the intelligence layer. The data layer. The system that makes all of it work together."</p>
+                           <p>"93.7% of Tunisia's electricity comes from fossil fuels. Energy independence fell to <strong class="text-red-400">39% in Q1 2025</strong> — down from 48% in 2023."</p>
+                           <p>"Grid losses reached 22% in 2024. Energy trade deficit: <strong class="text-red-400">2.92 billion TND</strong> by end 2025. Total generation: 20,535 GWh — up 6%, yet 93.7% fossil."</p>
+                           <p>"On August 14, 2024 at 15:41, demand hit <strong class="text-amber-400">4,888 MW</strong> against <strong class="text-amber-400">4,636 MW</strong> of capacity. Algeria covered the 252 MW gap. One pipeline disruption — and the lights go out across Tunisia."</p>
+                           <p>"The World Bank committed $430M to modernize the grid. The targets are set. The infrastructure is being built. The Nawara gas field is already down 27% in 2025."</p>
+                           <p>"What doesn't exist yet is the intelligence layer — the system that makes all of it work together and warns you <em>before</em> the crisis happens."</p>
                        </div>
                        <div class="mt-8 border-t border-gray-800 pt-6">
                            <h3 class="text-2xl md:text-3xl text-amber-400 cinematic-text leading-tight glow-text-amber">NoorGrid is not a student project.<br><span class="text-white">It is Tunisia's missing infrastructure.</span></h3>
@@ -456,22 +589,27 @@
                 objId: 'map', showLabels: false, interactiveGraph: false
             },
             {
-                chapter: "Ch. XV", subtitle: "The Experience", title: "Enter The Grid",
-                body: `<div class="flex flex-col space-y-8 mt-4 text-center">
-                           <p class="text-lg font-light text-gray-300">The architecture is built. The data is live. The only thing missing is you.</p>
-                           <div class="space-y-4">
-                               <h3 class="text-cyan-400 font-bold mono-text tracking-widest uppercase text-xl animate-pulse">Scan the portal to access</h3>
-                               <p class="text-gray-500 text-xs mono-text uppercase tracking-widest">or visit manually:</p>
-                               <a href="#" class="text-white text-lg md:text-2xl mono-text hover:text-cyan-300 transition-colors underline decoration-cyan-500/50 underline-offset-8 relative z-10 font-bold block">aiden-unpreened-pricilla.ngrok-free.dev</a>
+                chapter: "Ch. XVIII", subtitle: "The Experience", title: "Enter The Grid",
+                body: `<div class="flex flex-col space-y-6 mt-4">
+                           <p class="text-base font-light text-gray-300 text-center">Everything you just saw is live. Every equation runs. Every alert fires. The French UI is on.</p>
+                           <div class="grid grid-cols-2 gap-2 mono-text text-[10px]">
+                               <div class="bg-green-900/10 border border-green-500/30 p-2 rounded"><div class="text-green-400 font-bold mb-1">LIVE NOW</div><div class="text-gray-400 space-y-1"><div>✓ 24 gouvernorats — données météo live</div><div>✓ Prédiction de panne 72h</div><div>✓ Indice carbone national</div><div>✓ Simulation réseau national</div></div></div>
+                               <div class="bg-red-900/10 border border-red-500/30 p-2 rounded"><div class="text-red-400 font-bold mb-1">DÉMONTRABLE</div><div class="text-gray-400 space-y-1"><div>✓ Salle des opérations LIVE</div><div>✓ ARM → FIRE → cascade</div><div>✓ Rapport AI généré et envoyé</div><div>✓ Intelligence de crise</div></div></div>
+                               <div class="bg-purple-900/10 border border-purple-500/30 p-2 rounded"><div class="text-purple-400 font-bold mb-1">RAG ADVISOR</div><div class="text-gray-400 space-y-1"><div>✓ Conseiller STEG en français</div><div>✓ Requêtes domaine STEG uniquement</div><div>✓ Streaming live</div></div></div>
+                               <div class="bg-amber-900/10 border border-amber-500/30 p-2 rounded"><div class="text-amber-400 font-bold mb-1">DONNÉES RÉELLES</div><div class="text-gray-400 space-y-1"><div>✓ OpenMeteo API (météo live)</div><div>✓ Équations STEG / ONEM vérifiées</div><div>✓ SQLite — historique 3 jours</div></div></div>
                            </div>
-                           <p class="text-amber-400 text-xs mt-8 mono-text uppercase tracking-widest border border-amber-400/30 bg-amber-900/10 py-3 rounded">Real STEG data. Real equations. Real Tunisia.</p>
+                           <div class="text-center space-y-3">
+                               <h3 class="text-cyan-400 font-bold mono-text tracking-widest uppercase text-sm animate-pulse">Scanner pour accéder</h3>
+                               <a href="#" class="text-white text-lg mono-text hover:text-cyan-300 transition-colors underline decoration-cyan-500/50 underline-offset-8 relative z-10 font-bold block">aiden-unpreened-pricilla.ngrok-free.dev</a>
+                           </div>
+                           <p class="text-amber-400 text-xs mono-text uppercase tracking-widest border border-amber-400/30 bg-amber-900/10 py-3 rounded text-center">Données STEG réelles. Équations réelles. Tunisie réelle.</p>
                        </div>`,
                 // Camera placed closely to look at the massive QR code at z: -200
                 camPos: { x: 100 + camOffset, y: 5, z: -180 }, lookAt: { x: 100 + camOffset, y: 5, z: -200 }, 
                 objId: 'qrportal', showLabels: false, interactiveGraph: false
             },
             {
-                chapter: "Ch. XVI", subtitle: "The Foundation", title: "Data Sources & Intelligence",
+                chapter: "Ch. XIX", subtitle: "The Foundation", title: "Data Sources & Intelligence",
                 body: `<div class="space-y-4 text-[11px] font-light text-gray-300 h-[400px] overflow-y-auto pr-2" style="scrollbar-width: thin; scrollbar-color: #06b6d4 transparent;">
                            <p class="text-cyan-400 mb-4 font-bold tracking-widest text-xs uppercase border-b border-gray-800 pb-2">Verified Open Data & Reports</p>
                            <ul class="space-y-3 list-none p-0">
