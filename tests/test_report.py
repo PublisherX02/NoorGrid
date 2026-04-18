@@ -1,5 +1,6 @@
 """Tests for /report/generate and /report/send endpoints."""
 import importlib
+
 import pytest
 from fastapi.testclient import TestClient
 

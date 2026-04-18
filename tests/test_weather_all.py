@@ -1,6 +1,13 @@
 # tests/test_weather_all.py
-import pytest
-from weather import GOVERNORATES, fetch_all_weather
+from unittest.mock import patch
+
+from fastapi.testclient import TestClient
+from main import _REGION_CFG, _compute_region_output, app
+from models import WeatherAllEntry, WeatherAllResponse
+from weather import GOVERNORATES
+
+client = TestClient(app)
+
 
 def test_governorates_has_24_entries():
     assert len(GOVERNORATES) == 24
@@ -27,8 +34,6 @@ def test_all_24_expected_regions_present():
     assert names == EXPECTED_REGIONS
 
 
-from models import WeatherAllEntry, WeatherAllResponse
-
 def test_weather_all_entry_fields():
     entry = WeatherAllEntry(
         region="Bizerte",
@@ -50,8 +55,6 @@ def test_weather_all_response_wraps_list():
     assert len(resp.data) == 1
 
 
-from main import _REGION_CFG
-
 def test_region_cfg_has_24_entries():
     assert len(_REGION_CFG) == 24
 
@@ -72,12 +75,6 @@ def test_region_cfg_solar_have_panel_area():
     for name in solar:
         assert "panel_area" in _REGION_CFG[name], f"{name} missing panel_area"
 
-
-from fastapi.testclient import TestClient
-from unittest.mock import patch
-from main import app, _compute_region_output
-
-client = TestClient(app)
 
 def test_compute_region_output_wind():
     cfg = _REGION_CFG["Bizerte"]

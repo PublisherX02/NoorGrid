@@ -1,7 +1,7 @@
 import importlib
 
-import pytest
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 
 
