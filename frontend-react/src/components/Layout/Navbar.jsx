@@ -43,7 +43,17 @@ export default function Navbar() {
           gap: '8px',
         }}
       >
-        <span style={{ fontSize: '1.25rem' }}>⚡</span>
+        <img
+          src="/channels4_profile.jpg"
+          alt="STEG"
+          style={{
+            width: '24px',
+            height: '24px',
+            borderRadius: '5px',
+            objectFit: 'cover',
+            border: '1px solid rgba(0,255,136,0.3)',
+          }}
+        />
         <span
           style={{
             fontFamily: "'JetBrains Mono', monospace",

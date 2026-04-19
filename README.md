@@ -124,6 +124,24 @@ P_hydro = ρ_w × g × Q × H × η
 
 **Béja reference (Sidi Salem Dam):** 33 MW seasonal baseline, Oct–Apr operation.
 
+### Hydro Production Forecasting — SARIMAX Model
+
+NoorGrid uses a SARIMAX(0,1,1)(1,0,1,12) model to forecast monthly hydropower
+production at Sidi Salem Dam (Béja, 33 MW baseline).
+
+**Model:** Seasonal AutoRegressive Integrated Moving Average with eXogenous variables  
+**Parameters:** p=0, d=1, q=1, P=1, D=0, Q=1, s=12  
+**Source:** Zulfialda et al. (2025), Journal La Multiapp, DOI: 10.37899/journallamultiapp.v6i1.1841
+
+**Exogenous variables:**
+- Monthly precipitation (mm) — OpenMeteo Archive API
+- Monthly mean temperature (°C) — OpenMeteo Archive API  
+- River discharge proxy (m³/s) — OpenMeteo or precipitation × 0.30 runoff coefficient
+
+**Drought detection:** 3+ consecutive months below 50% of 33 MW baseline triggers alert
+
+**Endpoint:** GET /hydro/forecast?months=12
+
 ### Carbon Score
 
 ```

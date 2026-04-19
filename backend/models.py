@@ -2,7 +2,7 @@
 Pydantic request/response models for the NoorGrid API.
 """
 
-from typing import Literal
+from typing import List, Literal
 
 from pydantic import BaseModel, Field
 
@@ -89,6 +89,26 @@ class WeatherAllEntry(BaseModel):
 
 class WeatherAllResponse(BaseModel):
     data: list[WeatherAllEntry]
+
+
+class HydroForecastMonth(BaseModel):
+    month: str
+    predicted_mw: float
+    confidence_lower: float
+    confidence_upper: float
+    risk: str
+    season: str
+
+
+class HydroForecastResponse(BaseModel):
+    model_rmse: float
+    model_mae: float
+    confidence: str
+    data_points_used: int
+    forecast_months: int
+    drought_warning: bool
+    predictions: List[HydroForecastMonth]
+    message: str
 
 
 # ── History models ──────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import ParticleBackground from '../components/Landing/ParticleBackground'
-import { GOVERNORATES } from '../constants/grid'
+import { useWeather } from '../hooks/useWeather'
 
 // ─── Feature Cards ─────────────────────────────────────────────────────────
 const FEATURES = [
@@ -63,8 +63,34 @@ const TECH = [
 export default function Landing() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const critical = GOVERNORATES.filter((g) => g.mock_risk === 'CRITICAL').length
-  const high     = GOVERNORATES.filter((g) => g.mock_risk === 'HIGH').length
+  const { weatherMap, loading } = useWeather()
+  const liveEntries = Object.values(weatherMap || {})
+  const hasLiveData = liveEntries.length > 0
+  const critical = hasLiveData ? liveEntries.filter((entry) => entry?.risk_level === 'CRITICAL').length : 0
+  const high = hasLiveData ? liveEntries.filter((entry) => entry?.risk_level === 'HIGH').length : 0
+  const hasRiskAlert = critical > 0 || high > 0
+  const statusTone = loading
+    ? {
+        bg: 'rgba(6,182,212,0.08)',
+        border: '1px solid rgba(6,182,212,0.3)',
+        color: '#06b6d4',
+      }
+    : hasRiskAlert
+      ? {
+          bg: 'rgba(255,51,51,0.08)',
+          border: '1px solid rgba(255,51,51,0.25)',
+          color: '#ff3333',
+        }
+      : {
+          bg: 'rgba(0,255,136,0.08)',
+          border: '1px solid rgba(0,255,136,0.25)',
+          color: '#00ff88',
+        }
+  const statusLabel = loading
+    ? t('landing.liveSync')
+    : hasRiskAlert
+      ? t('landing.liveStatus', { critical, high })
+      : t('landing.liveStable')
 
   return (
     <div className="page-in" style={{ background: '#0a0f1a', minHeight: '100vh', paddingTop: '56px' }}>
@@ -110,19 +136,22 @@ export default function Landing() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              background: 'rgba(255,51,51,0.08)',
-              border: '1px solid rgba(255,51,51,0.25)',
+              background: statusTone.bg,
+              border: statusTone.border,
               borderRadius: '20px',
               padding: '5px 14px',
               marginBottom: '2rem',
               fontSize: '0.75rem',
               fontWeight: 600,
-              color: '#ff3333',
+              color: statusTone.color,
               letterSpacing: '0.06em',
             }}
           >
-            <span className="live-dot" style={{ background: '#ff3333', boxShadow: '0 0 6px #ff3333' }} />
-            {t('landing.liveStatus', { critical, high })}
+            <span
+              className="live-dot"
+              style={{ background: statusTone.color, boxShadow: `0 0 6px ${statusTone.color}` }}
+            />
+            {statusLabel}
           </div>
 
           {/* Main headline */}
@@ -520,15 +549,28 @@ export default function Landing() {
           gap: '1rem',
         }}
       >
-        <span
-          style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            color: '#00ff88',
-          }}
-        >
-          ⚡ NoorGrid
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img
+            src="/channels4_profile.jpg"
+            alt="STEG"
+            style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '4px',
+              objectFit: 'cover',
+              border: '1px solid rgba(0,255,136,0.25)',
+            }}
+          />
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              color: '#00ff88',
+            }}
+          >
+            NoorGrid
+          </span>
         </span>
         <span style={{ fontSize: '0.75rem', color: '#4a5568' }}>
           {t('landing.footerPlatform', { year: new Date().getFullYear() })}

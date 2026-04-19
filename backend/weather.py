@@ -3,6 +3,7 @@ OpenMeteo weather data fetcher for Tunisian governorates.
 """
 
 import asyncio
+from typing import Any
 
 import httpx
 
@@ -68,7 +69,7 @@ async def fetch_weather_for_governorate(
     }
 
 
-async def fetch_all_weather() -> list[dict]:
+async def fetch_all_weather() -> list[dict[str, Any]]:
     """
     Fetch weather data for all Tunisian governorates concurrently.
     """
@@ -78,7 +79,7 @@ async def fetch_all_weather() -> list[dict]:
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    output = []
+    output: list[dict[str, Any]] = []
     for gov, result in zip(GOVERNORATES, results):
         if isinstance(result, Exception):
             # Return zeros on error so the dashboard can still render
@@ -90,5 +91,5 @@ async def fetch_all_weather() -> list[dict]:
                 "solar_irradiance_wm2": 0.0,
             })
         else:
-            output.append(result)
+            output.append(result)  # type: ignore[arg-type]
     return output

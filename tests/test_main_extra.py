@@ -42,6 +42,55 @@ def test_weather_all_endpoint_returns_502_on_fetch_error(client, monkeypatch):
     assert "Failed to fetch weather data" in resp.json()["detail"]
 
 
+def test_weather_endpoint_returns_200_when_persist_fails(client, monkeypatch):
+    import main
+
+    async def _ok():
+        return [
+            {
+                "region": "Bizerte",
+                "latitude": 37.2744,
+                "longitude": 9.8739,
+                "wind_speed_ms": 5.0,
+                "solar_irradiance_wm2": 500.0,
+            }
+        ]
+
+    def _persist_boom(_rows):
+        raise RuntimeError("db write failed")
+
+    monkeypatch.setattr(main, "fetch_all_weather", _ok)
+    monkeypatch.setattr(main, "insert_weather_entries", _persist_boom)
+    resp = client.get("/weather")
+    assert resp.status_code == 200
+    assert resp.json()["data"][0]["region"] == "Bizerte"
+
+
+def test_weather_all_endpoint_returns_200_when_persist_fails(client, monkeypatch):
+    import main
+
+    async def _ok():
+        return [
+            {
+                "region": name,
+                "latitude": cfg["lat"],
+                "longitude": cfg["lon"],
+                "wind_speed_ms": 5.0,
+                "solar_irradiance_wm2": 500.0,
+            }
+            for name, cfg in main._REGION_CFG.items()
+        ]
+
+    def _persist_boom(_rows):
+        raise RuntimeError("db write failed")
+
+    monkeypatch.setattr(main, "fetch_all_weather", _ok)
+    monkeypatch.setattr(main, "insert_weather_entries", _persist_boom)
+    resp = client.get("/weather/all")
+    assert resp.status_code == 200
+    assert len(resp.json()["data"]) == 24
+
+
 def test_predict_blackout_unknown_region_404(client):
     resp = client.post("/predict/blackout", json={"region": "Atlantis", "forecast_hours": 24})
     assert resp.status_code == 404
@@ -319,13 +368,13 @@ def test_rag_query_returns_502_on_network_error(client, monkeypatch):
     assert "NIM API unreachable" in resp.json()["detail"]
 
 
-def test_analytics_crisis_returns_empty_for_fresh_db(client):
+def test_analytics_crisis_returns_historical_fallback_for_fresh_db(client):
     resp = client.get("/analytics/crisis?days=7")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["total_incidents"] == 0
+    assert data["total_incidents"] >= 1
     assert data["window_days"] == 7
-    assert data["incidents"] == []
+    assert any("2024" in incident["scenario_label"] for incident in data["incidents"])
 
 
 def test_analytics_crisis_records_cascade_regions(client):

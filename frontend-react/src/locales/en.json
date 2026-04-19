@@ -207,6 +207,8 @@
   },
   "landing": {
     "liveStatus": "LIVE — {{critical}} CRITICAL · {{high}} HIGH-RISK REGIONS",
+    "liveStable": "LIVE — GRID STATUS STABLE",
+    "liveSync": "LIVE — SYNCHRONIZING REAL-TIME GRID DATA",
     "heroLine1": "The missing",
     "heroLine2": "energy intelligence",
     "heroLine3": "infrastructure for Tunisia.",

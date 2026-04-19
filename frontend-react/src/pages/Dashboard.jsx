@@ -6,7 +6,7 @@ import RiskBadge from '../components/UI/RiskBadge'
 import GaugeChart from '../components/UI/GaugeChart'
 import { useWeather } from '../hooks/useWeather'
 import { useBlackout } from '../hooks/useBlackout'
-import { predictBlackout } from '../services/api'
+import { getHydroForecast, predictBlackout } from '../services/api'
 import {
   GOVERNORATES, STEG, RISK_COLORS, RISK_ORDER, SOURCE_ICON, SOURCE_COLOR, NATIONAL_CARBON_INDEX,
 } from '../constants/grid'
@@ -149,7 +149,7 @@ function StatCell({ label, value, color }) {
   )
 }
 
-function GovernorateStats({ gov, risk, outputMw }) {
+function GovernorateStats({ gov, risk, outputMw, hydroIndicator }) {
   const { t } = useTranslation()
   const riskColor = RISK_COLORS[risk] || '#00ff88'
   const srcColor  = SOURCE_COLOR[gov.source] || '#00ff88'
@@ -328,6 +328,23 @@ function GovernorateStats({ gov, risk, outputMw }) {
             </div>
           </div>
         )}
+
+        {gov.name === 'Béja' && hydroIndicator && (
+          <div
+            style={{
+              marginTop: '10px',
+              paddingTop: '8px',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              fontSize: '0.62rem',
+              color: '#8899aa',
+              lineHeight: 1.5,
+            }}
+          >
+            📈 12-month avg forecast: <span style={{ color: '#06b6d4', fontFamily: "'JetBrains Mono', monospace" }}>{hydroIndicator.avgForecastMw.toFixed(2)} MW</span>
+            <span style={{ margin: '0 8px', color: 'rgba(255,255,255,0.15)' }}>|</span>
+            Next drought risk: <span style={{ color: hydroIndicator.nextDroughtMonth ? '#ff3333' : '#00ff88', fontFamily: "'JetBrains Mono', monospace" }}>{hydroIndicator.nextDroughtMonth || 'None detected'}</span>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -348,10 +365,11 @@ export default function Dashboard() {
   const [selectedGov, setSelectedGov] = useState(null)
   // liveRiskMap: { [govName]: risk_level } — populated from blackout predictions
   const [liveRiskMap, setLiveRiskMap] = useState({})
+  const [hydroIndicator, setHydroIndicator] = useState(null)
 
   const { t } = useTranslation()
 
-  const { alerts, loading: alertLoading, error: alertError, triggerSimulation } = useAlerts()
+  const { alerts, loading: alertLoading, error: alertError, triggerSimulation } = useAlerts(backendOnline === true)
   const [activeAlert, setActiveAlert]     = useState(null)
   const [cascadeAlerts, setCascadeAlerts] = useState([])
   const [showCrisisModal, setShowCrisisModal] = useState(false)
@@ -387,8 +405,9 @@ export default function Dashboard() {
     [weatherMap]
   )
 
-  // Pre-fetch predictions for all 5 backend governorates on mount
+  // Pre-fetch predictions only when backend is confirmed online.
   useEffect(() => {
+    if (backendOnline !== true) return
     GOVERNORATES.filter((g) => g.hasBackend).forEach(async (gov) => {
       try {
         const res = await predictBlackout(gov.name, 24)
@@ -396,7 +415,7 @@ export default function Dashboard() {
         if (level) setLiveRiskMap((prev) => ({ ...prev, [gov.name]: level }))
       } catch {}
     })
-  }, [])
+  }, [backendOnline])
 
   // Sync liveRiskMap when a new prediction comes in for the selected gov
   useEffect(() => {
@@ -406,14 +425,30 @@ export default function Dashboard() {
     }
   }, [predictions, selectedGov, blackoutRegion])
 
+  useEffect(() => {
+    if (backendOnline !== true) return
+    let active = true
+    getHydroForecast(12).then((res) => {
+      if (!active || !res?.data?.predictions?.length) return
+      const predictionsData = res.data.predictions
+      const avgForecastMw = predictionsData.reduce((sum, item) => sum + Number(item.predicted_mw || 0), 0) / predictionsData.length
+      const nextDroughtMonth = predictionsData.find((item) => item.risk === 'DROUGHT_RISK')?.month || null
+      setHydroIndicator({ avgForecastMw, nextDroughtMonth })
+    })
+    return () => {
+      active = false
+    }
+  }, [backendOnline])
+
   // Load default blackout prediction on mount
   useEffect(() => {
+    if (backendOnline !== true) return
     fetchPrediction('Bizerte', 24)
-  }, [fetchPrediction])
+  }, [backendOnline, fetchPrediction])
 
   const handleSelectGov = (gov) => {
     setSelectedGov(gov)
-    if (gov.hasBackend) fetchPrediction(gov.name, 24)
+    if (backendOnline === true && gov.hasBackend) fetchPrediction(gov.name, 24)
   }
 
   const totalMW     = GOVERNORATES.reduce((a, g) => a + effectiveOutput(g), 0).toFixed(0)
@@ -449,6 +484,9 @@ export default function Dashboard() {
               background: 'none',
               border: 'none',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
               fontFamily: "'JetBrains Mono', monospace",
               fontWeight: 700,
               fontSize: '0.85rem',
@@ -456,7 +494,18 @@ export default function Dashboard() {
               letterSpacing: '0.05em',
             }}
           >
-            ⚡ NoorGrid
+            <img
+              src="/channels4_profile.jpg"
+              alt="STEG"
+              style={{
+                width: '20px',
+                height: '20px',
+                borderRadius: '4px',
+                objectFit: 'cover',
+                border: '1px solid rgba(0,255,136,0.25)',
+              }}
+            />
+            NoorGrid
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span className="live-dot" />
@@ -844,6 +893,7 @@ export default function Dashboard() {
               gov={selectedGov}
               risk={effectiveRisk(selectedGov)}
               outputMw={effectiveOutput(selectedGov)}
+              hydroIndicator={hydroIndicator}
             />
           )}
 

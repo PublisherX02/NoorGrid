@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next'
 import { sendMessageToRAG } from '../../services/api'
 import { RISK_COLORS } from '../../constants/grid'
 
+const STEG_AVATAR_SRC = '/channels4_profile.jpg'
+
 // ─── Streaming hook ───────────────────────────────────────────────────────────
 // Streams `target` character-by-character when `active` is true.
 function useStreamText(target, active) {
@@ -78,7 +80,7 @@ function MessageBubble({ msg, isStreaming, streamedText, locale }) {
   const isError    = msg.error
   const isRejected = msg.rejected
   const accentColor = isError ? '#ff3333' : isRejected ? '#ff9500' : '#00ff88'
-  const avatarIcon  = isError ? '✕' : isRejected ? '⚠' : '◈'
+  const roleBadge   = isError ? '✕' : isRejected ? '⚠' : null
   const lines = content.split('\n')
 
   return (
@@ -86,20 +88,43 @@ function MessageBubble({ msg, isStreaming, streamedText, locale }) {
       {/* Avatar */}
       <div
         style={{
-          width: '22px',
-          height: '22px',
-          borderRadius: '5px',
-          background: `${accentColor}15`,
+          width: '24px',
+          height: '24px',
+          borderRadius: '50%',
           border: `1px solid ${accentColor}35`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '0.7rem',
+          overflow: 'hidden',
+          position: 'relative',
           flexShrink: 0,
           marginTop: '2px',
         }}
       >
-        {avatarIcon}
+        <img
+          src={STEG_AVATAR_SRC}
+          alt="STEG AI"
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+        {roleBadge && (
+          <span
+            style={{
+              position: 'absolute',
+              right: '-2px',
+              bottom: '-2px',
+              width: '12px',
+              height: '12px',
+              borderRadius: '50%',
+              background: '#060a14',
+              border: `1px solid ${accentColor}`,
+              color: accentColor,
+              fontSize: '0.5rem',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {roleBadge}
+          </span>
+        )}
       </div>
 
       <div style={{ flex: 1, minWidth: 0 }}>
@@ -180,14 +205,17 @@ function TypingIndicator({ t }) {
     <div style={{ display: 'flex', gap: '8px', marginBottom: '10px', alignItems: 'flex-start' }}>
       <div
         style={{
-          width: '22px', height: '22px', borderRadius: '5px',
-          background: 'rgba(0,255,136,0.12)',
+          width: '24px', height: '24px', borderRadius: '50%',
           border: '1px solid rgba(0,255,136,0.25)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '0.7rem', flexShrink: 0, marginTop: '2px',
+          overflow: 'hidden',
+          flexShrink: 0, marginTop: '2px',
         }}
       >
-        ◈
+        <img
+          src={STEG_AVATAR_SRC}
+          alt="STEG AI"
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
       </div>
       <div
         style={{
@@ -344,14 +372,16 @@ export default function STEGChatbot({ context = {}, style = {}, height = 480 }) 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div
             style={{
-              width: '26px', height: '26px', borderRadius: '6px',
-              background: 'rgba(0,255,136,0.12)',
+              width: '26px', height: '26px', borderRadius: '50%',
               border: '1px solid rgba(0,255,136,0.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '0.85rem',
+              overflow: 'hidden',
             }}
           >
-            ◈
+            <img
+              src={STEG_AVATAR_SRC}
+              alt="STEG AI"
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            />
           </div>
           <div>
             <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: '0.7rem', fontWeight: 700, color: '#00ff88', letterSpacing: '0.06em' }}>
@@ -553,8 +583,13 @@ export function ChatWidget({ context = {} }) {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <img
+                src={STEG_AVATAR_SRC}
+                alt="STEG AI"
+                style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'cover', border: '1px solid rgba(0,255,136,0.3)' }}
+              />
               <span style={{ fontSize: '0.65rem', fontWeight: 700, color: '#00ff88', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '0.08em' }}>
-                ◈ {t('chatbot.widgetTitle')}
+                {t('chatbot.widgetTitle')}
               </span>
             </div>
             <button
@@ -602,7 +637,15 @@ export function ChatWidget({ context = {} }) {
         onMouseEnter={(e) => { e.currentTarget.style.boxShadow = '0 0 28px rgba(0,255,136,0.3)' }}
         onMouseLeave={(e) => { e.currentTarget.style.boxShadow = `0 0 20px rgba(0,255,136,${open ? '0.25' : '0.1'})` }}
       >
-        {open ? '✕' : '◈'}
+        {open ? (
+          '✕'
+        ) : (
+          <img
+            src={STEG_AVATAR_SRC}
+            alt="STEG AI"
+            style={{ width: '30px', height: '30px', borderRadius: '50%', objectFit: 'cover' }}
+          />
+        )}
       </button>
     </>
   )

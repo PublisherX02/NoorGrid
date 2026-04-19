@@ -100,18 +100,15 @@ def test_insert_report_send_null_alert_id(db_mod):
     assert row[0] is None
 
 
-def test_get_crisis_analytics_empty_window(db_mod):
+def test_get_crisis_analytics_uses_historical_fallback_for_empty_window(db_mod):
     db_mod.init_db()
     result = db_mod.get_crisis_analytics(7)
-    assert result["total_incidents"] == 0
-    assert result["critical_count"] == 0
-    assert result["high_count"] == 0
-    assert result["most_affected_region"] is None
-    assert result["report_dispatch_count"] == 0
-    assert result["cascade_hits_total"] == 0
-    assert result["incidents"] == []
-    assert result["region_frequency"] == []
-    assert result["daily_counts"] == []
+    assert result["total_incidents"] >= 1
+    assert result["critical_count"] >= 1
+    assert any("2024" in incident["scenario_label"] for incident in result["incidents"])
+    assert result["most_affected_region"] is not None
+    assert len(result["region_frequency"]) >= 1
+    assert len(result["daily_counts"]) >= 1
     assert result["window_days"] == 7
 
 

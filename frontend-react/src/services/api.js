@@ -179,6 +179,15 @@ export const predictBlackout = async (region, forecast_hours = 24) => {
   }
 }
 
+export const getHydroForecast = async (months = 12) => {
+  try {
+    const res = await client.get('/hydro/forecast', { params: { months } })
+    return { data: res.data, mock: false, error: false }
+  } catch {
+    return { data: null, mock: true, error: true }
+  }
+}
+
 export const simulateGrid = async (params) => {
   try {
     const res = await client.post('/grid/simulate', params)
@@ -353,14 +362,82 @@ function _mockCrisisAnalytics(days) {
   }
 }
 
+function _num(value, fallback = 0) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function _normalizeIncident(incident, idx) {
+  const cascade = Array.isArray(incident?.cascade_regions)
+    ? incident.cascade_regions
+    : (Array.isArray(incident?.cascadeRegions) ? incident.cascadeRegions : [])
+  return {
+    id: _num(incident?.id, -(idx + 1)),
+    region: incident?.region || 'Unknown',
+    risk_level: incident?.risk_level || incident?.riskLevel || 'ELEVATED',
+    scenario_label: incident?.scenario_label || incident?.scenarioLabel || 'Incident',
+    cascade_regions: cascade.map((r) => String(r)),
+    triggered_at: incident?.triggered_at || incident?.triggeredAt || new Date().toISOString(),
+    report_sent: Boolean(incident?.report_sent ?? incident?.reportSent ?? false),
+    recipients_count: _num(incident?.recipients_count ?? incident?.recipientsCount, 0),
+  }
+}
+
+function _normalizeCrisisAnalytics(payload, days) {
+  const incidentsRaw = Array.isArray(payload?.incidents) ? payload.incidents : []
+  const incidents = incidentsRaw.map((incident, idx) => _normalizeIncident(incident, idx))
+
+  const critical = _num(payload?.critical_count ?? payload?.criticalCount, 0)
+  const high = _num(payload?.high_count ?? payload?.highCount, 0)
+  const totalFromPayload = _num(payload?.total_incidents ?? payload?.totalIncidents, incidents.length)
+  const total = totalFromPayload > 0 ? totalFromPayload : incidents.length
+
+  const regionFrequencyRaw = Array.isArray(payload?.region_frequency)
+    ? payload.region_frequency
+    : (Array.isArray(payload?.regionFrequency) ? payload.regionFrequency : [])
+  const region_frequency = regionFrequencyRaw.map((item) => {
+    const primary = _num(item?.primary_count ?? item?.primaryCount, 0)
+    const cascade = _num(item?.cascade_count ?? item?.cascadeCount, 0)
+    const totalRegion = _num(item?.total, primary + cascade)
+    return {
+      region: item?.region || 'Unknown',
+      primary_count: primary,
+      cascade_count: cascade,
+      total: totalRegion,
+    }
+  })
+
+  const dailyRaw = Array.isArray(payload?.daily_counts)
+    ? payload.daily_counts
+    : (Array.isArray(payload?.dailyCounts) ? payload.dailyCounts : [])
+  const daily_counts = dailyRaw.map((item, idx) => ({
+    date: item?.date || item?.day || `d-${idx}`,
+    count: _num(item?.count, 0),
+  }))
+
+  return {
+    window_days: _num(payload?.window_days ?? payload?.windowDays, days),
+    total_incidents: total,
+    critical_count: critical,
+    high_count: high,
+    most_affected_region: payload?.most_affected_region ?? payload?.mostAffectedRegion ?? null,
+    report_dispatch_count: _num(payload?.report_dispatch_count ?? payload?.reportDispatchCount, 0),
+    cascade_hits_total: _num(payload?.cascade_hits_total ?? payload?.cascadeHitsTotal, 0),
+    incidents,
+    region_frequency,
+    daily_counts,
+  }
+}
+
 export const getCrisisAnalytics = async (days = 7) => {
   try {
     const res = await client.get('/analytics/crisis', { params: { days } })
-    // Fall back to demo data when the DB has no incidents yet
-    if (!res.data || res.data.total_incidents === 0) {
+    const normalized = _normalizeCrisisAnalytics(res.data, days)
+    // Fall back to demo data when backend analytics are empty or malformed
+    if (normalized.total_incidents === 0 && normalized.incidents.length === 0) {
       return { data: _mockCrisisAnalytics(days), mock: true }
     }
-    return { data: res.data, mock: false }
+    return { data: normalized, mock: false }
   } catch {
     return { data: _mockCrisisAnalytics(days), mock: true }
   }
