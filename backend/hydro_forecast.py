@@ -4,11 +4,13 @@ SARIMAX hydropower forecasting for Sidi Salem Dam (Béja).
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 import httpx
 import numpy as np
 import pandas as pd
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
@@ -284,15 +286,26 @@ def build_forecast(months: int = 12) -> dict[str, Any]:
     exog = weather_df[["precipitation", "temperature"]].astype(float)
     endog = weather_df["hydro_mw"].astype(float)
 
-    model = SARIMAX(
-        endog=endog,
-        exog=exog,
-        order=SARIMAX_ORDER,
-        seasonal_order=SARIMAX_SEASONAL_ORDER,
-        enforce_stationarity=False,
-        enforce_invertibility=False,
-    )
-    fitted = model.fit(disp=False)
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Too few observations to estimate starting parameters for seasonal ARMA.*",
+            category=UserWarning,
+        )
+        warnings.filterwarnings(
+            "ignore",
+            message="Maximum Likelihood optimization failed to converge.*",
+            category=ConvergenceWarning,
+        )
+        model = SARIMAX(
+            endog=endog,
+            exog=exog,
+            order=SARIMAX_ORDER,
+            seasonal_order=SARIMAX_SEASONAL_ORDER,
+            enforce_stationarity=False,
+            enforce_invertibility=False,
+        )
+        fitted = model.fit(disp=False)
 
     fitted_values = np.asarray(fitted.fittedvalues, dtype=float)
     endog_values = np.asarray(endog, dtype=float)

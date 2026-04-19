@@ -78,7 +78,10 @@ function IncidentRow({ incident }) {
 
 function RiskDonut({ critical, high, elevated }) {
   const { t } = useTranslation()
-  const total = critical + high + elevated
+  const safeCritical = Number.isFinite(Number(critical)) ? Math.max(0, Number(critical)) : 0
+  const safeHigh = Number.isFinite(Number(high)) ? Math.max(0, Number(high)) : 0
+  const safeElevated = Number.isFinite(Number(elevated)) ? Math.max(0, Number(elevated)) : 0
+  const total = safeCritical + safeHigh + safeElevated
   if (total === 0) return <div style={{ color: '#475569', fontSize: 12, padding: 12 }}>{t('crisisIntel.noIncidentsPeriod')}</div>
   const R = 54
   const cx = 70
@@ -86,9 +89,9 @@ function RiskDonut({ critical, high, elevated }) {
   const stroke = 16
   const circ = 2 * Math.PI * R
   const segments = [
-    { label: 'CRITICAL', count: critical, color: RISK_COLORS.CRITICAL },
-    { label: 'HIGH', count: high, color: RISK_COLORS.HIGH },
-    { label: 'ELEVATED', count: elevated, color: RISK_COLORS.ELEVATED },
+    { label: 'CRITICAL', count: safeCritical, color: RISK_COLORS.CRITICAL },
+    { label: 'HIGH', count: safeHigh, color: RISK_COLORS.HIGH },
+    { label: 'ELEVATED', count: safeElevated, color: RISK_COLORS.ELEVATED },
   ].filter((s) => s.count > 0)
   let offset = 0
   return (
@@ -134,7 +137,15 @@ function RiskDonut({ critical, high, elevated }) {
 
 function RegionBars({ regionFrequency }) {
   const { t } = useTranslation()
-  const top8 = (regionFrequency || []).slice(0, 8)
+  const top8 = (regionFrequency || [])
+    .map((item) => {
+      const total = Number(item?.total)
+      return {
+        region: item?.region || 'Unknown',
+        total: Number.isFinite(total) ? total : 0,
+      }
+    })
+    .slice(0, 8)
   if (top8.length === 0) return <div style={{ color: '#475569', fontSize: 12, padding: 12 }}>{t('crisisIntel.noData')}</div>
   const max = top8[0]?.total || 1
   return (
@@ -156,12 +167,19 @@ function RegionBars({ regionFrequency }) {
 
 function DailyTrend({ dailyCounts }) {
   const { t } = useTranslation()
-  if (!dailyCounts || dailyCounts.length === 0) return <div style={{ color: '#475569', fontSize: 12, padding: 12 }}>{t('crisisIntel.noData')}</div>
-  const max = Math.max(...dailyCounts.map((d) => d.count), 1)
-  const barW = Math.max(4, Math.min(24, Math.floor(200 / dailyCounts.length)))
+  const normalized = (dailyCounts || []).map((item) => {
+    const count = Number(item?.count)
+    return {
+      date: item?.date || '—',
+      count: Number.isFinite(count) ? count : 0,
+    }
+  })
+  if (!normalized.length) return <div style={{ color: '#475569', fontSize: 12, padding: 12 }}>{t('crisisIntel.noData')}</div>
+  const max = Math.max(...normalized.map((d) => d.count), 1)
+  const barW = Math.max(4, Math.min(24, Math.floor(200 / normalized.length)))
   return (
     <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 48 }}>
-      {dailyCounts.map((d) => (
+      {normalized.map((d) => (
         <div
           key={d.date}
           title={`${d.date}: ${d.count}`}
@@ -184,14 +202,22 @@ export default function CrisisIntelligence() {
   const { t } = useTranslation()
   const [windowDays, setWindowDays] = useState(7)
   const { data, loading, error, isMock, refetch } = useCrisisAnalytics(windowDays)
-  const elevated = data ? data.total_incidents - data.critical_count - data.high_count : 0
+  const totalIncidents = Number.isFinite(Number(data?.total_incidents)) ? Number(data?.total_incidents) : 0
+  const criticalCount = Number.isFinite(Number(data?.critical_count)) ? Number(data?.critical_count) : 0
+  const highCount = Number.isFinite(Number(data?.high_count)) ? Number(data?.high_count) : 0
+  const elevated = Math.max(0, totalIncidents - criticalCount - highCount)
 
   return (
     <div style={{ minHeight: '100vh', background: '#060c18', color: '#e2e8f0', fontFamily: "'Inter', sans-serif", display: 'flex', flexDirection: 'column' }}>
       <div style={{ height: 40, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', borderBottom: '1px solid rgba(0,255,136,0.1)', background: 'rgba(10,15,26,0.95)', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '0.85rem', color: '#00ff88', letterSpacing: '0.05em' }}>
-            ⚡ NoorGrid
+          <button onClick={() => navigate('/')} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700, fontSize: '0.85rem', color: '#00ff88', letterSpacing: '0.05em' }}>
+            <img
+              src="/channels4_profile.jpg"
+              alt="STEG"
+              style={{ width: 20, height: 20, borderRadius: 4, objectFit: 'cover', border: '1px solid rgba(0,255,136,0.25)' }}
+            />
+            NoorGrid
           </button>
           {isMock && (
             <span style={{ fontSize: '0.58rem', color: '#ff9500', background: 'rgba(255,149,0,0.1)', border: '1px solid rgba(255,149,0,0.25)', borderRadius: 3, padding: '1px 6px', fontWeight: 600, letterSpacing: '0.06em' }}>
@@ -256,8 +282,8 @@ export default function CrisisIntelligence() {
       )}
 
       <div style={{ display: 'flex', gap: 10, padding: '14px 20px', flexWrap: 'wrap' }}>
-        <MetricCard label={t('crisisIntel.totalIncidents')} value={loading ? '…' : (data?.total_incidents ?? 0)} />
-        <MetricCard label={t('crisisIntel.critical')} value={loading ? '…' : (data?.critical_count ?? 0)} color={RISK_COLORS.CRITICAL} />
+        <MetricCard label={t('crisisIntel.totalIncidents')} value={loading ? '…' : totalIncidents} />
+        <MetricCard label={t('crisisIntel.critical')} value={loading ? '…' : criticalCount} color={RISK_COLORS.CRITICAL} />
         <MetricCard label={t('crisisIntel.mostExposed')} value={loading ? '…' : (data?.most_affected_region ?? '—')} color="#f59e0b" sub={t('crisisIntel.primaryAlerts')} />
         <MetricCard label={t('crisisIntel.cascadeImpacts')} value={loading ? '…' : (data?.cascade_hits_total ?? 0)} color="#a78bfa" sub={t('crisisIntel.secondaryRegions')} />
         <MetricCard label={t('crisisIntel.reportsSent')} value={loading ? '…' : (data?.report_dispatch_count ?? 0)} color="#00c46a" />
@@ -276,7 +302,7 @@ export default function CrisisIntelligence() {
         <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 0 }}>
           <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>{t('crisisIntel.riskDistribution')}</div>
-            {!loading && data && <RiskDonut critical={data.critical_count} high={data.high_count} elevated={elevated} />}
+            {!loading && data && <RiskDonut critical={criticalCount} high={highCount} elevated={elevated} />}
             {loading && <div style={{ fontSize: 12, color: '#475569' }}>{t('crisisIntel.loading')}</div>}
           </div>
 

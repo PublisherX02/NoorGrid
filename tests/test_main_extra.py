@@ -368,13 +368,13 @@ def test_rag_query_returns_502_on_network_error(client, monkeypatch):
     assert "NIM API unreachable" in resp.json()["detail"]
 
 
-def test_analytics_crisis_returns_empty_for_fresh_db(client):
+def test_analytics_crisis_returns_historical_fallback_for_fresh_db(client):
     resp = client.get("/analytics/crisis?days=7")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["total_incidents"] == 0
+    assert data["total_incidents"] >= 1
     assert data["window_days"] == 7
-    assert data["incidents"] == []
+    assert any("2024" in incident["scenario_label"] for incident in data["incidents"])
 
 
 def test_analytics_crisis_records_cascade_regions(client):

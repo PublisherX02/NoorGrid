@@ -1,21 +1,23 @@
 import { useState, useEffect, useCallback } from 'react'
 import { simulateAlert, getAlertsFeed } from '../services/api'
 
-export function useAlerts() {
+export function useAlerts(enabled = true) {
   const [alerts, setAlerts] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
   const fetchFeed = useCallback(async () => {
+    if (!enabled) return
     const feed = await getAlertsFeed(10)
     setAlerts(feed)
-  }, [])
+  }, [enabled])
 
   useEffect(() => {
+    if (!enabled) return undefined
     fetchFeed()
     const interval = setInterval(fetchFeed, 15_000)
     return () => clearInterval(interval)
-  }, [fetchFeed])
+  }, [enabled, fetchFeed])
 
   const triggerSimulation = useCallback(async (region, risk_level, scenario_label, cascade_regions = []) => {
     setLoading(true)

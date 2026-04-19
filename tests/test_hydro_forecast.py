@@ -1,3 +1,5 @@
+import warnings
+
 import hydro_forecast
 import httpx
 import pandas as pd
@@ -56,6 +58,22 @@ def test_forecast_response_shape(monkeypatch):
     } <= result.keys()
     assert len(result["predictions"]) == 6
     assert {"month", "predicted_mw", "confidence_lower", "confidence_upper", "risk", "season"} <= result["predictions"][0].keys()
+
+
+def test_forecast_suppresses_statsmodels_fit_warnings(monkeypatch):
+    payload = _monthly_payload(24, with_discharge=True)
+
+    def _fake_get(*_args, **_kwargs):
+        return _FakeResponse(payload)
+
+    monkeypatch.setattr(hydro_forecast.httpx, "get", _fake_get)
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        hydro_forecast.build_forecast(months=12)
+
+    warning_text = " | ".join(str(w.message) for w in caught)
+    assert "Too few observations to estimate starting parameters for seasonal ARMA" not in warning_text
+    assert "Maximum Likelihood optimization failed to converge" not in warning_text
 
 
 def test_cold_start_fallback(monkeypatch):

@@ -1,7 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import ParticleBackground from '../components/Landing/ParticleBackground'
-import { GOVERNORATES } from '../constants/grid'
 import { useWeather } from '../hooks/useWeather'
 
 // ─── Feature Cards ─────────────────────────────────────────────────────────
@@ -67,12 +66,8 @@ export default function Landing() {
   const { weatherMap, loading } = useWeather()
   const liveEntries = Object.values(weatherMap || {})
   const hasLiveData = liveEntries.length > 0
-  const critical = hasLiveData
-    ? liveEntries.filter((entry) => entry?.risk_level === 'CRITICAL').length
-    : GOVERNORATES.filter((g) => g.mock_risk === 'CRITICAL').length
-  const high = hasLiveData
-    ? liveEntries.filter((entry) => entry?.risk_level === 'HIGH').length
-    : GOVERNORATES.filter((g) => g.mock_risk === 'HIGH').length
+  const critical = hasLiveData ? liveEntries.filter((entry) => entry?.risk_level === 'CRITICAL').length : 0
+  const high = hasLiveData ? liveEntries.filter((entry) => entry?.risk_level === 'HIGH').length : 0
   const hasRiskAlert = critical > 0 || high > 0
   const statusTone = loading
     ? {
@@ -554,15 +549,28 @@ export default function Landing() {
           gap: '1rem',
         }}
       >
-        <span
-          style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '0.8rem',
-            fontWeight: 700,
-            color: '#00ff88',
-          }}
-        >
-          ⚡ NoorGrid
+        <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <img
+            src="/channels4_profile.jpg"
+            alt="STEG"
+            style={{
+              width: '18px',
+              height: '18px',
+              borderRadius: '4px',
+              objectFit: 'cover',
+              border: '1px solid rgba(0,255,136,0.25)',
+            }}
+          />
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              color: '#00ff88',
+            }}
+          >
+            NoorGrid
+          </span>
         </span>
         <span style={{ fontSize: '0.75rem', color: '#4a5568' }}>
           {t('landing.footerPlatform', { year: new Date().getFullYear() })}

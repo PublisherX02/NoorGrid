@@ -6,6 +6,7 @@ import datetime
 import json
 import os
 import sys
+import asyncio
 
 # Ensure backend/ is on sys.path so sibling modules resolve regardless of
 # which directory uvicorn is launched from.
@@ -117,12 +118,89 @@ async def scheduled_ingest() -> None:
         print(f"[scheduler] ingest error: {exc}")
 
 
+def _should_run_startup_pipelines() -> bool:
+    if "pytest" in sys.modules or os.getenv("PYTEST_CURRENT_TEST"):
+        return False
+    flag = os.getenv("NOORGRID_STARTUP_PIPELINES", "1").strip().lower()
+    return flag not in {"0", "false", "no", "off"}
+
+
+def _should_run_startup_self_probe() -> bool:
+    if "pytest" in sys.modules or os.getenv("PYTEST_CURRENT_TEST"):
+        return False
+    flag = os.getenv("NOORGRID_STARTUP_SELF_PROBE", "1").strip().lower()
+    return flag not in {"0", "false", "no", "off"}
+
+
+async def run_startup_pipelines() -> None:
+    print("[startup] running initial data and prediction pipelines")
+    await scheduled_ingest()
+    await scheduled_hydro_forecast_refresh()
+    await scheduled_blackout_refresh()
+    print("[startup] initial pipelines completed")
+
+
+async def startup_self_probe_requests() -> None:
+    delay_seconds = float(os.getenv("NOORGRID_STARTUP_SELF_PROBE_DELAY_SEC", "1.0"))
+    base_url = os.getenv("NOORGRID_STARTUP_SELF_PROBE_BASE_URL", "http://127.0.0.1:8000")
+    probes: list[tuple[str, str, dict | None]] = [
+        ("GET", "/health", None),
+        ("GET", "/weather/all", None),
+        ("GET", "/history/Bizerte?days=2", None),
+        ("GET", "/hydro/forecast?months=12", None),
+        ("GET", "/alerts/feed?limit=10", None),
+        ("POST", "/predict/blackout", {"region": "Bizerte", "forecast_hours": 24}),
+    ]
+
+    await asyncio.sleep(max(0.0, delay_seconds))
+    print(f"[startup] self-probe started against {base_url}")
+
+    async with httpx.AsyncClient(base_url=base_url, timeout=20.0) as client:
+        for method, path, payload in probes:
+            try:
+                if method == "GET":
+                    resp = await client.get(path)
+                else:
+                    resp = await client.post(path, json=payload)
+                print(f"[startup] self-probe {method} {path} -> {resp.status_code}")
+            except Exception as exc:
+                print(f"[startup] self-probe {method} {path} failed: {exc}")
+
+    print("[startup] self-probe completed")
+
+
 @app.on_event("startup")
 async def startup_event():
     init_db()
-    _scheduler.add_job(scheduled_ingest, "interval", minutes=15, id="weather_ingest")
+    _scheduler.add_job(
+        scheduled_ingest,
+        "interval",
+        minutes=15,
+        id="weather_ingest",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        scheduled_hydro_forecast_refresh,
+        "interval",
+        minutes=60,
+        id="hydro_forecast_refresh",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        scheduled_blackout_refresh,
+        "interval",
+        minutes=30,
+        id="blackout_refresh",
+        replace_existing=True,
+    )
     _scheduler.start()
     print("[scheduler] weather ingestion scheduled every 15 minutes")
+    print("[scheduler] hydro forecast refresh scheduled every 60 minutes")
+    print("[scheduler] blackout refresh scheduled every 30 minutes")
+    if _should_run_startup_pipelines():
+        await run_startup_pipelines()
+    if _should_run_startup_self_probe():
+        asyncio.create_task(startup_self_probe_requests())
 
 
 @app.on_event("shutdown")
@@ -629,21 +707,25 @@ def get_crisis_analytics_endpoint(days: int = 7):
 
 # ── Blackout prediction endpoint ──────────────────────────────────────────────
 
-@app.post("/predict/blackout", response_model=BlackoutResponse, tags=["Prediction"])
-async def predict_blackout(req: BlackoutRequest):
-    """
-    Forecast hourly blackout probability for a governorate over the next
-    N hours using OpenMeteo hourly weather data and grid stress modelling.
-    """
-    cfg = _REGION_CFG.get(req.region)
+_RISK_RANK = {"NOMINAL": 0, "ELEVATED": 1, "HIGH": 2, "CRITICAL": 3}
+
+
+def _peak_prediction_risk(predictions: list[HourlyPrediction]) -> str:
+    if not predictions:
+        return "NOMINAL"
+    return max(predictions, key=lambda p: _RISK_RANK.get(p.risk_level, 0)).risk_level
+
+
+async def _predict_blackout_for_region(region: str, forecast_hours: int) -> list[HourlyPrediction]:
+    cfg = _REGION_CFG.get(region)
     if not cfg:
-        raise HTTPException(status_code=404, detail=f"Region '{req.region}' not found")
+        raise ValueError(f"Region '{region}' not found")
 
     params = {
         "latitude": cfg["lat"],
         "longitude": cfg["lon"],
         "hourly": "temperature_2m,wind_speed_10m,shortwave_radiation",
-        "forecast_hours": req.forecast_hours,
+        "forecast_hours": forecast_hours,
         "wind_speed_unit": "ms",
         "timezone": "Africa/Tunis",
     }
@@ -652,51 +734,47 @@ async def predict_blackout(req: BlackoutRequest):
             resp = await client.get(_OPENMETEO_URL, params=params, timeout=15.0)
             resp.raise_for_status()
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Weather forecast unavailable: {exc}") from exc
+        raise RuntimeError(f"Weather forecast unavailable: {exc}") from exc
 
     hourly = resp.json().get("hourly", {})
-    times       = hourly.get("time", [])
-    temps       = hourly.get("temperature_2m", [])
+    times = hourly.get("time", [])
+    temps = hourly.get("temperature_2m", [])
     wind_speeds = hourly.get("wind_speed_10m", [])
     irradiances = hourly.get("shortwave_radiation", [])
 
     predictions: list[HourlyPrediction] = []
-    n = min(req.forecast_hours, len(temps))
+    n = min(forecast_hours, len(temps))
 
     facts = _load_national_facts()
     fossil_share = max(0.0, min(1.0, float(facts.get("fossil_generation_share_pct", 93.7)) / 100.0))
 
     for i in range(n):
-        temp  = float(temps[i])        if i < len(temps)       else 20.0
-        wind  = float(wind_speeds[i])  if i < len(wind_speeds) else 0.0
-        irr   = float(irradiances[i])  if i < len(irradiances) else 0.0
-        label = times[i][11:16]        if i < len(times)       else f"{i:02d}:00"
+        temp = float(temps[i]) if i < len(temps) else 20.0
+        wind = float(wind_speeds[i]) if i < len(wind_speeds) else 0.0
+        irr = float(irradiances[i]) if i < len(irradiances) else 0.0
+        label = times[i][11:16] if i < len(times) else f"{i:02d}:00"
 
-        # Cooling demand factor — rises sharply above 25 °C
         cooling_factor = max(0.0, (temp - 25) * 0.08)
         avg_demand = cfg["avg_demand_mw"]
 
-        # Hour-of-day peak factor
         hour = int(label[:2]) if label and len(label) >= 2 else 12
         if (8 <= hour <= 12) or (18 <= hour <= 22):
-            peak_factor = 1.15   # morning and evening peaks
+            peak_factor = 1.15
         elif 1 <= hour <= 5:
-            peak_factor = 0.75   # overnight trough
+            peak_factor = 0.75
         else:
             peak_factor = 1.0
 
-        # Seasonal factor
         month = datetime.datetime.now().month
         if month in (6, 7, 8, 9):
-            seasonal_factor = 1.12   # summer cooling load
+            seasonal_factor = 1.12
         elif month in (12, 1, 2):
-            seasonal_factor = 1.08   # winter heating load
+            seasonal_factor = 1.08
         else:
             seasonal_factor = 1.0
 
         estimated_demand_mw = avg_demand * (1 + cooling_factor) * peak_factor * seasonal_factor
 
-        # Available renewable MW from weather forecast
         source = cfg["source"]
         installed_capacity = cfg["installed_capacity_mw"]
         if source == "Wind":
@@ -704,18 +782,13 @@ async def predict_blackout(req: BlackoutRequest):
         elif source == "Solar":
             renewable_mw = max(0.1, solar_power_mw(irr, cfg["panel_area"], cfg["efficiency"]))
         elif source == "Mixed":
-            # 40% renewable wind offset + 60% fossil backbone (mirrors _compute_region_output)
             wind_offset = wind_power_mw(wind, cfg["rotor_area"], cfg["efficiency"])
             renewable_mw = max(0.1, 0.40 * wind_offset)
-        else:  # Hydro — weather-independent, runs at rated capacity
+        else:
             renewable_mw = installed_capacity
 
-        # Tunisia's grid is predominantly fossil-backed; include fossil baseline
-        # using avg_demand as the reference (consistent with _compute_region_output).
         fossil_baseline_mw = avg_demand * fossil_share
         available_mw = max(0.1, renewable_mw + fossil_baseline_mw)
-
-        # Stress = demand vs effective available supply (fossil baseline + renewable)
         stress_ratio = estimated_demand_mw / max(available_mw, 1.0)
 
         if stress_ratio > 1.4:
@@ -727,7 +800,6 @@ async def predict_blackout(req: BlackoutRequest):
         else:
             risk = "NOMINAL"
 
-        # Renewable output reduces probability by up to 30%
         renewable_pct = min(1.0, available_mw / max(installed_capacity, 0.1))
         base_prob = (stress_ratio - 0.5) * 50
         blackout_probability = round(min(100.0, max(0.0, base_prob * (1.0 - renewable_pct * 0.3))), 1)
@@ -737,7 +809,7 @@ async def predict_blackout(req: BlackoutRequest):
                       " — Import from Algeria via Transmed pipeline")
         elif risk == "HIGH":
             action = (f"ACTIVATE RESERVE CAPACITY"
-                      f" — Reduce industrial consumption in {req.region}")
+                      f" — Reduce industrial consumption in {region}")
         elif risk == "ELEVATED":
             action = "MONITOR CLOSELY — Prepare demand response protocols"
         else:
@@ -756,6 +828,71 @@ async def predict_blackout(req: BlackoutRequest):
             probability_high=round(min(100.0, blackout_probability + 12.0), 1),
             prevention_action=action,
         ))
+
+    return predictions
+
+
+async def scheduled_hydro_forecast_refresh() -> None:
+    try:
+        from hydro_forecast import build_forecast, get_drought_warning
+
+        forecast = build_forecast(months=12)
+        drought_warning = get_drought_warning(forecast.get("predictions", []))
+        print(
+            "[scheduler] hydro forecast refreshed: "
+            f"points={forecast.get('data_points_used', 0)} "
+            f"confidence={forecast.get('confidence', 'LOW')} "
+            f"drought_warning={drought_warning}"
+        )
+    except Exception as exc:
+        print(f"[scheduler] hydro forecast refresh error: {exc}")
+
+
+async def scheduled_blackout_refresh() -> None:
+    regions = list(_REGION_CFG.keys())
+    semaphore = asyncio.Semaphore(6)
+
+    async def _refresh_region(region: str) -> tuple[str, str | None, str | None]:
+        async with semaphore:
+            try:
+                predictions = await _predict_blackout_for_region(region, forecast_hours=24)
+                return region, _peak_prediction_risk(predictions), None
+            except Exception as exc:
+                return region, None, str(exc)
+
+    results = await asyncio.gather(*[_refresh_region(region) for region in regions])
+    risk_counts: dict[str, int] = {"CRITICAL": 0, "HIGH": 0, "ELEVATED": 0, "NOMINAL": 0}
+    failed = 0
+
+    for region, risk, error in results:
+        if error:
+            failed += 1
+            print(f"[scheduler] blackout refresh error for {region}: {error}")
+            continue
+        risk_counts[risk or "NOMINAL"] = risk_counts.get(risk or "NOMINAL", 0) + 1
+
+    print(
+        "[scheduler] blackout refresh completed: "
+        f"regions={len(regions) - failed}/{len(regions)} "
+        f"critical={risk_counts['CRITICAL']} "
+        f"high={risk_counts['HIGH']} "
+        f"elevated={risk_counts['ELEVATED']} "
+        f"nominal={risk_counts['NOMINAL']}"
+    )
+
+
+@app.post("/predict/blackout", response_model=BlackoutResponse, tags=["Prediction"])
+async def predict_blackout(req: BlackoutRequest):
+    """
+    Forecast hourly blackout probability for a governorate over the next
+    N hours using OpenMeteo hourly weather data and grid stress modelling.
+    """
+    try:
+        predictions = await _predict_blackout_for_region(req.region, req.forecast_hours)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return BlackoutResponse(region=req.region, predictions=predictions)
 

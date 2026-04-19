@@ -207,6 +207,8 @@
   },
   "landing": {
     "liveStatus": "EN DIRECT — {{critical}} CRITIQUE · {{high}} RÉGIONS À RISQUE ÉLEVÉ",
+    "liveStable": "EN DIRECT — ÉTAT DU RÉSEAU STABLE",
+    "liveSync": "EN DIRECT — SYNCHRONISATION DES DONNÉES RÉSEAU",
     "heroLine1": "L'infrastructure manquante",
     "heroLine2": "d'intelligence énergétique",
     "heroLine3": "de la Tunisie.",

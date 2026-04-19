@@ -369,7 +369,7 @@ export default function Dashboard() {
 
   const { t } = useTranslation()
 
-  const { alerts, loading: alertLoading, error: alertError, triggerSimulation } = useAlerts()
+  const { alerts, loading: alertLoading, error: alertError, triggerSimulation } = useAlerts(backendOnline === true)
   const [activeAlert, setActiveAlert]     = useState(null)
   const [cascadeAlerts, setCascadeAlerts] = useState([])
   const [showCrisisModal, setShowCrisisModal] = useState(false)
@@ -405,8 +405,9 @@ export default function Dashboard() {
     [weatherMap]
   )
 
-  // Pre-fetch predictions for all 5 backend governorates on mount
+  // Pre-fetch predictions only when backend is confirmed online.
   useEffect(() => {
+    if (backendOnline !== true) return
     GOVERNORATES.filter((g) => g.hasBackend).forEach(async (gov) => {
       try {
         const res = await predictBlackout(gov.name, 24)
@@ -414,7 +415,7 @@ export default function Dashboard() {
         if (level) setLiveRiskMap((prev) => ({ ...prev, [gov.name]: level }))
       } catch {}
     })
-  }, [])
+  }, [backendOnline])
 
   // Sync liveRiskMap when a new prediction comes in for the selected gov
   useEffect(() => {
@@ -425,6 +426,7 @@ export default function Dashboard() {
   }, [predictions, selectedGov, blackoutRegion])
 
   useEffect(() => {
+    if (backendOnline !== true) return
     let active = true
     getHydroForecast(12).then((res) => {
       if (!active || !res?.data?.predictions?.length) return
@@ -436,16 +438,17 @@ export default function Dashboard() {
     return () => {
       active = false
     }
-  }, [])
+  }, [backendOnline])
 
   // Load default blackout prediction on mount
   useEffect(() => {
+    if (backendOnline !== true) return
     fetchPrediction('Bizerte', 24)
-  }, [fetchPrediction])
+  }, [backendOnline, fetchPrediction])
 
   const handleSelectGov = (gov) => {
     setSelectedGov(gov)
-    if (gov.hasBackend) fetchPrediction(gov.name, 24)
+    if (backendOnline === true && gov.hasBackend) fetchPrediction(gov.name, 24)
   }
 
   const totalMW     = GOVERNORATES.reduce((a, g) => a + effectiveOutput(g), 0).toFixed(0)
@@ -481,6 +484,9 @@ export default function Dashboard() {
               background: 'none',
               border: 'none',
               cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
               fontFamily: "'JetBrains Mono', monospace",
               fontWeight: 700,
               fontSize: '0.85rem',
@@ -488,7 +494,18 @@ export default function Dashboard() {
               letterSpacing: '0.05em',
             }}
           >
-            ⚡ NoorGrid
+            <img
+              src="/channels4_profile.jpg"
+              alt="STEG"
+              style={{
+                width: '20px',
+                height: '20px',
+                borderRadius: '4px',
+                objectFit: 'cover',
+                border: '1px solid rgba(0,255,136,0.25)',
+              }}
+            />
+            NoorGrid
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span className="live-dot" />
