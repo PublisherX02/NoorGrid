@@ -119,6 +119,7 @@ class HistoryRecord(BaseModel):
     longitude: float
     wind_speed_ms: float
     solar_irradiance_wm2: float
+    output_mw: float = Field(default=0.0, description="Computed energy output in MW")
     recorded_at: str
 
 

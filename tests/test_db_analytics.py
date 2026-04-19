@@ -131,7 +131,7 @@ def test_get_crisis_analytics_report_dispatch_count(db_mod):
         "Tunis",
         "HIGH",
         ["a@b.com"],
-        datetime.datetime.utcnow().isoformat(),
+        datetime.datetime.now(datetime.timezone.utc).isoformat(),
         alert_id=aid,
     )
     result = db_mod.get_crisis_analytics(7)

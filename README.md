@@ -5,7 +5,12 @@
 > — Senior Official, STEG Renewable Energy Division, April 2026
 
 ---
+## Presentation
 
+[![NoorGrid Interactive Presentation](assets/presentation-preview.svg)](https://publisherx02.github.io/NoorGrid/presentation.html)
+
+
+---
 ## The Problem
 
 On **August 14, 2024 at 15:41**, Tunisia's national grid hit a record **4,888 MW of demand** against an effective capacity of **4,636 MW**. The grid was over capacity by 252 MW. Algeria covered the gap through the Transmed interconnector. Without that intervention, Tunisia faced a cascading blackout affecting 12 million people.
@@ -64,7 +69,7 @@ Source: ONEM National Energy Balance 2024 · World Bank TEREG Program · STEG An
 | Algeria deficit (Aug 14) | 252 MW via Transmed HVDC |
 | Energy independence | 41% (down from 48% in 2023) |
 | Population | 11,800,000 |
-| Grid emission factor | 0.468 kg CO₂ / kWh |
+| Grid emission factor | 0.423 kg CO₂ / kWh |
 
 ---
 
@@ -140,14 +145,14 @@ production at Sidi Salem Dam (Béja, 33 MW baseline).
 ### Carbon Score
 
 ```
-C_region = (E_consumed − E_renewable) × 0.468  [kg CO₂]
+C_region = (E_consumed − E_renewable) × 0.423  [kg CO₂]
 
 National Carbon Index = Σ C_region / 11,800,000  [kg CO₂ / capita / day]
 ```
 
 - `E_consumed` from STEG billing data
 - `E_renewable` from live weather calculations
-- 0.468 = Tunisia grid emission factor (kg CO₂/kWh, STEG 2024)
+- 0.423 = Tunisia grid emission factor (kg CO₂/kWh, ONEM National Energy Balance 2024)
 - Current national index: **2.31 kg CO₂/cap/day** → target **1.80 by 2030**
 
 ### Blackout Risk Engine (Prediction)
