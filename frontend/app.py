@@ -86,6 +86,7 @@ GOVERNORATES: list[dict] = [
 
 SOURCE_ICON = {"Wind": "💨", "Solar": "☀️", "Hydro": "💧"}
 WIND_OPERATIONAL_THRESHOLD_MS = 3.0
+HYDRO_FALLBACK_CAPACITY_RATIO = 0.75
 RISK_WEIGHTS = {
     "deviation": 0.40,
     "rate_of_change": 0.35,
@@ -437,6 +438,7 @@ def get_weather() -> dict[str, dict]:
 
 
 def _to_float(value: Any, default: float = 0.0) -> float:
+    """Convert arbitrary input to float; return default on None or conversion failure."""
     try:
         return float(value)
     except (TypeError, ValueError):
@@ -504,7 +506,7 @@ def estimate_output(gov: dict, weather: dict) -> float:
 
     # Hydro fallback only — wind and solar should never fake output
     if gov["source"] == "Hydro":
-        return _to_float(gov.get("baseline_mw"), 0.0) * 0.75
+        return _to_float(gov.get("baseline_mw"), 0.0) * HYDRO_FALLBACK_CAPACITY_RATIO
     return 0.0
 
 
@@ -603,7 +605,7 @@ def get_history_series(region: str, days: int = 1) -> list[dict]:
 
 
 @st.cache_data(ttl=1800)
-def get_hydro_forecast(months: int = 12) -> dict | None:
+def get_hydro_forecast(months: int = 12) -> dict:
     try:
         resp = httpx.get(
             f"{BACKEND_URL}/hydro/forecast",
@@ -612,9 +614,9 @@ def get_hydro_forecast(months: int = 12) -> dict | None:
         )
         resp.raise_for_status()
         payload = resp.json()
-        return payload if isinstance(payload, dict) else None
+        return payload if isinstance(payload, dict) else {}
     except Exception:
-        return None
+        return {}
 
 
 def _clamp(value: float, low: float = 0.0, high: float = 100.0) -> float:

@@ -85,6 +85,16 @@ logger = logging.getLogger("noorgrid")
 #   CORS_ORIGINS=["https://noorgrid.steg.tn"]
 # Leave unset (or empty) to allow all origins during local development.
 def _parse_cors_origins(value: str) -> list[str]:
+    """Parse CORS_ORIGINS env value into a normalized origin list.
+
+    Accepted formats:
+    - empty string: wildcard origin ["*"]
+    - literal "*": wildcard origin ["*"]
+    - JSON string: one explicit origin (or wildcard)
+    - JSON list: multiple explicit origins
+
+    Any malformed or unsupported value safely falls back to wildcard origin.
+    """
     raw = value.strip()
     if not raw:
         return ["*"]
@@ -99,7 +109,11 @@ def _parse_cors_origins(value: str) -> list[str]:
         candidate = parsed.strip()
         return ["*"] if candidate in {"", "*"} else [candidate]
     if isinstance(parsed, list):
-        normalized = [str(origin).strip() for origin in parsed if str(origin).strip()]
+        normalized: list[str] = []
+        for origin in parsed:
+            value = str(origin).strip()
+            if value:
+                normalized.append(value)
         return normalized or ["*"]
     logger.warning("Unsupported CORS_ORIGINS format; defaulting to wildcard origin.")
     return ["*"]
