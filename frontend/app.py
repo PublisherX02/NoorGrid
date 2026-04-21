@@ -5,6 +5,7 @@ NoorGrid — Military Operations Room Dashboard
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import httpx
 import pandas as pd
@@ -435,6 +436,13 @@ def get_weather() -> dict[str, dict]:
         return {}
 
 
+def _to_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def estimate_output(gov: dict, weather: dict) -> float:
     w = weather.get(gov["name"], {})
     # Tunisia time = UTC+1
@@ -456,7 +464,7 @@ def estimate_output(gov: dict, weather: dict) -> float:
                 timeout=10,
             )
             resp.raise_for_status()
-            return resp.json()["power_mw"]
+            return _to_float(resp.json().get("power_mw"), 0.0)
 
         if gov["source"] == "Solar":
             irr = w.get("solar_irradiance_wm2", 0.0)
@@ -476,7 +484,7 @@ def estimate_output(gov: dict, weather: dict) -> float:
                 timeout=10,
             )
             resp.raise_for_status()
-            return resp.json()["power_mw"]
+            return _to_float(resp.json().get("power_mw"), 0.0)
 
         if gov["source"] == "Hydro":
             resp = httpx.post(
@@ -489,14 +497,14 @@ def estimate_output(gov: dict, weather: dict) -> float:
                 timeout=10,
             )
             resp.raise_for_status()
-            return resp.json()["power_mw"]
+            return _to_float(resp.json().get("power_mw"), 0.0)
 
     except Exception:
         pass
 
     # Hydro fallback only — wind and solar should never fake output
     if gov["source"] == "Hydro":
-        return gov["baseline_mw"] * 0.75
+        return _to_float(gov.get("baseline_mw"), 0.0) * 0.75
     return 0.0
 
 
@@ -512,7 +520,7 @@ def get_carbon(gov_name: str, consumption_kwh: float, renewable_kwh: float) -> f
             timeout=10,
         )
         resp.raise_for_status()
-        return resp.json()["carbon_score_kg"]
+        return _to_float(resp.json().get("carbon_score_kg"), 0.0)
     except Exception:
         return (consumption_kwh - renewable_kwh) * 0.468
 
@@ -537,7 +545,8 @@ def simulate_national_grid(
             timeout=12,
         )
         resp.raise_for_status()
-        return resp.json()
+        payload = resp.json()
+        return payload if isinstance(payload, dict) else {}
     except Exception:
         return {}
 
@@ -602,7 +611,8 @@ def get_hydro_forecast(months: int = 12) -> dict | None:
             timeout=20,
         )
         resp.raise_for_status()
-        return resp.json()
+        payload = resp.json()
+        return payload if isinstance(payload, dict) else None
     except Exception:
         return None
 

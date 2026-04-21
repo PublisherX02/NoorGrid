@@ -84,8 +84,29 @@ logger = logging.getLogger("noorgrid")
 # Set CORS_ORIGINS to a JSON list to restrict in production, e.g.:
 #   CORS_ORIGINS=["https://noorgrid.steg.tn"]
 # Leave unset (or empty) to allow all origins during local development.
-_cors_env = os.getenv("CORS_ORIGINS", "").strip()
-_CORS_ORIGINS: list[str] = json.loads(_cors_env) if _cors_env else ["*"]
+def _parse_cors_origins(value: str) -> list[str]:
+    raw = value.strip()
+    if not raw:
+        return ["*"]
+    if raw == "*":
+        return ["*"]
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("Invalid CORS_ORIGINS value; defaulting to wildcard origin.")
+        return ["*"]
+    if isinstance(parsed, str):
+        candidate = parsed.strip()
+        return ["*"] if candidate in {"", "*"} else [candidate]
+    if isinstance(parsed, list):
+        normalized = [str(origin).strip() for origin in parsed if str(origin).strip()]
+        return normalized or ["*"]
+    logger.warning("Unsupported CORS_ORIGINS format; defaulting to wildcard origin.")
+    return ["*"]
+
+
+_cors_env = os.getenv("CORS_ORIGINS", "")
+_CORS_ORIGINS: list[str] = _parse_cors_origins(_cors_env)
 
 app = FastAPI(
     title="NoorGrid API",
