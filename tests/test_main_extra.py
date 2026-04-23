@@ -255,6 +255,51 @@ def test_predict_blackout_success_returns_predictions(client, monkeypatch):
     assert body["predictions"][0]["risk_level"] in {"NOMINAL", "ELEVATED", "HIGH", "CRITICAL"}
 
 
+def test_qmc_blackout_probability_bounds_and_sensitivity():
+    import main
+
+    p_low, lo_low, hi_low = main._qmc_blackout_probability(stress_ratio=0.9, renewable_pct=0.35)
+    p_high, lo_high, hi_high = main._qmc_blackout_probability(stress_ratio=1.35, renewable_pct=0.35)
+
+    assert 0.0 <= lo_low <= p_low <= hi_low <= 100.0
+    assert 0.0 <= lo_high <= p_high <= hi_high <= 100.0
+    assert p_high > p_low
+
+
+def test_predict_blackout_returns_ordered_probability_interval(client, monkeypatch):
+    import main
+
+    class _Resp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "hourly": {
+                    "time": ["2026-04-17T08:00", "2026-04-17T14:00", "2026-04-17T20:00"],
+                    "temperature_2m": [26.0, 34.0, 29.0],
+                    "wind_speed_10m": [5.0, 7.5, 4.8],
+                    "shortwave_radiation": [280.0, 780.0, 90.0],
+                }
+            }
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def get(self, *_args, **_kwargs):
+            return _Resp()
+
+    monkeypatch.setattr(main.httpx, "AsyncClient", lambda: _Client())
+    resp = client.post("/predict/blackout", json={"region": "Gabès", "forecast_hours": 3})
+    assert resp.status_code == 200
+    for pred in resp.json()["predictions"]:
+        assert 0.0 <= pred["probability_low"] <= pred["blackout_probability"] <= pred["probability_high"] <= 100.0
+
+
 def test_build_context_block_with_rich_context(client):
     import main
 

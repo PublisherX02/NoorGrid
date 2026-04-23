@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useGridSim } from '../hooks/useGridSim'
 import { STEG, RISK_COLORS, AUG14_SCENARIO } from '../constants/grid'
 import RiskBadge from '../components/UI/RiskBadge'
@@ -116,6 +116,17 @@ export default function Simulation() {
     params, result, loading, error, isMock, isReplay,
     simulate, updateParam, replayAug14, reset,
   } = useGridSim()
+  const [isPhone, setIsPhone] = useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth <= 768 : false
+  ))
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined
+    const onResize = () => setIsPhone(window.innerWidth <= 768)
+    onResize()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   // Run simulation whenever params change
   useEffect(() => {
@@ -129,7 +140,7 @@ export default function Simulation() {
 
   return (
     <div className="page-in" style={{ background: '#0a0f1a', minHeight: '100vh', paddingTop: '56px' }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '2rem' }}>
+      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: isPhone ? '0.9rem' : '2rem' }}>
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
@@ -145,7 +156,7 @@ export default function Simulation() {
               {isMock && ' · Mode simulé'}
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             {isReplay && (
               <div
                 style={{
@@ -192,7 +203,7 @@ export default function Simulation() {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '320px 1fr', gap: '1.5rem', alignItems: 'start' }}>
+         <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : '320px 1fr', gap: '1.5rem', alignItems: 'start' }}>
 
           {/* ── Controls ─────────────────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -329,7 +340,7 @@ export default function Simulation() {
 
             {/* Metrics grid */}
             {result && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : 'repeat(3, 1fr)', gap: '10px' }}>
                 <ResultMetric
                   label="Demande totale"
                   value={result.total_demand_mw}
@@ -378,7 +389,7 @@ export default function Simulation() {
                 </div>
                 {loading && <div className="spinner" />}
               </div>
-              <ResponsiveContainer width="100%" height={220}>
+              <ResponsiveContainer width="100%" height={isPhone ? 190 : 220}>
                 <AreaChart data={chartData} margin={{ top: 5, right: 5, bottom: 5, left: -10 }}>
                   <defs>
                     <linearGradient id="demandGrad" x1="0" y1="0" x2="0" y2="1">
@@ -434,7 +445,7 @@ export default function Simulation() {
                 <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#8899aa', marginBottom: '12px' }}>
                   Facteurs du modèle de demande
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: isPhone ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', gap: '8px' }}>
                   {[
                     { k: 'Base saisonnière', v: `${result.drivers.seasonal_base_demand_mw?.toFixed(0)} MW` },
                     { k: 'Surtension clim.', v: `×${(1 + result.drivers.cooling_surge_factor || 1).toFixed(3)}` },
@@ -453,10 +464,10 @@ export default function Simulation() {
             )}
 
             {/* STEG RAG Chatbot — context-aware of current simulation */}
-            <STEGChatbot
-              context={{ simResult: result, simParams: params, isReplay }}
-              height={520}
-            />
+              <STEGChatbot
+                context={{ simResult: result, simParams: params, isReplay }}
+                height={isPhone ? 360 : 520}
+              />
           </div>
         </div>
       </div>

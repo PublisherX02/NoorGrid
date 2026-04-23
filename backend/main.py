@@ -790,6 +790,54 @@ def _peak_prediction_risk(predictions: list[HourlyPrediction]) -> str:
     return max(predictions, key=lambda p: _RISK_RANK.get(p.risk_level, 0)).risk_level
 
 
+def _van_der_corput(index: int, base: int) -> float:
+    vdc = 0.0
+    denom = 1.0
+    while index > 0:
+        index, remainder = divmod(index, base)
+        denom *= base
+        vdc += remainder / denom
+    return vdc
+
+
+def _halton_2d(samples: int) -> list[tuple[float, float]]:
+    return [(_van_der_corput(i, 2), _van_der_corput(i, 3)) for i in range(1, samples + 1)]
+
+
+def _base_blackout_probability(stress_ratio: float, renewable_pct: float) -> float:
+    base_prob = (stress_ratio - 0.5) * 50.0
+    adjusted = base_prob * (1.0 - renewable_pct * 0.3)
+    return max(0.0, min(100.0, adjusted))
+
+
+def _percentile(values: list[float], pct: float) -> float:
+    if not values:
+        return 0.0
+    ordered = sorted(values)
+    idx = int(round((len(ordered) - 1) * (pct / 100.0)))
+    idx = max(0, min(len(ordered) - 1, idx))
+    return ordered[idx]
+
+
+def _qmc_blackout_probability(stress_ratio: float, renewable_pct: float) -> tuple[float, float, float]:
+    samples = _halton_2d(32)
+    probs: list[float] = []
+    for u_demand, u_supply in samples:
+        demand_scale = 0.92 + (0.16 * u_demand)
+        supply_scale = 0.90 + (0.20 * u_supply)
+        stress_sample = stress_ratio * demand_scale / max(supply_scale, 0.1)
+        probs.append(_base_blackout_probability(stress_sample, renewable_pct))
+
+    mean_prob = sum(probs) / len(probs)
+    low = _percentile(probs, 10.0)
+    high = _percentile(probs, 90.0)
+    return (
+        round(max(0.0, min(100.0, mean_prob)), 1),
+        round(max(0.0, min(100.0, low)), 1),
+        round(max(0.0, min(100.0, high)), 1),
+    )
+
+
 async def _predict_blackout_for_region(region: str, forecast_hours: int) -> list[HourlyPrediction]:
     cfg = _REGION_CFG.get(region)
     if not cfg:
@@ -875,8 +923,10 @@ async def _predict_blackout_for_region(region: str, forecast_hours: int) -> list
             risk = "NOMINAL"
 
         renewable_pct = min(1.0, available_mw / max(installed_capacity, 0.1))
-        base_prob = (stress_ratio - 0.5) * 50
-        blackout_probability = round(min(100.0, max(0.0, base_prob * (1.0 - renewable_pct * 0.3))), 1)
+        blackout_probability, probability_low, probability_high = _qmc_blackout_probability(
+            stress_ratio=stress_ratio,
+            renewable_pct=renewable_pct,
+        )
 
         if risk == "CRITICAL":
             action = ("EMERGENCY LOAD SHEDDING REQUIRED"
@@ -898,8 +948,8 @@ async def _predict_blackout_for_region(region: str, forecast_hours: int) -> list
             stress_ratio=round(stress_ratio, 3),
             risk_level=risk,
             blackout_probability=blackout_probability,
-            probability_low=round(max(0.0, blackout_probability - 12.0), 1),
-            probability_high=round(min(100.0, blackout_probability + 12.0), 1),
+            probability_low=probability_low,
+            probability_high=probability_high,
             prevention_action=action,
         ))
 

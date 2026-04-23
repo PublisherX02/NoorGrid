@@ -153,8 +153,8 @@ class HourlyPrediction(BaseModel):
     stress_ratio: float
     risk_level: str
     blackout_probability: float = Field(..., description="0–100 %")
-    probability_low: float = Field(..., description="Lower bound of ±12% confidence interval")
-    probability_high: float = Field(..., description="Upper bound of ±12% confidence interval")
+    probability_low: float = Field(..., description="Lower bound of QMC uncertainty interval")
+    probability_high: float = Field(..., description="Upper bound of QMC uncertainty interval")
     prevention_action: str
 
 
