@@ -203,7 +203,7 @@ export default function Simulation() {
           </div>
         )}
 
-         <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : '320px 1fr', gap: '1.5rem', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isPhone ? '1fr' : '320px 1fr', gap: '1.5rem', alignItems: 'start' }}>
 
           {/* ── Controls ─────────────────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
